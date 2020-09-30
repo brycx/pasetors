@@ -8,6 +8,41 @@ use crate::pae;
 use base64::{decode_config, encode_config, URL_SAFE_NO_PAD};
 use rand_core::{CryptoRng, RngCore};
 
+/// Validate that a token begins with a given header and does not contain more than:
+/// header.purpose.payload.footer
+/// If a footer is present, this is validated against the supplied.
+fn validate_format_footer<'a>(
+    header: &'a str,
+    token: &'a str,
+    footer: Option<&'a str>,
+) -> Result<(&'a str, Vec<&'a str>), Errors> {
+    use orion::util::secure_cmp;
+
+    if !token.starts_with(header) {
+        return Err(Errors::TokenFormatError);
+    }
+
+    let parts_split = token.split('.').collect::<Vec<&str>>();
+    if parts_split.len() < 3 || parts_split.len() > 4 {
+        return Err(Errors::TokenFormatError);
+    }
+
+    if parts_split.len() == 4 {
+        // footer is present in token
+        match footer {
+            Some(f) => {
+                let token_footer = decode_config(parts_split[3], URL_SAFE_NO_PAD)?;
+                if secure_cmp(f.as_bytes(), token_footer.as_ref()).is_err() {
+                    return Err(Errors::TokenValidationError);
+                }
+            }
+            None => return Err(Errors::TokenFormatError),
+        }
+    }
+
+    Ok((footer.unwrap_or(""), parts_split))
+}
+
 pub struct PublicToken;
 
 impl PublicToken {
@@ -18,15 +53,21 @@ impl PublicToken {
         public_key: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
         footer: Option<impl AsRef<[u8]>>,
-    ) -> String {
+    ) -> Result<String, Errors> {
         use ed25519_dalek::Keypair;
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::SecretKey;
         use ed25519_dalek::Signer;
 
-        let kp: Keypair = Keypair {
-            secret: SecretKey::from_bytes(secret_key.as_ref()).unwrap(),
-            public: PublicKey::from_bytes(public_key.as_ref()).unwrap(),
+        let secret = SecretKey::from_bytes(secret_key.as_ref());
+        let public = PublicKey::from_bytes(public_key.as_ref());
+
+        let kp: Keypair = match (secret, public) {
+            (Ok(sk), Ok(pk)) => Keypair {
+                secret: sk,
+                public: pk,
+            },
+            _ => return Err(Errors::KeyError),
         };
 
         let f = match footer {
@@ -45,9 +86,13 @@ impl PublicToken {
         let token_no_footer = format!("{}{}", Self::HEADER, encode_config(m_sig, URL_SAFE_NO_PAD));
 
         if f.is_empty() {
-            token_no_footer
+            Ok(token_no_footer)
         } else {
-            format!("{}.{}", token_no_footer, encode_config(f, URL_SAFE_NO_PAD))
+            Ok(format!(
+                "{}.{}",
+                token_no_footer,
+                encode_config(f, URL_SAFE_NO_PAD)
+            ))
         }
     }
 
@@ -59,36 +104,13 @@ impl PublicToken {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
         use ed25519_dalek::Verifier;
-        use orion::util::secure_cmp;
 
-        if !token.starts_with(Self::HEADER) {
-            return Err(Errors::TokenFormatError);
-        }
-
-        let f = match footer {
-            Some(ref val) => val.as_bytes(),
-            None => &[0u8; 0],
-        };
-
-        let parts_split = token.split('.').collect::<Vec<&str>>();
-
-        if parts_split.len() == 4 {
-            // footer is present in token
-            if footer.is_none() {
-                return Err(Errors::TokenFormatError);
-            }
-
-            let token_footer = decode_config(parts_split[3], URL_SAFE_NO_PAD).unwrap();
-            if secure_cmp(f, token_footer.as_ref()).is_err() {
-                return Err(Errors::TokenValidationError);
-            }
-        }
-
-        let sm = decode_config(parts_split[2], URL_SAFE_NO_PAD).unwrap();
+        let (f, parts_split) = validate_format_footer(Self::HEADER, token, footer)?;
+        let sm = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
         let s = sm[(sm.len() - 64)..sm.len()].as_ref();
         let m = sm[..(sm.len() - 64)].as_ref();
 
-        let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f]);
+        let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f.as_bytes()]);
         let pk: PublicKey = PublicKey::from_bytes(public_key.as_ref()).unwrap();
         let sig = Signature::try_from(s).unwrap();
 
@@ -166,36 +188,13 @@ impl LocalToken {
         footer: Option<&str>,
     ) -> Result<String, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
-        use orion::util::secure_cmp;
 
-        if !token.starts_with(Self::HEADER) {
-            return Err(Errors::TokenFormatError);
-        }
-
-        let f = match footer {
-            Some(ref val) => val.as_bytes(),
-            None => &[0u8; 0],
-        };
-
-        let parts_split = token.split('.').collect::<Vec<&str>>();
-
-        if parts_split.len() == 4 {
-            // footer is present in token
-            if footer.is_none() {
-                return Err(Errors::TokenFormatError);
-            }
-
-            let token_footer = decode_config(parts_split[3], URL_SAFE_NO_PAD).unwrap();
-            if secure_cmp(f, token_footer.as_ref()).is_err() {
-                return Err(Errors::TokenValidationError);
-            }
-        }
-
+        let (f, parts_split) = validate_format_footer(Self::HEADER, token, footer)?;
         let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD).unwrap();
         let n = nc[..24].as_ref();
         let c = nc[n.len()..].as_ref();
 
-        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f]);
+        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f.as_bytes()]);
         let mut out = vec![0u8; c.len() - 16];
 
         open(
@@ -247,7 +246,7 @@ mod test_public {
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9HQr8URrGntTu7Dz9J2IF23d1M7-9lH9xiqdGyJNvzp4angPW5Esc7C5huy_M8I8_DjJK2ZXC2SUYuOFM-Q_5Cw";
         let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -260,7 +259,7 @@ mod test_public {
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
         let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -273,7 +272,7 @@ mod test_public {
         let message = "";
         let expected = "v2.public.xnHHprS7sEyjP5vWpOvHjAP2f0HER7SWfPuehZ8QIctJRPTrlZLtRCk9_iNdugsrqJoGaO4k9cDBq3TOXu24AA";
         let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -286,7 +285,7 @@ mod test_public {
         let message = "";
         let expected = "v2.public.Qf-w0RdU2SDGW_awMwbfC0Alf_nd3ibUdY3HigzU7tn_4MPMYIKAJk_J_yKYltxrGlxEdrWIqyfjW81njtRyDw.Q3VvbiBBbHBpbnVz";
         let footer = "Cuon Alpinus";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -299,7 +298,7 @@ mod test_public {
         let message = "Frank Denis rocks";
         let expected = "v2.public.RnJhbmsgRGVuaXMgcm9ja3NBeHgns4TLYAoyD1OPHww0qfxHdTdzkKcyaE4_fBF2WuY1JNRW_yI8qRhZmNTaO19zRhki6YWRaKKlCZNCNrQM";
         let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -312,7 +311,7 @@ mod test_public {
         let message = "Frank Denis rockz";
         let expected = "v2.public.RnJhbmsgRGVuaXMgcm9ja3qIOKf8zCok6-B5cmV3NmGJCD6y3J8fmbFY9KHau6-e9qUICrGlWX8zLo-EqzBFIT36WovQvbQZq4j6DcVfKCML";
         let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -325,7 +324,7 @@ mod test_public {
         let message = "Frank Denis rocks";
         let expected = "v2.public.RnJhbmsgRGVuaXMgcm9ja3O7MPuu90WKNyvBUUhAGFmi4PiPOr2bN2ytUSU-QWlj8eNefki2MubssfN1b8figynnY0WusRPwIQ-o0HSZOS0F.Q3VvbiBBbHBpbnVz";
         let footer = "Cuon Alpinus";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -338,7 +337,7 @@ mod test_public {
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9HQr8URrGntTu7Dz9J2IF23d1M7-9lH9xiqdGyJNvzp4angPW5Esc7C5huy_M8I8_DjJK2ZXC2SUYuOFM-Q_5Cw";
         let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -351,7 +350,7 @@ mod test_public {
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9fgvV_frkjyH7h0CWrGfonEctefgzQaCkICOAxDdbixbPvH_SMm0T6343YfgEAlOi8--euLS5gLlykHhREL38BA.UGFyYWdvbiBJbml0aWF0aXZlIEVudGVycHJpc2Vz";
         let footer = "Paragon Initiative Enterprises";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
@@ -364,7 +363,7 @@ mod test_public {
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
         let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer));
+        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
