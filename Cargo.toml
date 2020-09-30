@@ -3,6 +3,9 @@ name = "pasetors"
 version = "0.1.0"
 authors = ["brycx <brycx@protonmail.com>"]
 edition = "2018"
+description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
+keywords = [ "cryptography", "crypto", "token", "paseto", "authentication" ]
+categories = [ "cryptography", "authentication" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,9 +15,8 @@ base64 = "0.12.3"
 rand_core = "0.5.0"
 
 [dev-dependencies]
-hex = "*"
+hex = "0.4.2"
 
 [dependencies.orion]
-git = "https://github.com/brycx/orion"
-branch = "master"
+version = "0.15.4"
 default-features = false
