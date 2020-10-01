@@ -49,8 +49,10 @@ fn validate_format_footer<'a>(
 pub struct PublicToken;
 
 impl PublicToken {
+    /// The header and purpose for the public token: `v2.public.`.
     pub const HEADER: &'static str = "v2.public.";
 
+    ///
     pub fn sign(
         secret_key: impl AsRef<[u8]>,
         // TODO: ed255129_dalek doesn't check public_key validity. Document.
@@ -80,7 +82,7 @@ impl PublicToken {
             None => &[0u8; 0],
         };
 
-        let m2 = pae::pae(&[Self::HEADER.as_bytes(), message.as_ref(), f]);
+        let m2 = pae::pae(&[Self::HEADER.as_bytes(), message.as_ref(), f])?;
         let sig = kp.sign(m2.as_ref());
 
         let mut m_sig: Vec<u8> = Vec::from(message.as_ref());
@@ -99,6 +101,7 @@ impl PublicToken {
         }
     }
 
+    ///
     pub fn verify(
         // TODO: ed255129_dalek doesn't check public_key validity. Document.
         public_key: impl AsRef<[u8]>,
@@ -124,7 +127,7 @@ impl PublicToken {
         let m = sm[..(sm.len() - ed25519_dalek::SIGNATURE_LENGTH)].as_ref();
         let s = sm[m.len()..m.len() + ed25519_dalek::SIGNATURE_LENGTH].as_ref();
 
-        let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f]);
+        let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f])?;
         let pk: PublicKey = match PublicKey::from_bytes(public_key.as_ref()) {
             Ok(val) => val,
             Err(_) => return Err(Errors::KeyError),
@@ -149,8 +152,10 @@ impl PublicToken {
 pub struct LocalToken;
 
 impl LocalToken {
+    /// The header and purpose for the local token: `v2.local.`.
     pub const HEADER: &'static str = "v2.local.";
 
+    ///
     fn encrypt_with_nonce(
         secret_key: impl AsRef<[u8]>,
         nonce_key_bytes: impl AsRef<[u8]>,
@@ -175,7 +180,7 @@ impl LocalToken {
             Some(ref val) => val.as_ref(),
             None => &[0u8; 0],
         };
-        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f]);
+        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f])?;
 
         let mut out = vec![0u8; message.as_ref().len() + POLY1305_OUTSIZE + nonce.len()];
         let sk = match SecretKey::from_slice(secret_key.as_ref()) {
@@ -208,6 +213,7 @@ impl LocalToken {
         }
     }
 
+    ///
     pub fn encrypt<C>(
         csprng: &mut C,
         secret_key: impl AsRef<[u8]>,
@@ -226,6 +232,7 @@ impl LocalToken {
         Self::encrypt_with_nonce(secret_key, &rng_bytes, message, footer)
     }
 
+    ///
     pub fn decrypt(
         secret_key: impl AsRef<[u8]>,
         token: &str,
@@ -248,7 +255,7 @@ impl LocalToken {
         let n = nc[..XCHACHA_NONCESIZE].as_ref();
         let c = nc[n.len()..].as_ref();
 
-        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f]);
+        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f])?;
         let mut out = vec![0u8; c.len() - POLY1305_OUTSIZE];
 
         let sk = match SecretKey::from_slice(secret_key.as_ref()) {

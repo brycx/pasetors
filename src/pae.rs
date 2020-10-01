@@ -1,5 +1,8 @@
+use crate::errors::Errors;
 use alloc::vec::Vec;
+use core::convert::TryInto;
 
+/// Encode `n` to little-endian bytes. The MSB is cleared.
 pub fn le64(n: u64) -> [u8; core::mem::size_of::<u64>()] {
     let mut out = [0u8; 8];
     let mut n_tmp = n;
@@ -24,16 +27,17 @@ pub fn le64(n: u64) -> [u8; core::mem::size_of::<u64>()] {
     out
 }
 
-pub fn pae(pieces: &[&[u8]]) -> Vec<u8> {
+/// Pre-Authentication Encoding. See [specification](https://github.com/paragonie/paseto/blob/master/docs/01-Protocol-Versions/Common.md#pae-definition).
+pub fn pae(pieces: &[&[u8]]) -> Result<Vec<u8>, Errors> {
     let mut out: Vec<u8> = Vec::with_capacity(64);
 
-    out.extend_from_slice(&le64(pieces.len() as u64));
+    out.extend_from_slice(&le64(pieces.len().try_into()?));
     for elem in pieces.iter() {
-        out.extend_from_slice(&le64(elem.len() as u64));
+        out.extend_from_slice(&le64(elem.len().try_into()?));
         out.extend_from_slice(elem);
     }
 
-    out
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -49,23 +53,23 @@ mod unit_tests {
 
     #[test]
     fn test_pae() {
-        // Constants taken from paseto source.
-        assert_eq!("0000000000000000", hex::encode(&pae(&[])));
+        // Source: https://github.com/paragonie/paseto/blob/master/tests/UtilTest.php
+        assert_eq!("0000000000000000", hex::encode(&pae(&[]).unwrap()));
         assert_eq!(
             "01000000000000000000000000000000",
-            hex::encode(&pae(&["".as_bytes()]))
+            hex::encode(&pae(&["".as_bytes()]).unwrap())
         );
         assert_eq!(
             "020000000000000000000000000000000000000000000000",
-            hex::encode(&pae(&["".as_bytes(), "".as_bytes()]))
+            hex::encode(&pae(&["".as_bytes(), "".as_bytes()]).unwrap())
         );
         assert_eq!(
             "0100000000000000070000000000000050617261676f6e",
-            hex::encode(&pae(&["Paragon".as_bytes()]))
+            hex::encode(&pae(&["Paragon".as_bytes()]).unwrap())
         );
         assert_eq!(
             "0200000000000000070000000000000050617261676f6e0a00000000000000496e6974696174697665",
-            hex::encode(&pae(&["Paragon".as_bytes(), "Initiative".as_bytes(),]))
+            hex::encode(&pae(&["Paragon".as_bytes(), "Initiative".as_bytes(),]).unwrap())
         );
     }
 }
