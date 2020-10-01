@@ -53,21 +53,22 @@ impl PublicToken {
     pub const HEADER: &'static str = "v2.public.";
 
     ///
+    ///
+    /// # Warning: There is no verification on `secret_key` or `public_key`, to verify
+    /// these are valid Ed25519 keys.
     pub fn sign(
-        secret_key: impl AsRef<[u8]>,
-        // TODO: ed255129_dalek doesn't check public_key validity. Document.
-        public_key: impl AsRef<[u8]>,
-        message: impl AsRef<[u8]>,
-        // TODO: calling None is not possible with inferred types, should be concrete
-        footer: Option<impl AsRef<[u8]>>,
+        secret_key: &[u8],
+        public_key: &[u8],
+        message: &[u8],
+        footer: Option<&[u8]>,
     ) -> Result<String, Errors> {
         use ed25519_dalek::Keypair;
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::SecretKey;
         use ed25519_dalek::Signer;
 
-        let secret = SecretKey::from_bytes(secret_key.as_ref());
-        let public = PublicKey::from_bytes(public_key.as_ref());
+        let secret = SecretKey::from_bytes(secret_key);
+        let public = PublicKey::from_bytes(public_key);
 
         let kp: Keypair = match (secret, public) {
             (Ok(sk), Ok(pk)) => Keypair {
@@ -78,14 +79,14 @@ impl PublicToken {
         };
 
         let f = match footer {
-            Some(ref val) => val.as_ref(),
+            Some(val) => val,
             None => &[0u8; 0],
         };
 
-        let m2 = pae::pae(&[Self::HEADER.as_bytes(), message.as_ref(), f])?;
+        let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f])?;
         let sig = kp.sign(m2.as_ref());
 
-        let mut m_sig: Vec<u8> = Vec::from(message.as_ref());
+        let mut m_sig: Vec<u8> = Vec::from(message);
         m_sig.extend_from_slice(sig.to_bytes().as_ref());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_config(m_sig, URL_SAFE_NO_PAD));
@@ -102,19 +103,16 @@ impl PublicToken {
     }
 
     ///
-    pub fn verify(
-        // TODO: ed255129_dalek doesn't check public_key validity. Document.
-        public_key: impl AsRef<[u8]>,
-        token: &str,
-        // TODO: calling None is not possible with inferred types, should be concrete
-        footer: Option<impl AsRef<[u8]>>,
-    ) -> Result<(), Errors> {
+    ///
+    /// # Warning: There is no verification on `public_key`, to verify
+    /// this is a valid Ed25519 key.
+    pub fn verify(public_key: &[u8], token: &str, footer: Option<&[u8]>) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
         use ed25519_dalek::Verifier;
 
         let f = match footer {
-            Some(ref val) => val.as_ref(),
+            Some(val) => val,
             None => &[0u8],
         };
 
@@ -157,33 +155,32 @@ impl LocalToken {
 
     ///
     fn encrypt_with_nonce(
-        secret_key: impl AsRef<[u8]>,
-        nonce_key_bytes: impl AsRef<[u8]>,
-        message: impl AsRef<[u8]>,
-        // TODO: calling None is not possible with inferred types, should be concrete
-        footer: Option<impl AsRef<[u8]>>,
+        secret_key: &[u8],
+        nonce_key_bytes: &[u8],
+        message: &[u8],
+        footer: Option<&[u8]>,
     ) -> Result<String, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
         use orion::hazardous::hash::blake2b;
         use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
-        debug_assert!(nonce_key_bytes.as_ref().len() == XCHACHA_NONCESIZE);
+        debug_assert!(nonce_key_bytes.len() == XCHACHA_NONCESIZE);
 
         // Safe unwrap()s due to lengths.
-        let nonce_key = blake2b::SecretKey::from_slice(nonce_key_bytes.as_ref()).unwrap();
+        let nonce_key = blake2b::SecretKey::from_slice(nonce_key_bytes).unwrap();
         let mut blake2b = blake2b::Blake2b::new(Some(&nonce_key), XCHACHA_NONCESIZE).unwrap();
         blake2b.update(message.as_ref()).unwrap();
         let nonce = Nonce::from_slice(blake2b.finalize().unwrap().as_ref()).unwrap();
 
         let f = match footer {
-            Some(ref val) => val.as_ref(),
+            Some(val) => val,
             None => &[0u8; 0],
         };
-        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f])?;
 
-        let mut out = vec![0u8; message.as_ref().len() + POLY1305_OUTSIZE + nonce.len()];
-        let sk = match SecretKey::from_slice(secret_key.as_ref()) {
+        let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f])?;
+        let mut out = vec![0u8; message.len() + POLY1305_OUTSIZE + nonce.len()];
+        let sk = match SecretKey::from_slice(secret_key) {
             Ok(val) => val,
             Err(orion::errors::UnknownCryptoError) => return Err(Errors::KeyError),
         };
@@ -191,7 +188,7 @@ impl LocalToken {
         match seal(
             &sk,
             &nonce,
-            message.as_ref(),
+            message,
             Some(&pre_auth),
             &mut out[nonce.len()..],
         ) {
@@ -216,10 +213,9 @@ impl LocalToken {
     ///
     pub fn encrypt<C>(
         csprng: &mut C,
-        secret_key: impl AsRef<[u8]>,
-        message: impl AsRef<[u8]>,
-        // TODO: calling None is not possible with inferred types, should be concrete
-        footer: Option<impl AsRef<[u8]>>,
+        secret_key: &[u8],
+        message: &[u8],
+        footer: Option<&[u8]>,
     ) -> Result<String, Errors>
     where
         C: CryptoRng + RngCore,
@@ -234,17 +230,17 @@ impl LocalToken {
 
     ///
     pub fn decrypt(
-        secret_key: impl AsRef<[u8]>,
+        secret_key: &[u8],
         token: &str,
         // TODO: calling None is not possible with inferred types, should be concrete
-        footer: Option<impl AsRef<[u8]>>,
+        footer: Option<&[u8]>,
     ) -> Result<Vec<u8>, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
         use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
         let f = match footer {
-            Some(ref val) => val.as_ref(),
+            Some(val) => val,
             None => &[0u8; 0],
         };
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
@@ -258,7 +254,7 @@ impl LocalToken {
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f])?;
         let mut out = vec![0u8; c.len() - POLY1305_OUTSIZE];
 
-        let sk = match SecretKey::from_slice(secret_key.as_ref()) {
+        let sk = match SecretKey::from_slice(secret_key) {
             Ok(val) => val,
             Err(orion::errors::UnknownCryptoError) => return Err(Errors::KeyError),
         };
@@ -309,131 +305,133 @@ mod test_public {
     #[test]
     fn test_sign_verify_official_1() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9HQr8URrGntTu7Dz9J2IF23d1M7-9lH9xiqdGyJNvzp4angPW5Esc7C5huy_M8I8_DjJK2ZXC2SUYuOFM-Q_5Cw";
-        let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_official_2() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
-        let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_1() {
         // Empty string, 32-character NUL byte key.
-        let message = "";
+        let message = b"";
         let expected = "v2.public.xnHHprS7sEyjP5vWpOvHjAP2f0HER7SWfPuehZ8QIctJRPTrlZLtRCk9_iNdugsrqJoGaO4k9cDBq3TOXu24AA";
-        let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, None).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, None).is_ok());
     }
 
     #[test]
     fn test_sign_verify_2() {
         // Empty string, 32-character NUL byte key, non-empty footer.
-        let message = "";
+        let message = b"";
         let expected = "v2.public.Qf-w0RdU2SDGW_awMwbfC0Alf_nd3ibUdY3HigzU7tn_4MPMYIKAJk_J_yKYltxrGlxEdrWIqyfjW81njtRyDw.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"Cuon Alpinus";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_3() {
         // Non-empty string, 32-character 0xFF byte key.
-        let message = "Frank Denis rocks";
+        let message = b"Frank Denis rocks";
         let expected = "v2.public.RnJhbmsgRGVuaXMgcm9ja3NBeHgns4TLYAoyD1OPHww0qfxHdTdzkKcyaE4_fBF2WuY1JNRW_yI8qRhZmNTaO19zRhki6YWRaKKlCZNCNrQM";
-        let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_4() {
         // Non-empty string, 32-character 0xFF byte key. (One character difference)
-        let message = "Frank Denis rockz";
+        let message = b"Frank Denis rockz";
         let expected = "v2.public.RnJhbmsgRGVuaXMgcm9ja3qIOKf8zCok6-B5cmV3NmGJCD6y3J8fmbFY9KHau6-e9qUICrGlWX8zLo-EqzBFIT36WovQvbQZq4j6DcVfKCML";
-        let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_5() {
         // Non-empty string, 32-character 0xFF byte key, non-empty footer.
-        let message = "Frank Denis rocks";
+        let message = b"Frank Denis rocks";
         let expected = "v2.public.RnJhbmsgRGVuaXMgcm9ja3O7MPuu90WKNyvBUUhAGFmi4PiPOr2bN2ytUSU-QWlj8eNefki2MubssfN1b8figynnY0WusRPwIQ-o0HSZOS0F.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"Cuon Alpinus";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_6() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9HQr8URrGntTu7Dz9J2IF23d1M7-9lH9xiqdGyJNvzp4angPW5Esc7C5huy_M8I8_DjJK2ZXC2SUYuOFM-Q_5Cw";
-        let footer = "";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_7() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9fgvV_frkjyH7h0CWrGfonEctefgzQaCkICOAxDdbixbPvH_SMm0T6343YfgEAlOi8--euLS5gLlykHhREL38BA.UGFyYWdvbiBJbml0aWF0aXZlIEVudGVycHJpc2Vz";
-        let footer = "Paragon Initiative Enterprises";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"Paragon Initiative Enterprises";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 
     #[test]
     fn test_sign_verify_8() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
-        let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
-        let actual = PublicToken::sign(TEST_SK, TEST_PK, message, Some(footer)).unwrap();
+        let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+        let actual = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
-        assert!(PublicToken::verify(TEST_PK, expected, Some(footer)).is_ok());
-        assert!(PublicToken::verify(TEST_PK, &actual, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
     }
 }
 
@@ -484,331 +482,331 @@ mod test_local {
     #[test]
     fn test_encrypt_decrypt_official_1() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.97TTOvgwIxNGvV80XKiGZg_kD3tsXM_-qB4dZGHOeN1cTkgQ4PnW8888l802W8d9AvEGnoNBY3BnqHORy8a5cC8aKpbA0En8XELw2yDk2f1sVODyfnDbi6rEGMY3pSfCbLWMM2oHJxvlEl2XbQ";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_official_2() {
         let message =
-            "{\"data\":\"this is a secret message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a secret message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.CH50H-HM5tzdK4kOmQ8KbIvrzJfjYUGuu5Vy9ARSFHy9owVDMYg3-8rwtJZQjN9ABHb2njzFkvpr5cOYuRyt7CRXnHt42L5yZ7siD-4l-FoNsC7J2OlvLlIwlG06mzQVunrFNb7Z3_CHM0PK5w";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_official_3() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-O5xRBN076fSDPo5xUCPpBA";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_official_4() {
         let message =
-            "{\"data\":\"this is a secret message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a secret message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.pvFdDeNtXxknVPsbBCZF6MGedVhPm40SneExdClOxa9HNR8wFv7cu1cB0B4WxDdT6oUc2toyLR6jA6sc-EUM5ll1EkeY47yYk6q8m1RCpqTIzUrIu3B6h232h62DPbIxtjGvNRAwsLK7LcV8oQ";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_official_5() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
-        let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+        let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_official_6() {
         let message =
-            "{\"data\":\"this is a secret message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a secret message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.pvFdDeNtXxknVPsbBCZF6MGedVhPm40SneExdClOxa9HNR8wFv7cu1cB0B4WxDdT6oUc2toyLR6jA6sc-EUM5ll1EkeY47yYk6q8m1RCpqTIzUrIu3B6h232h62DnMXKdHn_Smp6L_NfaEnZ-A.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
-        let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+        let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_1() {
         // Empty message, empty footer, empty nonce
-        let message = "";
+        let message = b"";
         let expected = "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNUtKpdy5KXjKfpSKrOlqQvQ";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_NULL_KEY, TEST_NONCE, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_NULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_2() {
         // Empty message, empty footer, empty nonce
-        let message = "";
+        let message = b"";
         let expected = "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNSOvpveyCsjPYfe9mtiJDVg";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_FULL_KEY, TEST_NONCE, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_FULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_3() {
         // Empty message, empty footer, empty nonce
-        let message = "";
+        let message = b"";
         let expected = "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNkIWACdHuLiJiW16f2GuGYA";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_4() {
         // Empty message, non-empty footer, empty nonce
-        let message = "";
+        let message = b"";
         let expected =
             "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNfzz6yGkE4ZxojJAJwKLfvg.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
+        let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_NULL_KEY, TEST_NONCE, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_NULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_5() {
         // Empty message, non-empty footer, empty nonce
-        let message = "";
+        let message = b"";
         let expected =
             "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNJbTJxAGtEg4ZMXY9g2LSoQ.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
+        let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_FULL_KEY, TEST_NONCE, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_FULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_6() {
         // Empty message, non-empty footer, empty nonce
-        let message = "";
+        let message = b"";
         let expected =
             "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNreCcZAS0iGVlzdHjTf2ilg.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
+        let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_7() {
         // Non-empty message, empty footer, empty nonce
-        let message = "Love is stronger than hate or fear";
+        let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.BEsKs5AolRYDb_O-bO-lwHWUextpShFSvu6cB-KuR4wR9uDMjd45cPiOF0zxb7rrtOB5tRcS7dWsFwY4ONEuL5sWeunqHC9jxU0";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_NULL_KEY, TEST_NONCE, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_NULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_8() {
         // Non-empty message, empty footer, empty nonce
-        let message = "Love is stronger than hate or fear";
+        let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.BEsKs5AolRYDb_O-bO-lwHWUextpShFSjvSia2-chHyMi4LtHA8yFr1V7iZmKBWqzg5geEyNAAaD6xSEfxoET1xXqahe1jqmmPw";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_FULL_KEY, TEST_NONCE, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_FULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_9() {
         // Non-empty message, empty footer, empty nonce
-        let message = "Love is stronger than hate or fear";
+        let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.BEsKs5AolRYDb_O-bO-lwHWUextpShFSXlvv8MsrNZs3vTSnGQG4qRM9ezDl880jFwknSA6JARj2qKhDHnlSHx1GSCizfcF019U";
-        let footer = "";
+        let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_10() {
         // Non-empty message, non-empty footer, non-empty nonce
-        let message = "Love is stronger than hate or fear";
+        let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.FGVEQLywggpvH0AzKtLXz0QRmGYuC6yvbcqXgWxM3vJGrJ9kWqquP61Xl7bz4ZEqN5XwH7xyzV0QqPIo0k52q5sWxUQ4LMBFFso.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
+        let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_NULL_KEY, TEST_NONCE_2, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE_2, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_NULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_11() {
         // Non-empty message, non-empty footer, non-empty nonce
-        let message = "Love is stronger than hate or fear";
+        let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.FGVEQLywggpvH0AzKtLXz0QRmGYuC6yvZMW3MgUMFplQXsxcNlg2RX8LzFxAqj4qa2FwgrUdH4vYAXtCFrlGiLnk-cHHOWSUSaw.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
+        let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_FULL_KEY, TEST_NONCE_2, message, Some(footer))
+            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE_2, message, Some(footer))
                 .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_FULL_KEY, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_12() {
         // Non-empty message, non-empty footer, non-empty nonce
-        let message = "Love is stronger than hate or fear";
+        let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.FGVEQLywggpvH0AzKtLXz0QRmGYuC6yvl05z9GIX0cnol6UK94cfV77AXnShlUcNgpDR12FrQiurS8jxBRmvoIKmeMWC5wY9Y6w.Q3VvbiBBbHBpbnVz";
-        let footer = "Cuon Alpinus";
+        let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_13() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zKeei_8CY0oUMtEai3HYcQ.UGFyYWdvbiBJbml0aWF0aXZlIEVudGVycHJpc2Vz";
-        let footer = "Paragon Initiative Enterprises";
+        let footer = b"Paragon Initiative Enterprises";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 
     #[test]
     fn test_encrypt_decrypt_14() {
         let message =
-            "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
-        let footer = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+        let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
         let actual =
-            LocalToken::encrypt_with_nonce(TEST_SK, TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message.as_bytes()
+            LocalToken::decrypt(&TEST_SK, expected, Some(footer)).unwrap(),
+            message.to_vec()
         );
     }
 }
@@ -838,30 +836,38 @@ mod token_validation {
     fn err_on_modified_header() {
         assert!(
             PublicToken::verify(
-                TEST_PK,
+                &TEST_PK,
                 &VALID_PUBLIC_TOKEN.replace("v2", "v1"),
-                Some(FOOTER)
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
             LocalToken::decrypt(
-                TEST_SK,
+                &TEST_SK,
                 &VALID_LOCAL_TOKEN.replace("v2", "v1"),
-                Some(FOOTER)
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
-            PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN.replace("v2", ""), Some(FOOTER))
-                .unwrap_err()
+            PublicToken::verify(
+                &TEST_PK,
+                &VALID_PUBLIC_TOKEN.replace("v2", ""),
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
-            LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN.replace("v2", ""), Some(FOOTER))
-                .unwrap_err()
+            LocalToken::decrypt(
+                &TEST_SK,
+                &VALID_LOCAL_TOKEN.replace("v2", ""),
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err()
                 == Errors::TokenFormatError
         );
     }
@@ -870,36 +876,36 @@ mod token_validation {
     fn err_on_modified_purpose() {
         assert!(
             PublicToken::verify(
-                TEST_PK,
+                &TEST_PK,
                 &VALID_PUBLIC_TOKEN.replace("public", "local"),
-                Some(FOOTER)
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
             LocalToken::decrypt(
-                TEST_SK,
+                &TEST_SK,
                 &VALID_LOCAL_TOKEN.replace("local", "public"),
-                Some(FOOTER)
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
             PublicToken::verify(
-                TEST_PK,
+                &TEST_PK,
                 &VALID_PUBLIC_TOKEN.replace("public", ""),
-                Some(FOOTER)
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
             LocalToken::decrypt(
-                TEST_SK,
+                &TEST_SK,
                 &VALID_LOCAL_TOKEN.replace("local", ""),
-                Some(FOOTER)
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenFormatError
@@ -917,11 +923,11 @@ mod token_validation {
         let invalid_local: String = split_local.iter().map(|x| *x).collect();
 
         assert!(
-            PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err()
+            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
-            LocalToken::decrypt(TEST_SK, &invalid_local, Some(FOOTER)).unwrap_err()
+            LocalToken::decrypt(&TEST_SK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err()
                 == Errors::TokenFormatError
         );
     }
@@ -937,11 +943,11 @@ mod token_validation {
         let invalid_local: String = split_local.iter().map(|x| *x).collect();
 
         assert!(
-            PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err()
+            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err()
                 == Errors::TokenFormatError
         );
         assert!(
-            LocalToken::decrypt(TEST_SK, &invalid_local, Some(FOOTER)).unwrap_err()
+            LocalToken::decrypt(&TEST_SK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err()
                 == Errors::TokenFormatError
         );
     }
@@ -950,18 +956,18 @@ mod token_validation {
     fn err_on_modified_footer() {
         assert!(
             PublicToken::verify(
-                TEST_PK,
+                &TEST_PK,
                 &VALID_PUBLIC_TOKEN,
-                Some(&FOOTER.replace("kid", "mid"))
+                Some(&FOOTER.replace("kid", "mid").as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenValidationError
         );
         assert!(
             LocalToken::decrypt(
-                TEST_SK,
+                &TEST_SK,
                 &VALID_LOCAL_TOKEN,
-                Some(&FOOTER.replace("kid", "mid"))
+                Some(&FOOTER.replace("kid", "mid").as_bytes())
             )
             .unwrap_err()
                 == Errors::TokenValidationError
@@ -971,11 +977,11 @@ mod token_validation {
     #[test]
     fn err_on_footer_in_token_none_supplied() {
         assert!(
-            PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN, Some("")).unwrap_err()
+            PublicToken::verify(&TEST_PK, &VALID_PUBLIC_TOKEN, Some(b"")).unwrap_err()
                 == Errors::TokenValidationError
         );
         assert!(
-            LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN, Some("")).unwrap_err()
+            LocalToken::decrypt(&TEST_SK, &VALID_LOCAL_TOKEN, Some(b"")).unwrap_err()
                 == Errors::TokenValidationError
         );
     }
@@ -993,11 +999,11 @@ mod token_validation {
             format!("{}.{}.{}", split_local[0], split_local[1], split_local[2]);
 
         assert_eq!(
-            PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err(),
+            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
         assert_eq!(
-            LocalToken::decrypt(TEST_SK, &invalid_local, Some(FOOTER)).unwrap_err(),
+            LocalToken::decrypt(&TEST_SK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
@@ -1015,7 +1021,7 @@ mod token_validation {
         );
 
         assert_eq!(
-            PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err(),
+            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
@@ -1034,7 +1040,7 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(),
+            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
@@ -1053,7 +1059,7 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(),
+            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
@@ -1072,7 +1078,7 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(),
+            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
@@ -1091,7 +1097,7 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(),
+            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
@@ -1099,34 +1105,52 @@ mod token_validation {
     #[test]
     fn err_on_invalid_public_secret_key() {
         assert_eq!(
-            PublicToken::sign(TEST_SK, [0u8; TEST_PK.len() - 1], MESSAGE, Some(FOOTER))
-                .unwrap_err(),
-            Errors::KeyError
-        );
-        assert_eq!(
-            PublicToken::sign([0u8; TEST_SK.len() - 1], TEST_PK, MESSAGE, Some(FOOTER))
-                .unwrap_err(),
+            PublicToken::sign(
+                &TEST_SK,
+                &[0u8; TEST_PK.len() - 1],
+                MESSAGE.as_bytes(),
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err(),
             Errors::KeyError
         );
         assert_eq!(
             PublicToken::sign(
-                [0u8; TEST_SK.len() - 1],
-                [0u8; TEST_PK.len() - 1],
-                MESSAGE,
-                Some(FOOTER)
+                &[0u8; TEST_SK.len() - 1],
+                &TEST_PK,
+                MESSAGE.as_bytes(),
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err(),
+            Errors::KeyError
+        );
+        assert_eq!(
+            PublicToken::sign(
+                &[0u8; TEST_SK.len() - 1],
+                &[0u8; TEST_PK.len() - 1],
+                MESSAGE.as_bytes(),
+                Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
             Errors::KeyError
         );
 
         assert_eq!(
-            PublicToken::verify([0u8; TEST_PK.len()], VALID_PUBLIC_TOKEN, Some(FOOTER))
-                .unwrap_err(),
+            PublicToken::verify(
+                &[0u8; TEST_PK.len()],
+                VALID_PUBLIC_TOKEN,
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err(),
             Errors::TokenValidationError
         );
         assert_eq!(
-            PublicToken::verify([0u8; TEST_PK.len() - 1], VALID_PUBLIC_TOKEN, Some(FOOTER))
-                .unwrap_err(),
+            PublicToken::verify(
+                &[0u8; TEST_PK.len() - 1],
+                VALID_PUBLIC_TOKEN,
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err(),
             Errors::KeyError
         );
     }
@@ -1134,12 +1158,21 @@ mod token_validation {
     #[test]
     fn err_on_invalid_shared_secret_key() {
         assert_eq!(
-            LocalToken::decrypt([0u8; TEST_SK.len()], VALID_LOCAL_TOKEN, Some(FOOTER)).unwrap_err(),
+            LocalToken::decrypt(
+                &[0u8; TEST_SK.len()],
+                VALID_LOCAL_TOKEN,
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err(),
             Errors::TokenValidationError
         );
         assert_eq!(
-            LocalToken::decrypt([0u8; TEST_SK.len() - 1], VALID_LOCAL_TOKEN, Some(FOOTER))
-                .unwrap_err(),
+            LocalToken::decrypt(
+                &[0u8; TEST_SK.len() - 1],
+                VALID_LOCAL_TOKEN,
+                Some(FOOTER.as_bytes())
+            )
+            .unwrap_err(),
             Errors::KeyError
         );
     }
