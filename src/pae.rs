@@ -5,23 +5,23 @@ pub fn le64(n: u64) -> [u8; core::mem::size_of::<u64>()] {
     let mut n_tmp = n;
 
     out[0] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     out[1] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     out[2] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     out[3] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     out[4] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     out[5] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     out[6] = (n_tmp & 255) as u8;
-    n_tmp = n_tmp >> 8;
+    n_tmp >>= 8;
     n_tmp &= 127; // Clear the MSB for interoperability
     out[7] = (n_tmp & 255) as u8;
 
-    return out;
+    out
 }
 
 pub fn pae(pieces: &[&[u8]]) -> Vec<u8> {
@@ -33,7 +33,7 @@ pub fn pae(pieces: &[&[u8]]) -> Vec<u8> {
         out.extend_from_slice(elem);
     }
 
-    return out;
+    out
 }
 
 #[cfg(test)]

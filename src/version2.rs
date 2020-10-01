@@ -8,7 +8,7 @@ use crate::pae;
 use base64::{decode_config, encode_config, URL_SAFE_NO_PAD};
 use rand_core::{CryptoRng, RngCore};
 
-/// Validate that a token begins with a given header and does not contain more than:
+/// Validate that a token begins with a given header.purpose and does not contain more than:
 /// header.purpose.payload.footer
 /// If a footer is present, this is validated against the supplied.
 fn validate_format_footer<'a>(
@@ -27,20 +27,17 @@ fn validate_format_footer<'a>(
         return Err(Errors::TokenFormatError);
     }
 
-    if parts_split.len() == 3 {
-        if !footer.is_empty() {
+    let is_footer_present = parts_split.len() == 4;
+    if !is_footer_present && !footer.is_empty() {
+        return Err(Errors::TokenValidationError);
+    }
+    if is_footer_present {
+        if footer.is_empty() {
             return Err(Errors::TokenValidationError);
         }
-    }
 
-    if parts_split.len() == 4 {
-        // footer is present in token
-        if !footer.is_empty() {
-            let token_footer = decode_config(parts_split[3], URL_SAFE_NO_PAD)?;
-            if secure_cmp(footer, token_footer.as_ref()).is_err() {
-                return Err(Errors::TokenValidationError);
-            }
-        } else {
+        let token_footer = decode_config(parts_split[3], URL_SAFE_NO_PAD)?;
+        if secure_cmp(footer, token_footer.as_ref()).is_err() {
             return Err(Errors::TokenValidationError);
         }
     }
@@ -48,6 +45,7 @@ fn validate_format_footer<'a>(
     Ok(parts_split)
 }
 
+/// PASETO v2 public tokens.
 pub struct PublicToken;
 
 impl PublicToken {
@@ -140,13 +138,14 @@ impl PublicToken {
         };
 
         if pk.verify(m2.as_ref(), &sig).is_ok() {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(Errors::TokenValidationError);
+            Err(Errors::TokenValidationError)
         }
     }
 }
 
+/// PASETO v2 local tokens.
 pub struct LocalToken;
 
 impl LocalToken {
@@ -265,7 +264,7 @@ impl LocalToken {
             &mut out,
         ) {
             Ok(()) => Ok(out),
-            Err(orion::errors::UnknownCryptoError) => return Err(Errors::TokenValidationError),
+            Err(orion::errors::UnknownCryptoError) => Err(Errors::TokenValidationError),
         }
     }
 }
