@@ -149,15 +149,14 @@ impl LocalToken {
     ) -> Result<String, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
         use orion::hazardous::hash::blake2b;
+        use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
+        use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
-        debug_assert!(
-            nonce_key_bytes.as_ref().len()
-                == orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE
-        );
+        debug_assert!(nonce_key_bytes.as_ref().len() == XCHACHA_NONCESIZE);
 
         // Safe unwrap()s due to lengths.
         let nonce_key = blake2b::SecretKey::from_slice(nonce_key_bytes.as_ref()).unwrap();
-        let mut blake2b = blake2b::Blake2b::new(Some(&nonce_key), 24).unwrap();
+        let mut blake2b = blake2b::Blake2b::new(Some(&nonce_key), XCHACHA_NONCESIZE).unwrap();
         blake2b.update(message.as_ref()).unwrap();
         let nonce = Nonce::from_slice(blake2b.finalize().unwrap().as_ref()).unwrap();
 
@@ -167,7 +166,7 @@ impl LocalToken {
         };
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f]);
 
-        let mut out = vec![0u8; message.as_ref().len() + 16 + nonce.len()];
+        let mut out = vec![0u8; message.as_ref().len() + POLY1305_OUTSIZE + nonce.len()];
         let sk = match SecretKey::from_slice(secret_key.as_ref()) {
             Ok(val) => val,
             Err(orion::errors::UnknownCryptoError) => return Err(Errors::KeyError),
@@ -208,7 +207,9 @@ impl LocalToken {
     where
         C: CryptoRng + RngCore,
     {
-        let mut rng_bytes = [0u8; 24];
+        use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
+
+        let mut rng_bytes = [0u8; XCHACHA_NONCESIZE];
         csprng.try_fill_bytes(&mut rng_bytes)?;
 
         Self::encrypt_with_nonce(secret_key, &rng_bytes, message, footer)
@@ -221,6 +222,8 @@ impl LocalToken {
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<Vec<u8>, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
+        use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
+        use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
         let f = match footer {
             Some(ref val) => val.as_ref(),
@@ -228,11 +231,14 @@ impl LocalToken {
         };
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
-        let n = nc[..24].as_ref();
+        if nc.len() < (XCHACHA_NONCESIZE + POLY1305_OUTSIZE) {
+            return Err(Errors::TokenFormatError);
+        }
+        let n = nc[..XCHACHA_NONCESIZE].as_ref();
         let c = nc[n.len()..].as_ref();
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f]);
-        let mut out = vec![0u8; c.len() - 16];
+        let mut out = vec![0u8; c.len() - POLY1305_OUTSIZE];
 
         let sk = match SecretKey::from_slice(secret_key.as_ref()) {
             Ok(val) => val,
