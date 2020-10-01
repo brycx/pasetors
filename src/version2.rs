@@ -214,8 +214,7 @@ impl LocalToken {
         secret_key: impl AsRef<[u8]>,
         token: &str,
         footer: Option<impl AsRef<[u8]>>,
-        // TODO: Can we really assume out to be String? Why?
-    ) -> Result<String, Errors> {
+    ) -> Result<Vec<u8>, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
 
         let f = match footer {
@@ -223,23 +222,28 @@ impl LocalToken {
             None => &[0u8; 0],
         };
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
-        let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD).unwrap();
+        let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
         let n = nc[..24].as_ref();
         let c = nc[n.len()..].as_ref();
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f]);
         let mut out = vec![0u8; c.len() - 16];
 
-        open(
-            &SecretKey::from_slice(secret_key.as_ref()).unwrap(),
+        let sk = match SecretKey::from_slice(secret_key.as_ref()) {
+            Ok(val) => val,
+            Err(orion::errors::UnknownCryptoError) => return Err(Errors::KeyError),
+        };
+
+        match open(
+            &sk,
             &Nonce::from_slice(n).unwrap(),
             c,
             Some(pre_auth.as_ref()),
             &mut out,
-        )
-        .unwrap();
-
-        Ok(String::from_utf8_lossy(out.as_ref()).into())
+        ) {
+            Ok(()) => Ok(out),
+            Err(orion::errors::UnknownCryptoError) => return Err(Errors::EncryptError),
+        }
     }
 }
 
@@ -460,7 +464,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -476,7 +480,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -492,7 +496,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -508,7 +512,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -524,7 +528,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -540,7 +544,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -557,7 +561,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -574,7 +578,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -590,7 +594,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -608,7 +612,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -626,7 +630,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -643,7 +647,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -660,7 +664,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -677,7 +681,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -693,7 +697,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -710,7 +714,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_NULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -727,7 +731,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_FULL_KEY, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -743,7 +747,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -759,7 +763,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 
@@ -775,7 +779,7 @@ mod test_local {
         assert_eq!(expected, actual);
         assert_eq!(
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
-            message
+            message.as_bytes()
         );
     }
 }
