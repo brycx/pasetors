@@ -27,6 +27,12 @@ fn validate_format_footer<'a>(
         return Err(Errors::TokenFormatError);
     }
 
+    if parts_split.len() == 3 {
+        if !footer.is_empty() {
+            return Err(Errors::TokenValidationError);
+        }
+    }
+
     if parts_split.len() == 4 {
         // footer is present in token
         if !footer.is_empty() {
@@ -257,7 +263,7 @@ impl LocalToken {
             &mut out,
         ) {
             Ok(()) => Ok(out),
-            Err(orion::errors::UnknownCryptoError) => return Err(Errors::EncryptError),
+            Err(orion::errors::UnknownCryptoError) => return Err(Errors::TokenValidationError),
         }
     }
 }
@@ -796,5 +802,180 @@ mod test_local {
             LocalToken::decrypt(TEST_SK, expected, Some(footer)).unwrap(),
             message.as_bytes()
         );
+    }
+}
+
+#[cfg(test)]
+mod token_validation {
+
+    use super::*;
+
+    const TEST_SK: [u8; 32] = [
+        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
+        130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+    ];
+
+    const TEST_PK: [u8; 32] = [
+        30, 185, 219, 187, 188, 4, 124, 3, 253, 112, 96, 78, 0, 113, 240, 152, 126, 22, 178, 139,
+        117, 114, 37, 193, 31, 0, 65, 93, 14, 32, 177, 162,
+    ];
+
+    const MESSAGE: &'static str = "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+    const FOOTER: &'static str = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+    const VALID_PUBLIC_TOKEN: &'static str = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
+    const VALID_LOCAL_TOKEN: &'static str = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
+    
+    #[test]
+    fn err_on_modified_header() {
+        assert!(PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN.replace("v2", "v1"), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN.replace("v2", "v1"), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN.replace("v2", ""), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN.replace("v2", ""), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+    }
+
+    #[test]
+    fn err_on_modified_purpose() {
+        assert!(PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN.replace("public", "local"), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN.replace("local", "public"), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN.replace("public", ""), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN.replace("local", ""), Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+    }
+
+    #[test]
+    fn err_on_missing_payload() {
+        let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        split_public[2] = "";
+        let invalid_public: String = split_public.iter().map(|x| *x).collect();
+
+        let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        split_local[2] = "";
+        let invalid_local: String = split_local.iter().map(|x| *x).collect();
+
+        assert!(PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(LocalToken::decrypt(TEST_SK, &invalid_local, Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+    }
+
+    #[test]
+    fn err_on_extra_after_footer() {
+        let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        split_public.push(".shouldNotBeHere");
+        let invalid_public: String = split_public.iter().map(|x| *x).collect();
+
+        let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        split_local.push(".shouldNotBeHere");
+        let invalid_local: String = split_local.iter().map(|x| *x).collect();
+
+        assert!(PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+        assert!(LocalToken::decrypt(TEST_SK, &invalid_local, Some(FOOTER)).unwrap_err() == Errors::TokenFormatError);
+    }
+
+    #[test]
+    fn err_on_modified_footer() {
+        assert!(PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN, Some(&FOOTER.replace("kid", "mid"))).unwrap_err() == Errors::TokenValidationError);
+        assert!(LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN, Some(&FOOTER.replace("kid", "mid"))).unwrap_err() == Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_footer_in_token_none_supplied() {
+        assert!(PublicToken::verify(TEST_PK, &VALID_PUBLIC_TOKEN, Some("")).unwrap_err() == Errors::TokenValidationError);
+        assert!(LocalToken::decrypt(TEST_SK, &VALID_LOCAL_TOKEN, Some("")).unwrap_err() == Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_no_footer_in_token_some_supplied() {
+        let split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        let invalid_public: String = format!("{}.{}.{}", split_public[0], split_public[1], split_public[2]);
+
+        let split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        let invalid_local: String = format!("{}.{}.{}", split_local[0], split_local[1], split_local[2]);
+
+        assert_eq!(PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+        assert_eq!(LocalToken::decrypt(TEST_SK, &invalid_local, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_modified_signature() {
+        let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        let mut bad_sig = Vec::from(decode_config(split_public[2], URL_SAFE_NO_PAD).unwrap());
+        bad_sig.copy_within(0..32, 32);
+        let tmp = encode_config(bad_sig, URL_SAFE_NO_PAD);
+        split_public[2] = &tmp;
+        let invalid_public: String = format!("{}.{}.{}.{}", split_public[0], split_public[1], split_public[2], split_public[3]);
+
+        assert_eq!(PublicToken::verify(TEST_PK, &invalid_public, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_modified_tag() {
+        let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        let mut bad_tag = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let tlen = bad_tag.len();
+        bad_tag.copy_within(0..16, tlen - 16);
+        let tmp = encode_config(bad_tag, URL_SAFE_NO_PAD);
+        split_local[2] = &tmp;
+        let invalid_local: String = format!("{}.{}.{}.{}", split_local[0], split_local[1], split_local[2], split_local[3]);
+
+        assert_eq!(LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_modified_ciphertext() {
+        let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        let mut bad_ct = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let ctlen = bad_ct.len();
+        bad_ct.copy_within((ctlen - 16)..ctlen, 24);
+        let tmp = encode_config(bad_ct, URL_SAFE_NO_PAD);
+        split_local[2] = &tmp;
+        let invalid_local: String = format!("{}.{}.{}.{}", split_local[0], split_local[1], split_local[2], split_local[3]);
+
+        assert_eq!(LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_modified_nonce() {
+        let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        let mut bad_nonce = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let nlen = bad_nonce.len();
+        bad_nonce.copy_within((nlen - 24)..nlen, 0);
+        let tmp = encode_config(bad_nonce, URL_SAFE_NO_PAD);
+        split_local[2] = &tmp;
+        let invalid_local: String = format!("{}.{}.{}.{}", split_local[0], split_local[1], split_local[2], split_local[3]);
+
+        assert_eq!(LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_invalid_base64() {
+        let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
+        let mut bad_nonce = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let nlen = bad_nonce.len();
+        bad_nonce.copy_within((nlen - 24)..nlen, 0);
+        let tmp = encode_config(bad_nonce, URL_SAFE_NO_PAD);
+        split_local[2] = &tmp;
+        let invalid_local: String = format!("{}.{}.{}.{}", split_local[0], split_local[1], split_local[2], split_local[3]);
+
+        assert_eq!(LocalToken::decrypt(TEST_PK, &invalid_local, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+    }
+
+    #[test]
+    fn err_on_invalid_public_secret_key() {       
+        // TODO: ed255129_dalek doesn't check public_key validity. Do we want to do this?
+        // assert_eq!(PublicToken::sign(TEST_SK, [0u8; TEST_PK.len()], MESSAGE, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+        // assert_eq!(PublicToken::sign([0u8; TEST_SK.len()], TEST_PK, MESSAGE, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+        // assert_eq!(PublicToken::sign([0u8; TEST_SK.len()], [0u8; TEST_PK.len()], MESSAGE, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+        assert_eq!(PublicToken::sign(TEST_SK, [0u8; TEST_PK.len() - 1], MESSAGE, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+        assert_eq!(PublicToken::sign([0u8; TEST_SK.len() - 1], TEST_PK, MESSAGE, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+        assert_eq!(PublicToken::sign([0u8; TEST_SK.len() - 1], [0u8; TEST_PK.len() - 1], MESSAGE, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+
+        // Should return KeyError if we check if public key is valid
+        assert_eq!(PublicToken::verify([0u8; TEST_PK.len()], VALID_PUBLIC_TOKEN, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+        
+        assert_eq!(PublicToken::verify([0u8; TEST_PK.len() - 1], VALID_PUBLIC_TOKEN, Some(FOOTER)).unwrap_err(), Errors::KeyError);
+    }
+
+    #[test]
+    fn err_on_invalid_shared_secret_key() {
+        assert_eq!(LocalToken::decrypt([0u8; TEST_SK.len()], VALID_LOCAL_TOKEN, Some(FOOTER)).unwrap_err(), Errors::TokenValidationError);
+        assert_eq!(LocalToken::decrypt([0u8; TEST_SK.len() - 1], VALID_LOCAL_TOKEN, Some(FOOTER)).unwrap_err(), Errors::KeyError);
     }
 }
