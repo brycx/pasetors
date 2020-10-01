@@ -1,0 +1,29 @@
+
+[package]
+name = "pasetors-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.3"
+rand_chacha = "0.2.2"
+rand_core = "0.5.0"
+ed25519-dalek = "1.0.1"
+
+[dependencies.pasetors]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_pasetors"
+path = "fuzz_targets/fuzz_pasetors.rs"
+test = false
+doc = false

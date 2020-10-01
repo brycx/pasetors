@@ -3,6 +3,8 @@
 #[macro_use]
 extern crate alloc;
 
-pub mod errors;
-pub mod pae;
+mod errors;
+mod pae;
+
 pub mod version2;
+pub use errors::Errors;

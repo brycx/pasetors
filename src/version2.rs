@@ -51,6 +51,7 @@ impl PublicToken {
         secret_key: impl AsRef<[u8]>,
         public_key: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
+        // TODO: calling None is not possible with inferred types, should be concrete
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<String, Errors> {
         use ed25519_dalek::Keypair;
@@ -96,6 +97,7 @@ impl PublicToken {
     pub fn verify(
         public_key: impl AsRef<[u8]>,
         token: &str,
+        // TODO: calling None is not possible with inferred types, should be concrete
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
@@ -142,6 +144,7 @@ impl LocalToken {
         secret_key: impl AsRef<[u8]>,
         nonce_key_bytes: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
+        // TODO: calling None is not possible with inferred types, should be concrete
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<String, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
@@ -199,6 +202,7 @@ impl LocalToken {
         csprng: &mut C,
         secret_key: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
+        // TODO: calling None is not possible with inferred types, should be concrete
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<String, Errors>
     where
@@ -213,6 +217,7 @@ impl LocalToken {
     pub fn decrypt(
         secret_key: impl AsRef<[u8]>,
         token: &str,
+        // TODO: calling None is not possible with inferred types, should be concrete
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<Vec<u8>, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
