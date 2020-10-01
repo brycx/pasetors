@@ -125,7 +125,11 @@ impl PublicToken {
         };
 
         debug_assert!(s.len() == ed25519_dalek::SIGNATURE_LENGTH);
-        let sig = Signature::try_from(s).unwrap();
+        // If the below fails, it is an invalid signature.
+        let sig = match Signature::try_from(s) {
+            Ok(val) => val,
+            Err(_) => return Err(Errors::TokenValidationError),
+        };
 
         if pk.verify(m2.as_ref(), &sig).is_ok() {
             return Ok(());
