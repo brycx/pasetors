@@ -97,7 +97,7 @@ impl PublicToken {
         public_key: impl AsRef<[u8]>,
         token: &str,
         footer: Option<impl AsRef<[u8]>>,
-    ) -> Result<bool, Errors> {
+    ) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
         use ed25519_dalek::Verifier;
@@ -109,15 +109,24 @@ impl PublicToken {
 
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let sm = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
+        if sm.len() < ed25519_dalek::SIGNATURE_LENGTH {
+            return Err(Errors::TokenFormatError);
+        }
+
         let m = sm[..(sm.len() - ed25519_dalek::SIGNATURE_LENGTH)].as_ref();
         let s = sm[m.len()..m.len() + ed25519_dalek::SIGNATURE_LENGTH].as_ref();
 
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f]);
-        let pk: PublicKey = PublicKey::from_bytes(public_key.as_ref()).unwrap();
+        let pk: PublicKey = match PublicKey::from_bytes(public_key.as_ref()) {
+            Ok(val) => val,
+            Err(_) => return Err(Errors::KeyError),
+        };
+
+        debug_assert!(s.len() == ed25519_dalek::SIGNATURE_LENGTH);
         let sig = Signature::try_from(s).unwrap();
 
         if pk.verify(m2.as_ref(), &sig).is_ok() {
-            return Ok(true);
+            return Ok(());
         } else {
             return Err(Errors::TokenValidationError);
         }
