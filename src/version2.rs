@@ -80,7 +80,7 @@ impl PublicToken {
 
         let f = match footer {
             Some(val) => val,
-            None => &[0u8; 0],
+            None => &[],
         };
 
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f])?;
@@ -113,7 +113,7 @@ impl PublicToken {
 
         let f = match footer {
             Some(val) => val,
-            None => &[0u8],
+            None => &[],
         };
 
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
@@ -126,7 +126,7 @@ impl PublicToken {
         let s = sm[m.len()..m.len() + ed25519_dalek::SIGNATURE_LENGTH].as_ref();
 
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f])?;
-        let pk: PublicKey = match PublicKey::from_bytes(public_key.as_ref()) {
+        let pk: PublicKey = match PublicKey::from_bytes(public_key) {
             Ok(val) => val,
             Err(_) => return Err(Errors::KeyError),
         };
@@ -175,7 +175,7 @@ impl LocalToken {
 
         let f = match footer {
             Some(val) => val,
-            None => &[0u8; 0],
+            None => &[],
         };
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f])?;
@@ -241,7 +241,7 @@ impl LocalToken {
 
         let f = match footer {
             Some(val) => val,
-            None => &[0u8; 0],
+            None => &[],
         };
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
@@ -303,6 +303,22 @@ mod test_public {
     }
 
     #[test]
+    fn footer_none_some_empty_is_same() {
+        let message =
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+        let expected = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9HQr8URrGntTu7Dz9J2IF23d1M7-9lH9xiqdGyJNvzp4angPW5Esc7C5huy_M8I8_DjJK2ZXC2SUYuOFM-Q_5Cw";
+        let footer = b"";
+
+        let actual_some = PublicToken::sign(&TEST_SK, &TEST_PK, message, Some(footer)).unwrap();
+        let actual_none = PublicToken::sign(&TEST_SK, &TEST_PK, message, None).unwrap();
+
+        assert_eq!(actual_some, actual_none);
+        assert_eq!(actual_some, expected);
+        assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&TEST_PK, expected, None).is_ok());
+    }
+
+    #[test]
     fn test_sign_verify_official_1() {
         let message =
             b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
@@ -339,8 +355,6 @@ mod test_public {
         assert_eq!(expected, actual);
         assert!(PublicToken::verify(&TEST_PK, expected, Some(footer)).is_ok());
         assert!(PublicToken::verify(&TEST_PK, &actual, Some(footer)).is_ok());
-        assert!(PublicToken::verify(&TEST_PK, expected, None).is_ok());
-        assert!(PublicToken::verify(&TEST_PK, &actual, None).is_ok());
     }
 
     #[test]
@@ -477,6 +491,24 @@ mod test_local {
             TEST_NONCE_2.as_ref(),
             hex::decode("45742c976d684ff84ebdc0de59809a97cda2f64c84fda19b").unwrap()
         );
+    }
+
+    #[test]
+    fn footer_none_some_empty_is_same() {
+        let message =
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+        let expected = "v2.local.97TTOvgwIxNGvV80XKiGZg_kD3tsXM_-qB4dZGHOeN1cTkgQ4PnW8888l802W8d9AvEGnoNBY3BnqHORy8a5cC8aKpbA0En8XELw2yDk2f1sVODyfnDbi6rEGMY3pSfCbLWMM2oHJxvlEl2XbQ";
+        let footer = b"";
+
+        let actual_some =
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+        let actual_none =
+            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, None).unwrap();
+
+        assert_eq!(actual_some, actual_none);
+        assert_eq!(actual_some, expected);
+        assert!(LocalToken::decrypt(&TEST_SK, expected, Some(footer)).is_ok());
+        assert!(LocalToken::decrypt(&TEST_SK, expected, None).is_ok());
     }
 
     #[test]
