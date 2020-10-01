@@ -1,18 +1,20 @@
 [package]
 name = "pasetors"
-version = "0.1.0"
+version = "0.1.0" # Update html_root_url in lib.rs along with this.
 authors = ["brycx <brycx@protonmail.com>"]
 edition = "2018"
 description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
 keywords = [ "cryptography", "crypto", "token", "paseto", "authentication" ]
 categories = [ "cryptography", "authentication" ]
+readme = "README.md"
+repository = "https://github.com/brycx/pasetors"
+documentation = "https://docs.rs/pasetors"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 ed25519-dalek = "1.0.1"
-base64 = "0.12.3"
-rand_core = "0.5.0"
 
 [dev-dependencies]
 hex = "0.4.2"
@@ -20,3 +22,13 @@ hex = "0.4.2"
 [dependencies.orion]
 version = "0.15.4"
 default-features = false
+
+[dependencies.base64]
+version = "0.13.0"
+default-features = false
+features = ["alloc"]
+
+[dependencies.rand_core]
+version = "0.5.1"
+default-features = false
+features = ["alloc"]

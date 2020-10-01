@@ -52,9 +52,10 @@ impl PublicToken {
     /// The header and purpose for the public token: `v2.public.`.
     pub const HEADER: &'static str = "v2.public.";
 
+    /// Create a public token.
     ///
-    ///
-    /// # Warning: There is no verification on `secret_key` or `public_key`, to verify
+    /// # Warning:
+    /// There is no verification on `secret_key` or `public_key`, to verify
     /// these are valid Ed25519 keys.
     pub fn sign(
         secret_key: &[u8],
@@ -102,9 +103,10 @@ impl PublicToken {
         }
     }
 
+    /// Verify a public token.
     ///
-    ///
-    /// # Warning: There is no verification on `public_key`, to verify
+    /// # Warning:
+    /// There is no verification on `public_key`, to verify
     /// this is a valid Ed25519 key.
     pub fn verify(public_key: &[u8], token: &str, footer: Option<&[u8]>) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
@@ -138,6 +140,7 @@ impl PublicToken {
             Err(_) => return Err(Errors::TokenValidationError),
         };
 
+        // TODO: Use verify_strict()?
         if pk.verify(m2.as_ref(), &sig).is_ok() {
             Ok(())
         } else {
@@ -153,7 +156,8 @@ impl LocalToken {
     /// The header and purpose for the local token: `v2.local.`.
     pub const HEADER: &'static str = "v2.local.";
 
-    ///
+    /// Encrypt and authenticate a message using nonce_key_bytes to derive a nonce
+    /// using BLAKE2b.
     fn encrypt_with_nonce(
         secret_key: &[u8],
         nonce_key_bytes: &[u8],
@@ -210,7 +214,7 @@ impl LocalToken {
         }
     }
 
-    ///
+    /// Create a local token.
     pub fn encrypt<C>(
         csprng: &mut C,
         secret_key: &[u8],
@@ -228,11 +232,10 @@ impl LocalToken {
         Self::encrypt_with_nonce(secret_key, &rng_bytes, message, footer)
     }
 
-    ///
+    /// Verify and decrypt a local token.
     pub fn decrypt(
         secret_key: &[u8],
         token: &str,
-        // TODO: calling None is not possible with inferred types, should be concrete
         footer: Option<&[u8]>,
     ) -> Result<Vec<u8>, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;

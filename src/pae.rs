@@ -4,7 +4,7 @@ use core::convert::TryInto;
 
 /// Encode `n` to little-endian bytes. The MSB is cleared.
 pub fn le64(n: u64) -> [u8; core::mem::size_of::<u64>()] {
-    let mut out = [0u8; 8];
+    let mut out = [0u8; core::mem::size_of::<u64>()];
     let mut n_tmp = n;
 
     out[0] = (n_tmp & 255) as u8;
