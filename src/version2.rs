@@ -140,15 +140,20 @@ impl LocalToken {
 
     fn encrypt_with_nonce(
         secret_key: impl AsRef<[u8]>,
-        nonce: impl AsRef<[u8]>,
+        nonce_key_bytes: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
         footer: Option<impl AsRef<[u8]>>,
     ) -> Result<String, Errors> {
         use orion::hazardous::aead::xchacha20poly1305::*;
         use orion::hazardous::hash::blake2b;
 
+        debug_assert!(
+            nonce_key_bytes.as_ref().len()
+                == orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE
+        );
+
         // Safe unwrap()s due to lengths.
-        let nonce_key = blake2b::SecretKey::from_slice(nonce.as_ref()).unwrap();
+        let nonce_key = blake2b::SecretKey::from_slice(nonce_key_bytes.as_ref()).unwrap();
         let mut blake2b = blake2b::Blake2b::new(Some(&nonce_key), 24).unwrap();
         blake2b.update(message.as_ref()).unwrap();
         let nonce = Nonce::from_slice(blake2b.finalize().unwrap().as_ref()).unwrap();
