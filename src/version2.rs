@@ -55,8 +55,8 @@ impl PublicToken {
     /// Create a public token.
     ///
     /// # Warning:
-    /// There is no verification on `secret_key` or `public_key`, to verify
-    /// these are valid Ed25519 keys.
+    /// There is no verification on `public_key`, to verify
+    /// this is a valid Ed25519 key.
     pub fn sign(
         secret_key: &[u8],
         public_key: &[u8],
