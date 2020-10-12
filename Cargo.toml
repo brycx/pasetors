@@ -11,12 +11,15 @@ repository = "https://github.com/brycx/pasetors"
 documentation = "https://docs.rs/pasetors"
 license = "MIT"
 
-[dependencies]
-ed25519-dalek = "1.0.1"
-
 [dev-dependencies]
 hex = "0.4.2"
 rand = "0.7.3"
+ed25519-dalek = "1.0.1"
+
+[dependencies.ed25519-dalek]
+version = "1.0.1"
+default-features = false
+features = ["u64_backend"]
 
 [dependencies.orion]
 version = "0.15.4"
