@@ -55,8 +55,7 @@ impl PublicToken {
     /// Create a public token.
     ///
     /// # Warning:
-    /// There is no verification on `public_key`, to verify
-    /// this is a valid Ed25519 key.
+    /// See warning on [`public_key`](https://docs.rs/ed25519-dalek/1.0.1/ed25519_dalek/struct.PublicKey.html#warning).
     pub fn sign(
         secret_key: &[u8],
         public_key: &[u8],
@@ -106,8 +105,7 @@ impl PublicToken {
     /// Verify a public token.
     ///
     /// # Warning:
-    /// There is no verification on `public_key`, to verify
-    /// this is a valid Ed25519 key.
+    /// See warning on [`public_key`](https://docs.rs/ed25519-dalek/1.0.1/ed25519_dalek/struct.PublicKey.html#warning).
     pub fn verify(public_key: &[u8], token: &str, footer: Option<&[u8]>) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
