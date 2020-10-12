@@ -1,3 +1,3 @@
 ### 0.1.0 - Initial release
 
-__Date:__ October X, 2020.
+__Date:__ October 12, 2020.
