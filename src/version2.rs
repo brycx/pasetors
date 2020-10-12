@@ -53,9 +53,6 @@ impl PublicToken {
     pub const HEADER: &'static str = "v2.public.";
 
     /// Create a public token.
-    ///
-    /// # Warning:
-    /// See warning on [`public_key`](https://docs.rs/ed25519-dalek/1.0.1/ed25519_dalek/struct.PublicKey.html#warning).
     pub fn sign(
         secret_key: &[u8],
         public_key: &[u8],
@@ -103,9 +100,6 @@ impl PublicToken {
     }
 
     /// Verify a public token.
-    ///
-    /// # Warning:
-    /// See warning on [`public_key`](https://docs.rs/ed25519-dalek/1.0.1/ed25519_dalek/struct.PublicKey.html#warning).
     pub fn verify(public_key: &[u8], token: &str, footer: Option<&[u8]>) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
