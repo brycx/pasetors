@@ -111,7 +111,6 @@ impl PublicToken {
     pub fn verify(public_key: &[u8], token: &str, footer: Option<&[u8]>) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
-        use ed25519_dalek::Verifier;
 
         let f = match footer {
             Some(val) => val,
@@ -140,8 +139,7 @@ impl PublicToken {
             Err(_) => return Err(Errors::TokenValidationError),
         };
 
-        // TODO: Use verify_strict()?
-        if pk.verify(m2.as_ref(), &sig).is_ok() {
+        if pk.verify_strict(m2.as_ref(), &sig).is_ok() {
             Ok(())
         } else {
             Err(Errors::TokenValidationError)
@@ -494,6 +492,36 @@ mod test_local {
             TEST_NONCE_2.as_ref(),
             hex::decode("45742c976d684ff84ebdc0de59809a97cda2f64c84fda19b").unwrap()
         );
+    }
+
+    #[test]
+    fn invalid_secret_key() {
+        use rand::rngs::OsRng;
+        let mut csprng = OsRng {};
+
+        let message =
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+        let expected = "v2.local.97TTOvgwIxNGvV80XKiGZg_kD3tsXM_-qB4dZGHOeN1cTkgQ4PnW8888l802W8d9AvEGnoNBY3BnqHORy8a5cC8aKpbA0En8XELw2yDk2f1sVODyfnDbi6rEGMY3pSfCbLWMM2oHJxvlEl2XbQ";
+        let footer = b"";
+
+        assert!(
+            LocalToken::encrypt_with_nonce(&TEST_SK[..31], &TEST_NONCE, message, Some(footer))
+                .is_err()
+        );
+        assert!(LocalToken::encrypt(&mut csprng, &TEST_SK[..31], message, Some(footer)).is_err());
+        assert!(LocalToken::decrypt(&TEST_SK[..31], expected, Some(footer)).is_err());
+    }
+
+    #[test]
+    fn encrypt_decrypt_roundtrip() {
+        use rand::rngs::OsRng;
+        let mut csprng = OsRng {};
+
+        let message = b"Hello, World!";
+        let footer = b"";
+        let token = LocalToken::encrypt(&mut csprng, &TEST_SK, message, Some(footer)).unwrap();
+
+        assert!(LocalToken::decrypt(&TEST_SK, &token, Some(footer)).is_ok());
     }
 
     #[test]
