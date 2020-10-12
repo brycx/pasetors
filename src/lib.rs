@@ -52,6 +52,3 @@ pub mod errors;
 
 /// PASETO version 2 tokens.
 pub mod version2;
-
-/// Errors for token operations.
-pub use errors::Errors;

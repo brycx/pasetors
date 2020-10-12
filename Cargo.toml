@@ -11,8 +11,6 @@ repository = "https://github.com/brycx/pasetors"
 documentation = "https://docs.rs/pasetors"
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 ed25519-dalek = "1.0.1"
 

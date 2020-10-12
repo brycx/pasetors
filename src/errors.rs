@@ -5,7 +5,7 @@ pub enum Errors {
     TokenFormatError,
     /// Error for a failed Base64 (URL-safe without padding) decoding.
     Base64DecodingError,
-    /// Error for a failed token validation
+    /// Error for a failed token validation.
     TokenValidationError,
     /// Error for an invalid key.
     KeyError,
