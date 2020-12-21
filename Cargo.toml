@@ -13,7 +13,7 @@ license = "MIT"
 
 [dev-dependencies]
 hex = "0.4.2"
-rand = "0.7.3"
+rand = "0.8.0"
 ed25519-dalek = "1.0.1"
 
 [dependencies.ed25519-dalek]
