@@ -75,11 +75,7 @@ impl PublicToken {
             _ => return Err(Errors::KeyError),
         };
 
-        let f = match footer {
-            Some(val) => val,
-            None => &[],
-        };
-
+        let f = footer.unwrap_or(&[]);
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f])?;
         let sig = kp.sign(m2.as_ref());
 
@@ -104,10 +100,7 @@ impl PublicToken {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
 
-        let f = match footer {
-            Some(val) => val,
-            None => &[],
-        };
+        let f = footer.unwrap_or(&[]);
 
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let sm = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
@@ -167,10 +160,7 @@ impl LocalToken {
         blake2b.update(message.as_ref()).unwrap();
         let nonce = Nonce::from_slice(blake2b.finalize().unwrap().as_ref()).unwrap();
 
-        let f = match footer {
-            Some(val) => val,
-            None => &[],
-        };
+        let f = footer.unwrap_or(&[]);
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f])?;
         let mut out = vec![0u8; message.len() + POLY1305_OUTSIZE + nonce.len()];
@@ -232,10 +222,7 @@ impl LocalToken {
         use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
-        let f = match footer {
-            Some(val) => val,
-            None => &[],
-        };
+        let f = footer.unwrap_or(&[]);
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
         if nc.len() < (XCHACHA_NONCESIZE + POLY1305_OUTSIZE) {
