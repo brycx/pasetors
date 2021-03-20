@@ -5,7 +5,7 @@ use core::convert::TryFrom;
 use crate::errors::Errors;
 use crate::pae;
 
-use base64::{decode_config, encode_config, URL_SAFE_NO_PAD};
+use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
 use rand_core::{CryptoRng, RngCore};
 
 /// Validate that a token begins with a given header.purpose and does not contain more than:
