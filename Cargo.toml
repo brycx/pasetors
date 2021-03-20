@@ -25,11 +25,6 @@ features = ["u64_backend"]
 version = "0.15.4"
 default-features = false
 
-[dependencies.base64]
-version = "0.13.0"
-default-features = false
-features = ["alloc"]
-
 [dependencies.rand_core]
 version = "0.5.1"
 default-features = false
