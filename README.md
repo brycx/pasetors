@@ -40,7 +40,7 @@ assert!(LocalToken::decrypt(&secret, &local_token, Some(b"footer")).is_ok());
 This library has **not undergone any third-party security audit**. Usage is at **own risk**. 
 
 
-The [ed25519-dalek](https://github.com/dalek-cryptography/ed25519-dalek) library, used for public tokens, was [included in an audit](https://blog.quarkslab.com/security-audit-of-dalek-libraries.html). The [orion](https://github.com/brycx/orion) library, used for local tokens, has **not** been audited. Note also, that the reference implementation uses constant-time Base64 encoding, while this library does not.
+The [ed25519-dalek](https://github.com/dalek-cryptography/ed25519-dalek) library, used for public tokens, was [included in an audit](https://blog.quarkslab.com/security-audit-of-dalek-libraries.html). The [orion](https://github.com/brycx/orion) library, used for local tokens, has **not** been audited.
 
 ### Minimum Supported Rust Version
 Rust 1.41 or later is supported however, the majority of testing happens with latest stable Rust.

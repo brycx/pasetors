@@ -17,8 +17,8 @@ pub enum Errors {
     LossyConversionError,
 }
 
-impl From<base64::DecodeError> for Errors {
-    fn from(_: base64::DecodeError) -> Self {
+impl From<ct_codecs::Error> for Errors {
+    fn from(_: ct_codecs::Error) -> Self {
         Errors::Base64DecodingError
     }
 }
