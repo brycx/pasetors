@@ -31,7 +31,7 @@
     unused_qualifications,
     overflowing_literals
 )]
-#![doc(html_root_url = "https://docs.rs/pasetors/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/pasetors/0.1.1")]
 
 #[macro_use]
 extern crate alloc;
