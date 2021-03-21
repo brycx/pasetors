@@ -8,6 +8,22 @@ use crate::pae;
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
 use rand_core::{CryptoRng, RngCore};
 
+fn encode_b64<'a, T: AsRef<[u8]>>(encoded: T) -> Result<&'a str, Errors> {
+    let inlen = encoded.as_ref().len();
+    let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
+
+    Ok(Base64UrlSafeNoPadding::encode_to_str(&mut buf, encoded)?)
+}
+
+fn decode_b64<'a, T: AsRef<[u8]>>(encoded: T) -> Result<&'a [u8], Errors> {
+    let inlen = encoded.as_ref().len();
+    // We can use encoded len here, even if it returns more than needed,
+    // because ct-codecs allows this.
+    let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
+
+    Ok(Base64UrlSafeNoPadding::decode(&mut buf, encoded, None)?)
+}
+
 /// Validate that a token begins with a given header.purpose and does not contain more than:
 /// header.purpose.payload.footer
 /// If a footer is present, this is validated against the supplied.
@@ -36,7 +52,7 @@ fn validate_format_footer<'a>(
             return Err(Errors::TokenValidationError);
         }
 
-        let token_footer = decode_config(parts_split[3], URL_SAFE_NO_PAD)?;
+        let token_footer = decode_b64(parts_split[3])?;
         if secure_cmp(footer, token_footer.as_ref()).is_err() {
             return Err(Errors::TokenValidationError);
         }
@@ -82,16 +98,12 @@ impl PublicToken {
         let mut m_sig: Vec<u8> = Vec::from(message);
         m_sig.extend_from_slice(sig.to_bytes().as_ref());
 
-        let token_no_footer = format!("{}{}", Self::HEADER, encode_config(m_sig, URL_SAFE_NO_PAD));
+        let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
 
         if f.is_empty() {
             Ok(token_no_footer)
         } else {
-            Ok(format!(
-                "{}.{}",
-                token_no_footer,
-                encode_config(f, URL_SAFE_NO_PAD)
-            ))
+            Ok(format!("{}.{}", token_no_footer, encode_b64(f)?))
         }
     }
 
@@ -103,7 +115,7 @@ impl PublicToken {
         let f = footer.unwrap_or(&[]);
 
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
-        let sm = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
+        let sm = decode_b64(parts_split[2])?;
         if sm.len() < ed25519_dalek::SIGNATURE_LENGTH {
             return Err(Errors::TokenFormatError);
         }
@@ -181,16 +193,12 @@ impl LocalToken {
         }
 
         out[..nonce.len()].copy_from_slice(nonce.as_ref());
-        let token_no_footer = format!("{}{}", Self::HEADER, encode_config(out, URL_SAFE_NO_PAD));
+        let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(out)?);
 
         if f.is_empty() {
             Ok(token_no_footer)
         } else {
-            Ok(format!(
-                "{}.{}",
-                token_no_footer,
-                encode_config(f, URL_SAFE_NO_PAD)
-            ))
+            Ok(format!("{}.{}", token_no_footer, encode_b64(f)?))
         }
     }
 
@@ -224,7 +232,7 @@ impl LocalToken {
 
         let f = footer.unwrap_or(&[]);
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
-        let nc = decode_config(parts_split[2], URL_SAFE_NO_PAD)?;
+        let nc = decode_b64(parts_split[2])?;
         if nc.len() < (XCHACHA_NONCESIZE + POLY1305_OUTSIZE) {
             return Err(Errors::TokenFormatError);
         }
@@ -1053,9 +1061,9 @@ mod token_validation {
     #[test]
     fn err_on_modified_signature() {
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_sig = Vec::from(decode_config(split_public[2], URL_SAFE_NO_PAD).unwrap());
+        let mut bad_sig = Vec::from(decode_b64(split_public[2]).unwrap());
         bad_sig.copy_within(0..32, 32);
-        let tmp = encode_config(bad_sig, URL_SAFE_NO_PAD);
+        let tmp = encode_b64(bad_sig).unwrap();
         split_public[2] = &tmp;
         let invalid_public: String = format!(
             "{}.{}.{}.{}",
@@ -1071,10 +1079,10 @@ mod token_validation {
     #[test]
     fn err_on_modified_tag() {
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_tag = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let mut bad_tag = Vec::from(decode_b64(split_local[2]).unwrap());
         let tlen = bad_tag.len();
         bad_tag.copy_within(0..16, tlen - 16);
-        let tmp = encode_config(bad_tag, URL_SAFE_NO_PAD);
+        let tmp = encode_b64(bad_tag).unwrap();
         split_local[2] = &tmp;
         let invalid_local: String = format!(
             "{}.{}.{}.{}",
@@ -1090,10 +1098,10 @@ mod token_validation {
     #[test]
     fn err_on_modified_ciphertext() {
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_ct = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let mut bad_ct = Vec::from(decode_b64(split_local[2]).unwrap());
         let ctlen = bad_ct.len();
         bad_ct.copy_within((ctlen - 16)..ctlen, 24);
-        let tmp = encode_config(bad_ct, URL_SAFE_NO_PAD);
+        let tmp = encode_b64(bad_ct).unwrap();
         split_local[2] = &tmp;
         let invalid_local: String = format!(
             "{}.{}.{}.{}",
@@ -1109,10 +1117,10 @@ mod token_validation {
     #[test]
     fn err_on_modified_nonce() {
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_nonce = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
         let nlen = bad_nonce.len();
         bad_nonce.copy_within((nlen - 24)..nlen, 0);
-        let tmp = encode_config(bad_nonce, URL_SAFE_NO_PAD);
+        let tmp = encode_b64(bad_nonce).unwrap();
         split_local[2] = &tmp;
         let invalid_local: String = format!(
             "{}.{}.{}.{}",
@@ -1128,10 +1136,10 @@ mod token_validation {
     #[test]
     fn err_on_invalid_base64() {
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_nonce = Vec::from(decode_config(split_local[2], URL_SAFE_NO_PAD).unwrap());
+        let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
         let nlen = bad_nonce.len();
         bad_nonce.copy_within((nlen - 24)..nlen, 0);
-        let tmp = encode_config(bad_nonce, URL_SAFE_NO_PAD);
+        let tmp = encode_b64(bad_nonce).unwrap();
         split_local[2] = &tmp;
         let invalid_local: String = format!(
             "{}.{}.{}.{}",
