@@ -157,7 +157,7 @@ impl LocalToken {
 
     /// Encrypt and authenticate a message using nonce_key_bytes to derive a nonce
     /// using BLAKE2b.
-    fn encrypt_with_nonce(
+    fn encrypt_with_derived_nonce(
         secret_key: &[u8],
         nonce_key_bytes: &[u8],
         message: &[u8],
@@ -221,7 +221,7 @@ impl LocalToken {
         let mut rng_bytes = [0u8; XCHACHA_NONCESIZE];
         csprng.try_fill_bytes(&mut rng_bytes)?;
 
-        Self::encrypt_with_nonce(secret_key, &rng_bytes, message, footer)
+        Self::encrypt_with_derived_nonce(secret_key, &rng_bytes, message, footer)
     }
 
     /// Verify and decrypt a local token.
@@ -495,10 +495,13 @@ mod test_local {
         let expected = "v2.local.97TTOvgwIxNGvV80XKiGZg_kD3tsXM_-qB4dZGHOeN1cTkgQ4PnW8888l802W8d9AvEGnoNBY3BnqHORy8a5cC8aKpbA0En8XELw2yDk2f1sVODyfnDbi6rEGMY3pSfCbLWMM2oHJxvlEl2XbQ";
         let footer = b"";
 
-        assert!(
-            LocalToken::encrypt_with_nonce(&TEST_SK[..31], &TEST_NONCE, message, Some(footer))
-                .is_err()
-        );
+        assert!(LocalToken::encrypt_with_derived_nonce(
+            &TEST_SK[..31],
+            &TEST_NONCE,
+            message,
+            Some(footer)
+        )
+        .is_err());
         assert!(LocalToken::encrypt(&mut csprng, &TEST_SK[..31], message, Some(footer)).is_err());
         assert!(LocalToken::decrypt(&TEST_SK[..31], expected, Some(footer)).is_err());
     }
@@ -523,9 +526,10 @@ mod test_local {
         let footer = b"";
 
         let actual_some =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer))
+                .unwrap();
         let actual_none =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, None).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, None).unwrap();
 
         assert_eq!(actual_some, actual_none);
         assert_eq!(actual_some, expected);
@@ -540,7 +544,8 @@ mod test_local {
         let expected = "v2.local.97TTOvgwIxNGvV80XKiGZg_kD3tsXM_-qB4dZGHOeN1cTkgQ4PnW8888l802W8d9AvEGnoNBY3BnqHORy8a5cC8aKpbA0En8XELw2yDk2f1sVODyfnDbi6rEGMY3pSfCbLWMM2oHJxvlEl2XbQ";
         let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -556,7 +561,8 @@ mod test_local {
         let expected = "v2.local.CH50H-HM5tzdK4kOmQ8KbIvrzJfjYUGuu5Vy9ARSFHy9owVDMYg3-8rwtJZQjN9ABHb2njzFkvpr5cOYuRyt7CRXnHt42L5yZ7siD-4l-FoNsC7J2OlvLlIwlG06mzQVunrFNb7Z3_CHM0PK5w";
         let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -572,7 +578,8 @@ mod test_local {
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-O5xRBN076fSDPo5xUCPpBA";
         let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -588,7 +595,8 @@ mod test_local {
         let expected = "v2.local.pvFdDeNtXxknVPsbBCZF6MGedVhPm40SneExdClOxa9HNR8wFv7cu1cB0B4WxDdT6oUc2toyLR6jA6sc-EUM5ll1EkeY47yYk6q8m1RCpqTIzUrIu3B6h232h62DPbIxtjGvNRAwsLK7LcV8oQ";
         let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -604,7 +612,8 @@ mod test_local {
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
         let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -620,7 +629,8 @@ mod test_local {
         let expected = "v2.local.pvFdDeNtXxknVPsbBCZF6MGedVhPm40SneExdClOxa9HNR8wFv7cu1cB0B4WxDdT6oUc2toyLR6jA6sc-EUM5ll1EkeY47yYk6q8m1RCpqTIzUrIu3B6h232h62DnMXKdHn_Smp6L_NfaEnZ-A.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
         let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -635,9 +645,13 @@ mod test_local {
         let message = b"";
         let expected = "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNUtKpdy5KXjKfpSKrOlqQvQ";
         let footer = b"";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_NULL_KEY,
+            &TEST_NONCE,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -652,9 +666,13 @@ mod test_local {
         let message = b"";
         let expected = "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNSOvpveyCsjPYfe9mtiJDVg";
         let footer = b"";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_FULL_KEY,
+            &TEST_NONCE,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -670,7 +688,8 @@ mod test_local {
         let expected = "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNkIWACdHuLiJiW16f2GuGYA";
         let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -686,9 +705,13 @@ mod test_local {
         let expected =
             "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNfzz6yGkE4ZxojJAJwKLfvg.Q3VvbiBBbHBpbnVz";
         let footer = b"Cuon Alpinus";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_NULL_KEY,
+            &TEST_NONCE,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -704,9 +727,13 @@ mod test_local {
         let expected =
             "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNJbTJxAGtEg4ZMXY9g2LSoQ.Q3VvbiBBbHBpbnVz";
         let footer = b"Cuon Alpinus";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_FULL_KEY,
+            &TEST_NONCE,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -723,7 +750,8 @@ mod test_local {
             "v2.local.driRNhM20GQPvlWfJCepzh6HdijAq-yNreCcZAS0iGVlzdHjTf2ilg.Q3VvbiBBbHBpbnVz";
         let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -738,9 +766,13 @@ mod test_local {
         let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.BEsKs5AolRYDb_O-bO-lwHWUextpShFSvu6cB-KuR4wR9uDMjd45cPiOF0zxb7rrtOB5tRcS7dWsFwY4ONEuL5sWeunqHC9jxU0";
         let footer = b"";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_NULL_KEY,
+            &TEST_NONCE,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -755,9 +787,13 @@ mod test_local {
         let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.BEsKs5AolRYDb_O-bO-lwHWUextpShFSjvSia2-chHyMi4LtHA8yFr1V7iZmKBWqzg5geEyNAAaD6xSEfxoET1xXqahe1jqmmPw";
         let footer = b"";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_FULL_KEY,
+            &TEST_NONCE,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -773,7 +809,8 @@ mod test_local {
         let expected = "v2.local.BEsKs5AolRYDb_O-bO-lwHWUextpShFSXlvv8MsrNZs3vTSnGQG4qRM9ezDl880jFwknSA6JARj2qKhDHnlSHx1GSCizfcF019U";
         let footer = b"";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -788,9 +825,13 @@ mod test_local {
         let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.FGVEQLywggpvH0AzKtLXz0QRmGYuC6yvbcqXgWxM3vJGrJ9kWqquP61Xl7bz4ZEqN5XwH7xyzV0QqPIo0k52q5sWxUQ4LMBFFso.Q3VvbiBBbHBpbnVz";
         let footer = b"Cuon Alpinus";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_NULL_KEY, &TEST_NONCE_2, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_NULL_KEY,
+            &TEST_NONCE_2,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -805,9 +846,13 @@ mod test_local {
         let message = b"Love is stronger than hate or fear";
         let expected = "v2.local.FGVEQLywggpvH0AzKtLXz0QRmGYuC6yvZMW3MgUMFplQXsxcNlg2RX8LzFxAqj4qa2FwgrUdH4vYAXtCFrlGiLnk-cHHOWSUSaw.Q3VvbiBBbHBpbnVz";
         let footer = b"Cuon Alpinus";
-        let actual =
-            LocalToken::encrypt_with_nonce(&TEST_FULL_KEY, &TEST_NONCE_2, message, Some(footer))
-                .unwrap();
+        let actual = LocalToken::encrypt_with_derived_nonce(
+            &TEST_FULL_KEY,
+            &TEST_NONCE_2,
+            message,
+            Some(footer),
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -823,7 +868,8 @@ mod test_local {
         let expected = "v2.local.FGVEQLywggpvH0AzKtLXz0QRmGYuC6yvl05z9GIX0cnol6UK94cfV77AXnShlUcNgpDR12FrQiurS8jxBRmvoIKmeMWC5wY9Y6w.Q3VvbiBBbHBpbnVz";
         let footer = b"Cuon Alpinus";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -839,7 +885,8 @@ mod test_local {
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zKeei_8CY0oUMtEai3HYcQ.UGFyYWdvbiBJbml0aWF0aXZlIEVudGVycHJpc2Vz";
         let footer = b"Paragon Initiative Enterprises";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
@@ -855,7 +902,8 @@ mod test_local {
         let expected = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
         let footer = b"{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
         let actual =
-            LocalToken::encrypt_with_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer)).unwrap();
+            LocalToken::encrypt_with_derived_nonce(&TEST_SK, &TEST_NONCE_2, message, Some(footer))
+                .unwrap();
 
         assert_eq!(expected, actual);
         assert_eq!(
