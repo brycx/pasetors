@@ -8,15 +8,17 @@ use crate::pae;
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
 use rand_core::{CryptoRng, RngCore};
 
-fn encode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<String, Errors> {
-    let inlen = encoded.as_ref().len();
+/// Encode bytes with Base64 URL-safe and no padding.
+fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Errors> {
+    let inlen = bytes.as_ref().len();
     let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
 
-    let ret: String = Base64UrlSafeNoPadding::encode_to_str(&mut buf, encoded)?.into();
+    let ret: String = Base64UrlSafeNoPadding::encode_to_str(&mut buf, bytes)?.into();
 
     Ok(ret)
 }
 
+/// Decode string with Base64 URL-safe and no padding.
 fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Errors> {
     let inlen = encoded.as_ref().len();
     // We can use encoded len here, even if it returns more than needed,
