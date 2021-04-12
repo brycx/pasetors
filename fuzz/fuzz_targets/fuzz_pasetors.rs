@@ -42,7 +42,7 @@ fuzz_target!(|data: &[u8]| {
     }
 
     let local_token =
-        version2::LocalToken::encrypt(&mut csprng, key.as_ref(), message.as_bytes(), None).unwrap();
+        version2::LocalToken::encrypt(key.as_ref(), message.as_bytes(), None).unwrap();
     if !version2::LocalToken::decrypt(key.as_ref(), &local_token, None).is_ok() {
         panic!("Valid token was NOT verified");
     }
