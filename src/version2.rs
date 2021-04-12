@@ -6,7 +6,6 @@ use crate::errors::Errors;
 use crate::pae;
 
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
-use rand_core::{CryptoRng, RngCore};
 
 /// Encode bytes with Base64 URL-safe and no padding.
 fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Errors> {
@@ -209,19 +208,15 @@ impl LocalToken {
     }
 
     /// Create a local token.
-    pub fn encrypt<C>(
-        csprng: &mut C,
+    pub fn encrypt(
         secret_key: &[u8],
         message: &[u8],
         footer: Option<&[u8]>,
-    ) -> Result<String, Errors>
-    where
-        C: CryptoRng + RngCore,
-    {
+    ) -> Result<String, Errors> {
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
         let mut rng_bytes = [0u8; XCHACHA_NONCESIZE];
-        csprng.try_fill_bytes(&mut rng_bytes)?;
+        getrandom::getrandom(&mut rng_bytes)?;
 
         Self::encrypt_with_derived_nonce(secret_key, &rng_bytes, message, footer)
     }
@@ -504,7 +499,7 @@ mod test_local {
             Some(footer)
         )
         .is_err());
-        assert!(LocalToken::encrypt(&mut csprng, &TEST_SK[..31], message, Some(footer)).is_err());
+        assert!(LocalToken::encrypt(&TEST_SK[..31], message, Some(footer)).is_err());
         assert!(LocalToken::decrypt(&TEST_SK[..31], expected, Some(footer)).is_err());
     }
 
@@ -515,7 +510,7 @@ mod test_local {
 
         let message = b"Hello, World!";
         let footer = b"";
-        let token = LocalToken::encrypt(&mut csprng, &TEST_SK, message, Some(footer)).unwrap();
+        let token = LocalToken::encrypt(&TEST_SK, message, Some(footer)).unwrap();
 
         assert!(LocalToken::decrypt(&TEST_SK, &token, Some(footer)).is_ok());
     }

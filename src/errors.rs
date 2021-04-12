@@ -23,8 +23,8 @@ impl From<ct_codecs::Error> for Errors {
     }
 }
 
-impl From<rand_core::Error> for Errors {
-    fn from(_: rand_core::Error) -> Self {
+impl From<getrandom::Error> for Errors {
+    fn from(_: getrandom::Error) -> Self {
         Errors::CsprngError
     }
 }
