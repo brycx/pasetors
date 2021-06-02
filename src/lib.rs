@@ -1,7 +1,6 @@
 //! # Usage:
 //! ```rust
 //! use pasetors::version2::*;
-//! use rand::RngCore;
 //! use ed25519_dalek::Keypair;
 //!
 //! let mut csprng = rand::rngs::OsRng{};
@@ -13,9 +12,9 @@
 //!
 //! // Create and verify a local token
 //! let mut secret = [0u8; 32];
-//! csprng.try_fill_bytes(&mut secret)?;
+//! getrandom::getrandom(&mut secret)?;
 //!
-//! let local_token = LocalToken::encrypt(&mut csprng, &secret, b"Message to encrypt and authenticate", Some(b"footer"))?;
+//! let local_token = LocalToken::encrypt(&secret, b"Message to encrypt and authenticate", Some(b"footer"))?;
 //! assert!(LocalToken::decrypt(&secret, &local_token, Some(b"footer")).is_ok());
 //!
 //! # Ok::<(), pasetors::errors::Errors>(())
@@ -31,7 +30,7 @@
     unused_qualifications,
     overflowing_literals
 )]
-#![doc(html_root_url = "https://docs.rs/pasetors/0.1.1")]
+#![doc(html_root_url = "https://docs.rs/pasetors/0.2.0")]
 
 #[macro_use]
 extern crate alloc;
