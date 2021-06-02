@@ -484,9 +484,6 @@ mod test_local {
 
     #[test]
     fn invalid_secret_key() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng {};
-
         let message =
             b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let expected = "v2.local.97TTOvgwIxNGvV80XKiGZg_kD3tsXM_-qB4dZGHOeN1cTkgQ4PnW8888l802W8d9AvEGnoNBY3BnqHORy8a5cC8aKpbA0En8XELw2yDk2f1sVODyfnDbi6rEGMY3pSfCbLWMM2oHJxvlEl2XbQ";
@@ -505,9 +502,6 @@ mod test_local {
 
     #[test]
     fn encrypt_decrypt_roundtrip() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng {};
-
         let message = b"Hello, World!";
         let footer = b"";
         let token = LocalToken::encrypt(&TEST_SK, message, Some(footer)).unwrap();
