@@ -1,6 +1,6 @@
 ### 0.2.0
 
-__Date:__ TBD
+__Date:__ June 2, 2021.
 
 __Changelog:__
 - Remove `Csprng` trait from public API and use `getrandom` instead
