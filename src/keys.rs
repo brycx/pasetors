@@ -1,7 +1,6 @@
 use crate::errors::Errors;
 use alloc::vec::Vec;
 
-
 // TODO!: Missing protections for the secret types.
 
 #[derive(Debug, PartialEq)]

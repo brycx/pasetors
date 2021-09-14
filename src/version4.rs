@@ -292,6 +292,8 @@ mod test_local {
     #[derive(Serialize, Deserialize, Debug)]
     struct PasetoTest {
         name: String,
+        #[serde(rename(deserialize = "expect-fail"))]
+        expect_fail: bool,
         key: Option<String>,
         nonce: Option<String>,
         #[serde(rename(deserialize = "public-key"))]
@@ -303,7 +305,7 @@ mod test_local {
         #[serde(rename(deserialize = "secret-key-pem"))]
         secret_key_pem: Option<String>,
         token: String,
-        payload: Payload,
+        payload: Option<Payload>,
         footer: String,
         #[serde(rename(deserialize = "implicit-assertion"))]
         implicit_assertion: String,
@@ -325,7 +327,7 @@ mod test_local {
             Version::V4,
         )
         .unwrap();
-        let message = serde_json::to_string(&test.payload).unwrap();
+        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
         let nonce = hex::decode(test.nonce.as_ref().unwrap()).unwrap();
         let footer = test.footer.as_bytes();
         let implicit_assert = test.implicit_assertion.as_bytes();
@@ -359,7 +361,7 @@ mod test_local {
             Version::V4,
         )
         .unwrap();
-        let message = serde_json::to_string(&test.payload).unwrap();
+        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
         let footer = test.footer.as_bytes();
         let implicit_assert = test.implicit_assertion.as_bytes();
 
@@ -381,19 +383,24 @@ mod test_local {
 
     #[test]
     fn run_test_vectors() {
-        let path = "./src/v4.json";
+        let path = "./test_vectors/v4.json";
         let file = File::open(path).unwrap();
         let reader = BufReader::new(file);
         let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
+        // TODO!: Add cases where expect-fail == true
         for t in tests.tests {
             // v4.public
             if t.public_key.is_some() {
-                test_public(&t);
+                if t.expect_fail == false {
+                    test_public(&t);
+                }
             }
             // v4.local
             if t.nonce.is_some() {
-                test_local(&t);
+                if t.expect_fail == false {
+                    test_local(&t);
+                }
             }
         }
     }
