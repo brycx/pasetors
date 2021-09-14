@@ -269,7 +269,7 @@ impl LocalToken {
 }
 
 #[cfg(test)]
-mod test_local {
+mod test_vectors {
 
     use super::LocalToken;
     use hex;
@@ -280,43 +280,7 @@ mod test_local {
 
     use crate::keys::Version;
     use serde::{Deserialize, Serialize};
-
-    #[allow(non_snake_case)]
-    #[derive(Serialize, Deserialize, Debug)]
-    struct TestFile {
-        name: String,
-        tests: Vec<PasetoTest>,
-    }
-
-    #[allow(non_snake_case)]
-    #[derive(Serialize, Deserialize, Debug)]
-    struct PasetoTest {
-        name: String,
-        #[serde(rename(deserialize = "expect-fail"))]
-        expect_fail: bool,
-        key: Option<String>,
-        nonce: Option<String>,
-        #[serde(rename(deserialize = "public-key"))]
-        public_key: Option<String>,
-        #[serde(rename(deserialize = "secret-key"))]
-        secret_key: Option<String>,
-        #[serde(rename(deserialize = "public-key-pem"))]
-        public_key_pem: Option<String>,
-        #[serde(rename(deserialize = "secret-key-pem"))]
-        secret_key_pem: Option<String>,
-        token: String,
-        payload: Option<Payload>,
-        footer: String,
-        #[serde(rename(deserialize = "implicit-assertion"))]
-        implicit_assertion: String,
-    }
-
-    #[allow(non_snake_case)]
-    #[derive(Serialize, Deserialize, Debug)]
-    struct Payload {
-        data: String,
-        exp: String,
-    }
+    use crate::common::tests::*;
 
     fn test_local(test: &PasetoTest) {
         debug_assert!(test.nonce.is_some());
@@ -420,15 +384,16 @@ mod test_local {
             }
         }
     }
+}
 
-    #[test]
-    fn test_roundtrip_local() {
-        let sk = SymmetricKey::gen(Version::V4).unwrap();
-        let message = b"token payload";
 
-        let token = LocalToken::encrypt(&sk, message, None, None).unwrap();
-        let payload = LocalToken::decrypt(&sk, &token, None, None).unwrap();
+#[test]
+fn test_roundtrip_local() {
+    let sk = SymmetricKey::gen(Version::V4).unwrap();
+    let message = b"token payload";
 
-        assert_eq!(payload, message);
-    }
+    let token = LocalToken::encrypt(&sk, message, None, None).unwrap();
+    let payload = LocalToken::decrypt(&sk, &token, None, None).unwrap();
+
+    assert_eq!(payload, message);
 }
