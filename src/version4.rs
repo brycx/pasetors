@@ -271,16 +271,14 @@ impl LocalToken {
 #[cfg(test)]
 mod test_vectors {
 
-    use super::LocalToken;
     use hex;
 
     use super::*;
     use std::fs::File;
     use std::io::BufReader;
 
-    use crate::keys::Version;
-    use serde::{Deserialize, Serialize};
     use crate::common::tests::*;
+    use crate::keys::Version;
 
     fn test_local(test: &PasetoTest) {
         debug_assert!(test.nonce.is_some());
@@ -385,7 +383,6 @@ mod test_vectors {
         }
     }
 }
-
 
 #[test]
 fn test_roundtrip_local() {

@@ -1,7 +1,6 @@
 use crate::errors::Errors;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::convert::TryFrom;
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
 
 /// Encode bytes with Base64 URL-safe and no padding.

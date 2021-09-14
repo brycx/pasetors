@@ -1,21 +1,23 @@
 //! # Usage:
 //! ```rust
-//! use pasetors::version2::*;
+//! use pasetors::version4::*;
+//! use pasetors::keys::*;
 //! use ed25519_dalek::Keypair;
 //!
 //! let mut csprng = rand::rngs::OsRng{};
 //!
 //! // Create and verify a public token
 //! let keypair: Keypair = Keypair::generate(&mut csprng);
-//! let pub_token = PublicToken::sign(&keypair.secret.to_bytes(), &keypair.public.to_bytes(), b"Message to sign", Some(b"footer"))?;
-//! assert!(PublicToken::verify(&keypair.public.to_bytes(), &pub_token, Some(b"footer")).is_ok());
+//! let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), Version::V4)?;
+//! let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), Version::V4)?;
+//! let pub_token = PublicToken::sign(&sk, &pk, b"Message to sign", Some(b"footer"), Some(b"implicit assertion"))?;
+//! assert!(PublicToken::verify(&pk, &pub_token, Some(b"footer"), Some(b"implicit assertion")).is_ok());
 //!
 //! // Create and verify a local token
-//! let mut secret = [0u8; 32];
-//! getrandom::getrandom(&mut secret)?;
+//! let sk = SymmetricKey::gen(Version::V4)?;
 //!
-//! let local_token = LocalToken::encrypt(&secret, b"Message to encrypt and authenticate", Some(b"footer"))?;
-//! assert!(LocalToken::decrypt(&secret, &local_token, Some(b"footer")).is_ok());
+//! let local_token = LocalToken::encrypt(&sk, b"Message to encrypt and authenticate", Some(b"footer"), Some(b"implicit assertion"))?;
+//! assert!(LocalToken::decrypt(&sk, &local_token, Some(b"footer"), Some(b"implicit assertion")).is_ok());
 //!
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```
@@ -41,7 +43,10 @@ mod pae;
 pub mod errors;
 
 mod common;
-mod keys;
+
+/// Keys used for PASETO tokens.
+pub mod keys;
 /// PASETO version 2 tokens.
 pub mod version2;
-mod version4;
+/// PASETO version 4 tokens.
+pub mod version4;

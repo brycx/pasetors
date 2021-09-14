@@ -1,3 +1,12 @@
+### 0.3.0
+
+__Date:__ TBD
+
+__Changelog:__
+- Implement version 4 of the PASETO specification
+- New `SymmetricKey`, `AsymmetricPublicKey` now `AsymmetricSecretKey` used throughout the API of both version 2 and 4 ([#14](https://github.com/brycx/pasetors/issues/14)).
+- Use new test vectors from https://github.com/paseto-standard/test-vectors
+
 ### 0.2.0
 
 __Date:__ June 2, 2021.
