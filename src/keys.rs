@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 // TODO!: Missing protections for the secret types.
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 /// Versions associated with a key, used in PASETO.
 pub enum Version {
     /// Keys for version 2.
