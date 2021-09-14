@@ -327,10 +327,21 @@ mod test_local {
             Version::V4,
         )
         .unwrap();
-        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
+
         let nonce = hex::decode(test.nonce.as_ref().unwrap()).unwrap();
         let footer = test.footer.as_bytes();
         let implicit_assert = test.implicit_assertion.as_bytes();
+
+        // payload is null when we expect failure
+        if test.expect_fail {
+            assert!(
+                LocalToken::decrypt(&sk, &test.token, Some(footer), Some(implicit_assert)).is_err()
+            );
+
+            return;
+        }
+
+        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
 
         let actual = LocalToken::encrypt_with_nonce(
             &sk,
@@ -361,9 +372,19 @@ mod test_local {
             Version::V4,
         )
         .unwrap();
-        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
         let footer = test.footer.as_bytes();
         let implicit_assert = test.implicit_assertion.as_bytes();
+
+        // payload is null when we expect failure
+        if test.expect_fail {
+            assert!(
+                PublicToken::verify(&pk, &test.token, Some(footer), Some(implicit_assert)).is_err()
+            );
+
+            return;
+        }
+
+        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
 
         let actual = PublicToken::sign(
             &sk,
@@ -388,19 +409,14 @@ mod test_local {
         let reader = BufReader::new(file);
         let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
-        // TODO!: Add cases where expect-fail == true
         for t in tests.tests {
             // v4.public
             if t.public_key.is_some() {
-                if t.expect_fail == false {
-                    test_public(&t);
-                }
+                test_public(&t);
             }
             // v4.local
             if t.nonce.is_some() {
-                if t.expect_fail == false {
-                    test_local(&t);
-                }
+                test_local(&t);
             }
         }
     }
