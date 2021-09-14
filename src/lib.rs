@@ -20,7 +20,7 @@
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 #![deny(clippy::mem_forget)]
 #![warn(
@@ -40,5 +40,8 @@ mod pae;
 /// Errors for token operations.
 pub mod errors;
 
+mod common;
+mod keys;
 /// PASETO version 2 tokens.
 pub mod version2;
+mod version4;
