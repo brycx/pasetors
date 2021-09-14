@@ -2,69 +2,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 
+use crate::common::{decode_b64, encode_b64, validate_format_footer};
 use crate::errors::Errors;
 use crate::pae;
-
-use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
-
-/// Encode bytes with Base64 URL-safe and no padding.
-fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Errors> {
-    let inlen = bytes.as_ref().len();
-    let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
-
-    let ret: String = Base64UrlSafeNoPadding::encode_to_str(&mut buf, bytes)?.into();
-
-    Ok(ret)
-}
-
-/// Decode string with Base64 URL-safe and no padding.
-fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Errors> {
-    let inlen = encoded.as_ref().len();
-    // We can use encoded len here, even if it returns more than needed,
-    // because ct-codecs allows this.
-    let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
-
-    let ret: Vec<u8> = Base64UrlSafeNoPadding::decode(&mut buf, encoded, None)?.into();
-
-    Ok(ret)
-}
-
-/// Validate that a token begins with a given header.purpose and does not contain more than:
-/// header.purpose.payload.footer
-/// If a footer is present, this is validated against the supplied.
-fn validate_format_footer<'a>(
-    header: &'a str,
-    token: &'a str,
-    footer: &[u8],
-) -> Result<Vec<&'a str>, Errors> {
-    use orion::util::secure_cmp;
-
-    if !token.starts_with(header) {
-        return Err(Errors::TokenFormatError);
-    }
-
-    let parts_split = token.split('.').collect::<Vec<&str>>();
-    if parts_split.len() < 3 || parts_split.len() > 4 {
-        return Err(Errors::TokenFormatError);
-    }
-
-    let is_footer_present = parts_split.len() == 4;
-    if !is_footer_present && !footer.is_empty() {
-        return Err(Errors::TokenValidationError);
-    }
-    if is_footer_present {
-        if footer.is_empty() {
-            return Err(Errors::TokenValidationError);
-        }
-
-        let token_footer = decode_b64(parts_split[3])?;
-        if secure_cmp(footer, token_footer.as_ref()).is_err() {
-            return Err(Errors::TokenValidationError);
-        }
-    }
-
-    Ok(parts_split)
-}
 
 /// PASETO v2 public tokens.
 pub struct PublicToken;
