@@ -116,3 +116,46 @@ impl AsymmetricPublicKey {
         self.bytes.as_slice()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_symmetric_gen() {
+        let randomv2 = SymmetricKey::gen(Version::V2).unwrap();
+        let randomv4 = SymmetricKey::gen(Version::V4).unwrap();
+
+        assert_ne!(randomv2.as_bytes(), &[0u8; 32]);
+        assert_ne!(randomv4.as_bytes(), &[0u8; 32]);
+    }
+
+    #[test]
+    fn test_invalid_sizes() {
+        // Version 2
+        assert!(AsymmetricSecretKey::from(&[0u8; 31], Version::V2).is_err());
+        assert!(AsymmetricSecretKey::from(&[0u8; 32], Version::V2).is_ok());
+        assert!(AsymmetricSecretKey::from(&[0u8; 33], Version::V2).is_err());
+
+        assert!(AsymmetricPublicKey::from(&[0u8; 31], Version::V2).is_err());
+        assert!(AsymmetricPublicKey::from(&[0u8; 32], Version::V2).is_ok());
+        assert!(AsymmetricPublicKey::from(&[0u8; 33], Version::V2).is_err());
+
+        assert!(SymmetricKey::from(&[0u8; 31], Version::V2).is_err());
+        assert!(SymmetricKey::from(&[0u8; 32], Version::V2).is_ok());
+        assert!(SymmetricKey::from(&[0u8; 33], Version::V2).is_err());
+
+        // Version 4
+        assert!(AsymmetricSecretKey::from(&[0u8; 31], Version::V4).is_err());
+        assert!(AsymmetricSecretKey::from(&[0u8; 32], Version::V4).is_ok());
+        assert!(AsymmetricSecretKey::from(&[0u8; 33], Version::V4).is_err());
+
+        assert!(AsymmetricPublicKey::from(&[0u8; 31], Version::V4).is_err());
+        assert!(AsymmetricPublicKey::from(&[0u8; 32], Version::V4).is_ok());
+        assert!(AsymmetricPublicKey::from(&[0u8; 33], Version::V4).is_err());
+
+        assert!(SymmetricKey::from(&[0u8; 31], Version::V4).is_err());
+        assert!(SymmetricKey::from(&[0u8; 32], Version::V4).is_ok());
+        assert!(SymmetricKey::from(&[0u8; 33], Version::V4).is_err());
+    }
+}
