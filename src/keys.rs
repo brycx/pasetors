@@ -69,7 +69,7 @@ impl AsymmetricSecretKey {
     /// Create a `AsymmetricSecretKey` from `bytes`, to be used with `version`.
     pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
         if version == Version::V2 || version == Version::V4 {
-            if bytes.len() != V4_KEYSIZE {
+            if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH {
                 return Err(Errors::KeyError);
             }
 
@@ -98,7 +98,7 @@ impl AsymmetricPublicKey {
     /// Create a `AsymmetricPublicKey` from `bytes`, to be used with `version`.
     pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
         if version == Version::V2 || version == Version::V4 {
-            if bytes.len() != V4_KEYSIZE {
+            if bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH {
                 return Err(Errors::KeyError);
             }
 
