@@ -701,7 +701,39 @@ mod tests {
 
     #[test]
     fn err_on_wrong_implicit_assert() {
-        todo!();
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V4).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_LOCAL_SK_BYTES, Version::V4).unwrap();
+        assert!(
+            PublicToken::verify(&test_pk, &VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes()), None)
+                .is_ok()
+        );
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN,
+                Some(FOOTER.as_bytes()),
+                Some(b"WRONG IMPLICIT")
+            )
+            .unwrap_err(),
+            Errors::TokenValidationError
+        );
+        assert!(LocalToken::decrypt(
+            &test_local_sk,
+            &VALID_LOCAL_TOKEN,
+            Some(FOOTER.as_bytes()),
+            None
+        )
+        .is_ok());
+        assert_eq!(
+            LocalToken::decrypt(
+                &test_local_sk,
+                &VALID_LOCAL_TOKEN,
+                Some(FOOTER.as_bytes()),
+                Some(b"WRONG IMPLICIT")
+            )
+            .unwrap_err(),
+            Errors::TokenValidationError
+        );
     }
 
     #[test]
