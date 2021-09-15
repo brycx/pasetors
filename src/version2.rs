@@ -360,6 +360,61 @@ mod tests {
     }
 
     #[test]
+    fn footer_none_some_empty_is_same() {
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let message =
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+        let footer = b"";
+
+        let actual_some = PublicToken::sign(&test_sk, &test_pk, message, Some(footer)).unwrap();
+        let actual_none = PublicToken::sign(&test_sk, &test_pk, message, None).unwrap();
+        assert_eq!(actual_some, actual_none);
+
+        assert!(PublicToken::verify(&test_pk, &actual_none, Some(footer)).is_ok());
+        assert!(PublicToken::verify(&test_pk, &actual_some, None).is_ok());
+
+        let actual_some = LocalToken::encrypt(&test_local_sk, message, Some(footer)).unwrap();
+        let actual_none = LocalToken::encrypt(&test_local_sk, message, None).unwrap();
+        // They don't equal because the nonce is random. So we only check decryption.
+
+        assert!(LocalToken::decrypt(&test_local_sk, &actual_none, Some(footer)).is_ok());
+        assert!(LocalToken::decrypt(&test_local_sk, &actual_some, None).is_ok());
+    }
+
+    #[test]
+    // NOTE: Official test vectors do not seem to include this.
+    fn empty_payload() {
+        todo!();
+    }
+
+    #[test]
+    // NOTE: "Algorithm lucidity" from spec.
+    fn wrong_key_version() {
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V4).unwrap();
+        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V4).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V4).unwrap();
+
+        assert_eq!(
+            PublicToken::sign(&test_sk, &test_pk, b"test", None).unwrap_err(),
+            Errors::KeyError
+        );
+        assert_eq!(
+            PublicToken::verify(&test_pk, "test", None).unwrap_err(),
+            Errors::KeyError
+        );
+        assert_eq!(
+            LocalToken::encrypt(&test_local_sk, b"test", None).unwrap_err(),
+            Errors::KeyError
+        );
+        assert_eq!(
+            LocalToken::decrypt(&test_local_sk, "test", None).unwrap_err(),
+            Errors::KeyError
+        );
+    }
+
+    #[test]
     fn err_on_modified_header() {
         let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
         let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
@@ -446,6 +501,7 @@ mod tests {
     }
 
     #[test]
+    // NOTE: Missing but created with one
     fn err_on_missing_payload() {
         let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
         let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
