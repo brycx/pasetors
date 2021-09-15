@@ -490,6 +490,7 @@ mod tests {
     // NOTE: Official test vectors do not seem to include this.
     fn empty_payload() {
         todo!();
+        // AWAIT: https://github.com/paseto-standard/paseto-spec/issues/17
     }
 
     #[test]
@@ -806,8 +807,6 @@ mod tests {
 
     #[test]
     fn err_on_modified_tag() {
-        // TODO: Check this modifies the tag, because it's longer than the v2 tag
-
         let test_local_sk = SymmetricKey::from(&TEST_LOCAL_SK_BYTES, Version::V4).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
@@ -862,8 +861,6 @@ mod tests {
 
     #[test]
     fn err_on_modified_nonce() {
-        // TODO: Check this modifies the nonce, because it's longer than the v2 nonce
-
         let test_local_sk = SymmetricKey::from(&TEST_LOCAL_SK_BYTES, Version::V4).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();

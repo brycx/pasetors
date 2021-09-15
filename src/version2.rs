@@ -387,6 +387,7 @@ mod tests {
     // NOTE: Official test vectors do not seem to include this.
     fn empty_payload() {
         todo!();
+        // AWAIT: https://github.com/paseto-standard/paseto-spec/issues/17
     }
 
     #[test]
