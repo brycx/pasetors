@@ -319,19 +319,17 @@ mod test_vectors {
     }
 }
 
-/*
-
 #[cfg(test)]
-mod token_validation {
+mod tests {
 
     use super::*;
 
-    const TEST_SK: [u8; 32] = [
+    const TEST_SK_BYTES: [u8; 32] = [
         112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
         130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
     ];
 
-    const TEST_PK: [u8; 32] = [
+    const TEST_PK_BYTES: [u8; 32] = [
         30, 185, 219, 187, 188, 4, 124, 3, 253, 112, 96, 78, 0, 113, 240, 152, 126, 22, 178, 139,
         117, 114, 37, 193, 31, 0, 65, 93, 14, 32, 177, 162,
     ];
@@ -343,87 +341,115 @@ mod token_validation {
     const VALID_LOCAL_TOKEN: &'static str = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
     #[test]
+    fn test_roundtrip_local() {
+        let sk = SymmetricKey::gen(Version::V2).unwrap();
+
+        let token = LocalToken::encrypt(&sk, MESSAGE.as_bytes(), None).unwrap();
+        let payload = LocalToken::decrypt(&sk, &token, None).unwrap();
+
+        assert_eq!(payload, MESSAGE.as_bytes());
+    }
+
+    #[test]
+    fn test_roundtrip_public() {
+        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+
+        let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None).unwrap();
+        assert!(PublicToken::verify(&test_pk, &token, None).is_ok());
+    }
+
+    #[test]
     fn err_on_modified_header() {
-        assert!(
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
+        assert_eq!(
             PublicToken::verify(
-                &TEST_PK,
+                &test_pk,
                 &VALID_PUBLIC_TOKEN.replace("v2", "v1"),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
+        assert_eq!(
             LocalToken::decrypt(
-                &TEST_SK,
+                &test_local_sk,
                 &VALID_LOCAL_TOKEN.replace("v2", "v1"),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
+        assert_eq!(
             PublicToken::verify(
-                &TEST_PK,
+                &test_pk,
                 &VALID_PUBLIC_TOKEN.replace("v2", ""),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
+        assert_eq!(
             LocalToken::decrypt(
-                &TEST_SK,
+                &test_local_sk,
                 &VALID_LOCAL_TOKEN.replace("v2", ""),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
     }
 
     #[test]
     fn err_on_modified_purpose() {
-        assert!(
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
+        assert_eq!(
             PublicToken::verify(
-                &TEST_PK,
+                &test_pk,
                 &VALID_PUBLIC_TOKEN.replace("public", "local"),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
+        assert_eq!(
             LocalToken::decrypt(
-                &TEST_SK,
+                &test_local_sk,
                 &VALID_LOCAL_TOKEN.replace("local", "public"),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
+        assert_eq!(
             PublicToken::verify(
-                &TEST_PK,
+                &test_pk,
                 &VALID_PUBLIC_TOKEN.replace("public", ""),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
+        assert_eq!(
             LocalToken::decrypt(
-                &TEST_SK,
+                &test_local_sk,
                 &VALID_LOCAL_TOKEN.replace("local", ""),
                 Some(FOOTER.as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenFormatError
+            .unwrap_err(),
+            Errors::TokenFormatError
         );
     }
 
     #[test]
     fn err_on_missing_payload() {
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         split_public[2] = "";
         let invalid_public: String = split_public.iter().map(|x| *x).collect();
@@ -432,18 +458,22 @@ mod token_validation {
         split_local[2] = "";
         let invalid_local: String = split_local.iter().map(|x| *x).collect();
 
-        assert!(
-            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err()
-                == Errors::TokenFormatError
+        assert_eq!(
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
-            LocalToken::decrypt(&TEST_SK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err()
-                == Errors::TokenFormatError
+        assert_eq!(
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
+            Errors::TokenFormatError
         );
     }
 
     #[test]
     fn err_on_extra_after_footer() {
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         split_public.push(".shouldNotBeHere");
         let invalid_public: String = split_public.iter().map(|x| *x).collect();
@@ -452,52 +482,62 @@ mod token_validation {
         split_local.push(".shouldNotBeHere");
         let invalid_local: String = split_local.iter().map(|x| *x).collect();
 
-        assert!(
-            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err()
-                == Errors::TokenFormatError
+        assert_eq!(
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
+            Errors::TokenFormatError
         );
-        assert!(
-            LocalToken::decrypt(&TEST_SK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err()
-                == Errors::TokenFormatError
+        assert_eq!(
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
+            Errors::TokenFormatError
         );
     }
 
     #[test]
     fn err_on_modified_footer() {
-        assert!(
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
+        assert_eq!(
             PublicToken::verify(
-                &TEST_PK,
+                &test_pk,
                 &VALID_PUBLIC_TOKEN,
                 Some(&FOOTER.replace("kid", "mid").as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenValidationError
+            .unwrap_err(),
+            Errors::TokenValidationError
         );
-        assert!(
+        assert_eq!(
             LocalToken::decrypt(
-                &TEST_SK,
+                &test_local_sk,
                 &VALID_LOCAL_TOKEN,
                 Some(&FOOTER.replace("kid", "mid").as_bytes())
             )
-            .unwrap_err()
-                == Errors::TokenValidationError
+            .unwrap_err(),
+            Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_footer_in_token_none_supplied() {
-        assert!(
-            PublicToken::verify(&TEST_PK, &VALID_PUBLIC_TOKEN, Some(b"")).unwrap_err()
-                == Errors::TokenValidationError
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
+        assert_eq!(
+            PublicToken::verify(&test_pk, &VALID_PUBLIC_TOKEN, Some(b"")).unwrap_err(),
+            Errors::TokenValidationError
         );
-        assert!(
-            LocalToken::decrypt(&TEST_SK, &VALID_LOCAL_TOKEN, Some(b"")).unwrap_err()
-                == Errors::TokenValidationError
+        assert_eq!(
+            LocalToken::decrypt(&test_local_sk, &VALID_LOCAL_TOKEN, Some(b"")).unwrap_err(),
+            Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_no_footer_in_token_some_supplied() {
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         let invalid_public: String = format!(
             "{}.{}.{}",
@@ -509,17 +549,20 @@ mod token_validation {
             format!("{}.{}.{}", split_local[0], split_local[1], split_local[2]);
 
         assert_eq!(
-            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
         assert_eq!(
-            LocalToken::decrypt(&TEST_SK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
             Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_modified_signature() {
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_sig = Vec::from(decode_b64(split_public[2]).unwrap());
         bad_sig.copy_within(0..32, 32);
@@ -531,13 +574,15 @@ mod token_validation {
         );
 
         assert_eq!(
-            PublicToken::verify(&TEST_PK, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_modified_tag() {
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_tag = Vec::from(decode_b64(split_local[2]).unwrap());
         let tlen = bad_tag.len();
@@ -550,13 +595,16 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
             Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_modified_ciphertext() {
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_ct = Vec::from(decode_b64(split_local[2]).unwrap());
         let ctlen = bad_ct.len();
@@ -569,13 +617,16 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
             Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_modified_nonce() {
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
         let nlen = bad_nonce.len();
@@ -588,13 +639,16 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
             Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_invalid_base64() {
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
         let nlen = bad_nonce.len();
@@ -607,84 +661,30 @@ mod token_validation {
         );
 
         assert_eq!(
-            LocalToken::decrypt(&TEST_PK, &invalid_local, Some(FOOTER.as_bytes())).unwrap_err(),
+            LocalToken::decrypt(&test_local_sk, &invalid_local, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
             Errors::TokenValidationError
         );
     }
 
     #[test]
     fn err_on_invalid_public_secret_key() {
-        assert_eq!(
-            PublicToken::sign(
-                &TEST_SK,
-                &[0u8; TEST_PK.len() - 1],
-                MESSAGE.as_bytes(),
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Errors::KeyError
-        );
-        assert_eq!(
-            PublicToken::sign(
-                &[0u8; TEST_SK.len() - 1],
-                &TEST_PK,
-                MESSAGE.as_bytes(),
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Errors::KeyError
-        );
-        assert_eq!(
-            PublicToken::sign(
-                &[0u8; TEST_SK.len() - 1],
-                &[0u8; TEST_PK.len() - 1],
-                MESSAGE.as_bytes(),
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Errors::KeyError
-        );
+        let bad_pk = AsymmetricPublicKey::from(&[0u8; 32], Version::V2).unwrap();
 
         assert_eq!(
-            PublicToken::verify(
-                &[0u8; TEST_PK.len()],
-                VALID_PUBLIC_TOKEN,
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
+            PublicToken::verify(&bad_pk, VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes())).unwrap_err(),
             Errors::TokenValidationError
-        );
-        assert_eq!(
-            PublicToken::verify(
-                &[0u8; TEST_PK.len() - 1],
-                VALID_PUBLIC_TOKEN,
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Errors::KeyError
         );
     }
 
     #[test]
     fn err_on_invalid_shared_secret_key() {
+        let bad_local_sk = SymmetricKey::from(&[0u8; 32], Version::V2).unwrap();
+
         assert_eq!(
-            LocalToken::decrypt(
-                &[0u8; TEST_SK.len()],
-                VALID_LOCAL_TOKEN,
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
+            LocalToken::decrypt(&bad_local_sk, VALID_LOCAL_TOKEN, Some(FOOTER.as_bytes()))
+                .unwrap_err(),
             Errors::TokenValidationError
-        );
-        assert_eq!(
-            LocalToken::decrypt(
-                &[0u8; TEST_SK.len() - 1],
-                VALID_LOCAL_TOKEN,
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Errors::KeyError
         );
     }
 }
-*/
