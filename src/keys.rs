@@ -1,7 +1,6 @@
 use crate::errors::Errors;
 use alloc::vec::Vec;
-
-// TODO!: Missing protections for the secret types.
+use core::fmt::Debug;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// Versions associated with a key, used in PASETO.
@@ -19,6 +18,19 @@ const V4_KEYSIZE: usize = V2_KEYSIZE;
 pub struct SymmetricKey {
     bytes: Vec<u8>,
     pub(crate) version: Version,
+}
+
+impl Debug for SymmetricKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "SymmetricKey {{***OMITTED***}}")
+    }
+}
+
+impl Drop for SymmetricKey {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.bytes.iter_mut().zeroize();
+    }
 }
 
 impl SymmetricKey {
@@ -65,6 +77,19 @@ pub struct AsymmetricSecretKey {
     pub(crate) version: Version,
 }
 
+impl Debug for AsymmetricSecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "AsymmetricSecretKey {{***OMITTED***}}")
+    }
+}
+
+impl Drop for AsymmetricSecretKey {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.bytes.iter_mut().zeroize();
+    }
+}
+
 impl AsymmetricSecretKey {
     /// Create a `AsymmetricSecretKey` from `bytes`, to be used with `version`.
     pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
@@ -88,6 +113,7 @@ impl AsymmetricSecretKey {
     }
 }
 
+#[derive(Debug)]
 /// An asymmetric public key used for `.public` tokens.
 pub struct AsymmetricPublicKey {
     bytes: Vec<u8>,
