@@ -487,6 +487,22 @@ mod tests {
     }
 
     #[test]
+    fn fuzztest_bug_one() {
+        let sk1 = SymmetricKey::from(
+            &[
+                141, 225, 124, 245, 68, 230, 197, 175, 179, 197, 127, 83, 207, 183, 85, 164, 230,
+                24, 14, 91, 230, 213, 164, 30, 243, 64, 184, 132, 198, 120, 44, 228,
+            ],
+            Version::V4,
+        )
+        .unwrap();
+
+        let crashing_token =
+            "v4.local.444444bbbbb444444444bbb444444bbb44444444444444888888888888888cJJbbb44444444";
+        assert!(LocalToken::decrypt(&sk1, &crashing_token, None, None).is_err());
+    }
+
+    #[test]
     // NOTE: Official test vectors do not seem to include this.
     fn empty_payload() {
         todo!();
