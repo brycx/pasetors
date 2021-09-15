@@ -246,7 +246,7 @@ impl LocalToken {
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
 
         let nc = decode_b64(parts_split[2])?;
-        if nc.len() < (XCHACHA_NONCESIZE + Self::TAG_LEN) {
+        if nc.len() < (Self::N_LEN + Self::TAG_LEN) {
             return Err(Errors::TokenFormatError);
         }
         let mut n: [u8; 32] = [0u8; 32];
