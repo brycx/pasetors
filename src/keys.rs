@@ -34,7 +34,7 @@ impl SymmetricKey {
             });
         }
 
-        return Err(Errors::KeyError);
+        Err(Errors::KeyError)
     }
 
     /// Create a `SymmetricKey` from `bytes`, to be used with `version`.
@@ -50,7 +50,7 @@ impl SymmetricKey {
             });
         }
 
-        return Err(Errors::KeyError);
+        Err(Errors::KeyError)
     }
 
     /// Return this as a byte-slice.
@@ -79,7 +79,7 @@ impl AsymmetricSecretKey {
             });
         }
 
-        return Err(Errors::KeyError);
+        Err(Errors::KeyError)
     }
 
     /// Return this as a byte-slice.
@@ -108,7 +108,7 @@ impl AsymmetricPublicKey {
             });
         }
 
-        return Err(Errors::KeyError);
+        Err(Errors::KeyError)
     }
 
     /// Return this as a byte-slice.

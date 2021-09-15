@@ -229,6 +229,7 @@ impl LocalToken {
         Self::encrypt_with_nonce(secret_key, &n, message, footer, implicit_assert)
     }
 
+    #[allow(clippy::many_single_char_names)] // The single-char names match those in the spec
     /// Verify and decrypt a local token.
     pub fn decrypt(
         secret_key: &SymmetricKey,
