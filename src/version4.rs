@@ -387,13 +387,117 @@ mod test_vectors {
     }
 }
 
-#[test]
-fn test_roundtrip_local() {
-    let sk = SymmetricKey::gen(Version::V4).unwrap();
-    let message = b"token payload";
+#[cfg(test)]
+mod tests {
+    use crate::keys::{SymmetricKey, Version};
+    use super::*;
 
-    let token = LocalToken::encrypt(&sk, message, None, None).unwrap();
-    let payload = LocalToken::decrypt(&sk, &token, None, None).unwrap();
+    #[test]
+    fn test_roundtrip_local() {
+        let sk = SymmetricKey::gen(Version::V4).unwrap();
+        let message = b"token payload";
 
-    assert_eq!(payload, message);
+        let token = LocalToken::encrypt(&sk, message, None, None).unwrap();
+        let payload = LocalToken::decrypt(&sk, &token, None, None).unwrap();
+
+        assert_eq!(payload, message);
+    }
+
+    #[test]
+    fn footer_none_some_empty_is_same() {
+        todo!();
+    }
+
+    #[test]
+    fn implicit_none_some_empty_is_same() {
+        todo!();
+    }
+
+    #[test]
+    // NOTE: Official test vectors do not seem to include this.
+    fn empty_payload() {
+        todo!();
+    }
+
+    #[test]
+    // NOTE: "Algorithm lucidity" from spec.
+    fn wrong_key_version() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_header() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_purpose() {
+        todo!();
+    }
+
+    #[test]
+    // NOTE: Missing but created with one
+    fn err_on_missing_payload() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_extra_after_footer() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_footer() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_wrong_implicit_assert() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_footer_in_token_none_supplied() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_no_footer_in_token_some_supplied() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_signature() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_ciphertext() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_modified_nonce() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_invalid_base64() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_invalid_public_secret_key() {
+        todo!();
+    }
+
+    #[test]
+    fn err_on_invalid_shared_secret_key() {
+        todo!();
+    }
 }
