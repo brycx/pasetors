@@ -29,6 +29,9 @@ impl PublicToken {
         if secret_key.version != Version::V2 || public_key.version != Version::V2 {
             return Err(Errors::KeyError);
         }
+        if message.is_empty() {
+            return Err(Errors::EmptyPayloadError);
+        }
 
         let secret = SecretKey::from_bytes(secret_key.as_bytes());
         let public = PublicKey::from_bytes(public_key.as_bytes());
@@ -68,6 +71,9 @@ impl PublicToken {
 
         if public_key.version != Version::V2 {
             return Err(Errors::KeyError);
+        }
+        if token.is_empty() {
+            return Err(Errors::EmptyPayloadError);
         }
 
         let f = footer.unwrap_or(&[]);
@@ -171,6 +177,9 @@ impl LocalToken {
         if secret_key.version != Version::V2 {
             return Err(Errors::KeyError);
         }
+        if message.is_empty() {
+            return Err(Errors::EmptyPayloadError);
+        }
 
         let mut rng_bytes = [0u8; XCHACHA_NONCESIZE];
         getrandom::getrandom(&mut rng_bytes)?;
@@ -190,6 +199,9 @@ impl LocalToken {
 
         if secret_key.version != Version::V2 {
             return Err(Errors::KeyError);
+        }
+        if token.is_empty() {
+            return Err(Errors::EmptyPayloadError);
         }
 
         let f = footer.unwrap_or(&[]);
@@ -384,10 +396,28 @@ mod tests {
     }
 
     #[test]
-    // NOTE: Official test vectors do not seem to include this.
+    // NOTE: See https://github.com/paseto-standard/paseto-spec/issues/17
     fn empty_payload() {
-        todo!();
-        // AWAIT: https://github.com/paseto-standard/paseto-spec/issues/17
+        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+
+        assert_eq!(
+            PublicToken::sign(&test_sk, &test_pk, b"", None).unwrap_err(),
+            Errors::EmptyPayloadError
+        );
+        assert_eq!(
+            PublicToken::verify(&test_pk, "", None).unwrap_err(),
+            Errors::EmptyPayloadError
+        );
+        assert_eq!(
+            LocalToken::encrypt(&test_local_sk, b"", None).unwrap_err(),
+            Errors::EmptyPayloadError
+        );
+        assert_eq!(
+            LocalToken::decrypt(&test_local_sk, "", None).unwrap_err(),
+            Errors::EmptyPayloadError
+        );
     }
 
     #[test]
