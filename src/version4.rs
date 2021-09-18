@@ -11,7 +11,6 @@ use orion::hazardous::hash::blake2b::Blake2b;
 use crate::common::{decode_b64, encode_b64, validate_format_footer};
 use crate::pae;
 use orion::hazardous::stream::xchacha20;
-use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
 use blake2b::SecretKey as AuthKey;
 use xchacha20::Nonce as EncNonce;
