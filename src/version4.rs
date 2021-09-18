@@ -186,10 +186,8 @@ impl LocalToken {
         let (enc_key, n2, auth_key) = Self::key_split(secret_key.as_bytes(), nonce)?;
 
         let mut ciphertext = vec![0u8; message.len()];
-        if !message.is_empty() {
-            xchacha20::encrypt(&enc_key, &n2, 0, message, &mut ciphertext)
-                .map_err(|_| Errors::EncryptError)?;
-        }
+        xchacha20::encrypt(&enc_key, &n2, 0, message, &mut ciphertext)
+            .map_err(|_| Errors::EncryptError)?;
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce, ciphertext.as_slice(), f, i])?;
 
         let mut b2_ctx = Blake2b::new(Some(&auth_key), Self::TAG_LEN).unwrap();
@@ -263,6 +261,9 @@ impl LocalToken {
         let mut n: [u8; 32] = [0u8; 32];
         n.copy_from_slice(nc[..32].as_ref());
         let c = nc[n.len()..nc.len() - 32].as_ref();
+        if c.is_empty() {
+            return Err(Errors::EmptyPayloadError);
+        }
         let t = nc[nc.len() - Self::TAG_LEN..].as_ref();
 
         let (enc_key, n2, auth_key) = Self::key_split(secret_key.as_bytes(), &n)?;
@@ -274,10 +275,8 @@ impl LocalToken {
             .map_err(|_| Errors::TokenValidationError)?;
 
         let mut out = vec![0u8; c.len()];
-        if !c.is_empty() {
-            xchacha20::decrypt(&enc_key, &n2, 0, c, &mut out)
-                .map_err(|_| Errors::TokenValidationError)?;
-        }
+        xchacha20::decrypt(&enc_key, &n2, 0, c, &mut out)
+            .map_err(|_| Errors::TokenValidationError)?;
         Ok(out)
     }
 }
