@@ -7,6 +7,7 @@ __Changelog:__
 - New `SymmetricKey`, `AsymmetricPublicKey` and `AsymmetricSecretKey` now used throughout the API of both version 2 and 4 ([#14](https://github.com/brycx/pasetors/issues/14))
 - Use new test vectors from https://github.com/paseto-standard/test-vectors
 - Empty payloads are no longer allowed (see https://github.com/paseto-standard/paseto-spec/issues/17) and `Errors::EmptyPayloadError` has been added
+- New `Claims` type to easily define claims for tokens and `ClaimsValidationRules` to validate such claims.
 
 ### 0.2.0
 
