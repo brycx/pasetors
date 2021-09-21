@@ -3,6 +3,7 @@
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{AsymmetricSecretKey, AsymmetricPublicKey, Version};
 //! use pasetors::public;
+//! use ed25519_dalek::Keypair;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
 //! // Add a custom `data` claim as well.
@@ -11,6 +12,7 @@
 //!
 //! // Generate the keys and sign the claims.
 //! let mut csprng = rand::rngs::OsRng{};
+//! let keypair: Keypair = Keypair::generate(&mut csprng);
 //! let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), Version::V4)?;
 //! let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), Version::V4)?;
 //! let pub_token = public::sign(&sk, &pk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
@@ -32,7 +34,7 @@
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{SymmetricKey, Version};
-//! use pasetors::private;
+//! use pasetors::local;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
 //! // Add a custom `data` claim as well.
@@ -41,13 +43,13 @@
 //!
 //! // Generate the keys and encrypt the claims.
 //! let sk = SymmetricKey::gen(Version::V4)?;
-//! let token = private::sign(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let token = local::encrypt(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
 //! // expected to be present.
 //! let validation_rules = ClaimsValidationRules::new();
-//! let claims_from = local::verify(&sk, &token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let claims_from = local::decrypt(&sk, &token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
 //! assert_eq!(claims, claims_from);
 //!
 //! println!("{:?}", claims.get_claim("data"));
@@ -136,7 +138,11 @@ pub mod public {
     ) -> Result<Claims, Errors> {
         crate::version4::PublicToken::verify(public_key, token, footer, implicit_assert)?;
 
-        let claims = Claims::from_string(token)?;
+        let parts_split = token.split('.').collect::<Vec<&str>>();
+        let token_raw = crate::common::decode_b64(parts_split[2])?;
+
+        let claims =
+            Claims::from_bytes(&token_raw[..token_raw.len() - ed25519_dalek::SIGNATURE_LENGTH])?;
         validation_rules.validate_claims(&claims)?;
 
         Ok(claims)
