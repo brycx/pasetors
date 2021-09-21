@@ -3,7 +3,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A collection of claims that are passed as payload for a PASETO token.
 pub struct Claims {
     list_of: HashMap<String, String>,
@@ -204,6 +204,9 @@ impl ClaimsValidationRules {
     }
 
     /// Validate the set of `claims` against the currently defined validation rules.
+    ///
+    /// NOTE: This does not validate any non-registered claims. They must be validated
+    /// separately.
     pub fn validate_claims(&self, claims: &Claims) -> Result<(), Errors> {
         if self.validate_currently_valid {
             match (
@@ -451,5 +454,95 @@ mod test {
             .list_of
             .insert("jti".to_string(), "testIdentifier".to_string());
         assert!(&claims_validation.validate_claims(&claims).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_token_at_time() {
+        // Set all claims plus a custom one
+        let claims = Claims::new().unwrap();
+        let claims_validation = ClaimsValidationRules::new();
+
+        assert!(claims_validation.validate_claims(&claims).is_ok());
+
+        // Outdated
+        let mut outdated_claims = claims.clone();
+        outdated_claims
+            .list_of
+            .insert("iat".to_string(), "2019-01-01T00:00:00+00:00".to_string())
+            .unwrap();
+        assert!(claims_validation.validate_claims(&outdated_claims).is_ok());
+        outdated_claims
+            .list_of
+            .insert("nbf".to_string(), "2019-01-01T00:00:00+00:00".to_string())
+            .unwrap();
+        assert!(claims_validation.validate_claims(&outdated_claims).is_ok());
+        outdated_claims
+            .list_of
+            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".to_string())
+            .unwrap();
+        // Expired
+        assert_eq!(
+            claims_validation
+                .validate_claims(&outdated_claims)
+                .unwrap_err(),
+            Errors::ClaimValidationError
+        );
+
+        // In-future
+        let mut future_claims = claims.clone();
+        let old_iat = future_claims
+            .list_of
+            .insert("iat".to_string(), "2028-01-01T00:00:00+00:00".to_string())
+            .unwrap();
+        // Issued in future
+        assert_eq!(
+            claims_validation
+                .validate_claims(&future_claims)
+                .unwrap_err(),
+            Errors::ClaimValidationError
+        );
+        future_claims.issued_at(&old_iat).unwrap();
+        assert!(claims_validation.validate_claims(&future_claims).is_ok());
+        // Not yet valid
+        let old_nbf = future_claims
+            .list_of
+            .insert("nbf".to_string(), "2028-01-01T00:00:00+00:00".to_string())
+            .unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&future_claims)
+                .unwrap_err(),
+            Errors::ClaimValidationError
+        );
+        future_claims.not_before(&old_nbf).unwrap();
+        assert!(claims_validation.validate_claims(&future_claims).is_ok());
+
+        // We expect `iat`, `exp` and `nbf` if we validate time
+        let mut incomplete_claims = claims.clone();
+        incomplete_claims.list_of.remove_entry("iat").unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&incomplete_claims)
+                .unwrap_err(),
+            Errors::ClaimValidationError
+        );
+
+        let mut incomplete_claims = claims.clone();
+        incomplete_claims.list_of.remove_entry("exp").unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&incomplete_claims)
+                .unwrap_err(),
+            Errors::ClaimValidationError
+        );
+
+        let mut incomplete_claims = claims.clone();
+        incomplete_claims.list_of.remove_entry("nbf").unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&incomplete_claims)
+                .unwrap_err(),
+            Errors::ClaimValidationError
+        );
     }
 }
