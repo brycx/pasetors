@@ -91,13 +91,17 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
 
     let public_token =
         pasetors::public::sign(&sk, &pk, &claims, None, None).unwrap();
-    if !pasetors::public::verify(&pk, &public_token, &validation_rules, None, None).is_ok() {
+    if let Ok(claims_from) = pasetors::public::verify(&pk, &public_token, &validation_rules, None, None) {
+        assert_eq!(claims, claims_from);
+    } else {
         panic!("Valid token was NOT verified with version 4");
     }
 
     let local_token =
         pasetors::local::encrypt(&sk_local,&claims, None, None).unwrap();
-    if !pasetors::local::decrypt(&sk_local, &local_token, &validation_rules, None, None).is_ok() {
+    if let Ok(claims_from) = pasetors::local::decrypt(&sk_local, &local_token, &validation_rules, None, None) {
+        assert_eq!(claims, claims_from);
+    } else {
         panic!("Valid token was NOT verified with version 4");
     }
 }
