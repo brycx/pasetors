@@ -184,22 +184,22 @@ impl ClaimsValidationRules {
     }
 
     /// Set the `valid_issuer` the claims should be validated against.
-    pub fn validate_issuer(&mut self, valid_issuer: &str) {
+    pub fn validate_issuer_with(&mut self, valid_issuer: &str) {
         self.validate_issuer = Some(valid_issuer.to_string());
     }
 
     /// Set the `valid_subject` the claims should be validated against.
-    pub fn validate_subject(&mut self, valid_subject: &str) {
+    pub fn validate_subject_with(&mut self, valid_subject: &str) {
         self.validate_subject = Some(valid_subject.to_string());
     }
 
     /// Set the `valid_audience` the claims should be validated against.
-    pub fn validate_audience(&mut self, valid_audience: &str) {
+    pub fn validate_audience_with(&mut self, valid_audience: &str) {
         self.validate_audience = Some(valid_audience.to_string());
     }
 
     /// Set the `valid_token_identifier` the claims should be validated against.
-    pub fn validate_token_identifier(&mut self, valid_token_identifier: &str) {
+    pub fn validate_token_identifier_with(&mut self, valid_token_identifier: &str) {
         self.validate_token_identifier = Some(valid_token_identifier.to_string());
     }
 
@@ -344,5 +344,112 @@ mod test {
         assert_eq!(claims.contains_claim("aud"), false);
         claims.audience("testAudience").unwrap();
         assert_eq!(claims.contains_claim("aud"), true);
+    }
+
+    #[test]
+    fn test_basic_claims_validation() {
+        // Set all claims plus a custom one
+        let mut claims = Claims::new().unwrap();
+        claims.issuer("testIssuer").unwrap();
+        claims.audience("testAudience").unwrap();
+        claims.subject("testSubject").unwrap();
+        claims.token_identifier("testIdentifier").unwrap();
+        claims.add_additional("testClaim", "testValue").unwrap();
+
+        let mut claims_validation = ClaimsValidationRules::new();
+        claims_validation.validate_issuer_with("testIssuer");
+        claims_validation.validate_audience_with("testAudience");
+        claims_validation.validate_subject_with("testSubject");
+        claims_validation.validate_token_identifier_with("testIdentifier");
+
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+
+        // Mismatch between Claims `iss` and ClaimValidationRules `iss`
+        claims_validation.validate_issuer_with("testIssuerFalse");
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims_validation.validate_issuer_with("testIssuer");
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims
+            .list_of
+            .insert("iss".to_string(), "testIssuerFalse".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("iss".to_string(), "testIssuer".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims.list_of.remove_entry("iss").unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("iss".to_string(), "testIssuer".to_string());
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+
+        // Mismatch between Claims `aud` and ClaimValidationRules `aud`
+        claims_validation.validate_audience_with("testAudienceFalse");
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims_validation.validate_audience_with("testAudience");
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims
+            .list_of
+            .insert("aud".to_string(), "testAudienceFalse".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("aud".to_string(), "testAudience".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims.list_of.remove_entry("aud").unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("aud".to_string(), "testAudience".to_string());
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+
+        // Mismatch between Claims `sub` and ClaimValidationRules `sub`
+        claims_validation.validate_subject_with("testSubjectFalse");
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims_validation.validate_subject_with("testSubject");
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims
+            .list_of
+            .insert("sub".to_string(), "testSubjectFalse".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("sub".to_string(), "testSubject".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims.list_of.remove_entry("sub").unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("sub".to_string(), "testSubject".to_string());
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+
+        // Mismatch between Claims `jti` and ClaimValidationRules `jti`
+        claims_validation.validate_token_identifier_with("testIdentifierFalse");
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims_validation.validate_token_identifier_with("testIdentifier");
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims
+            .list_of
+            .insert("jti".to_string(), "testIdentifierFalse".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("jti".to_string(), "testIdentifier".to_string())
+            .unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
+        claims.list_of.remove_entry("jti").unwrap();
+        assert!(&claims_validation.validate_claims(&claims).is_err());
+        claims
+            .list_of
+            .insert("jti".to_string(), "testIdentifier".to_string());
+        assert!(&claims_validation.validate_claims(&claims).is_ok());
     }
 }
