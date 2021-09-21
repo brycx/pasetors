@@ -40,6 +40,13 @@ impl Claims {
         Ok(claims)
     }
 
+    /// Removes the `exp` claim, indicating a token that never expires.
+    pub fn non_expiring(&mut self) {
+        if self.contains_claim("exp") {
+            self.list_of.remove_entry("exp").unwrap();
+        }
+    }
+
     /// Add additional claims. If `claim` already exists, it is replaced with the new.
     ///
     /// Errors:
@@ -240,6 +247,11 @@ impl ClaimsValidationRules {
     }
 
     /// Validate the set of `claims` against the currently defined validation rules.
+    ///
+    /// Validates that the token is:
+    /// - currently valid with `iat` <= current time
+    /// - currently valid with `nbf` <= current time
+    /// - currently valid with `exp` > current time
     ///
     /// NOTE: This does not validate any non-registered claims. They must be validated
     /// separately.
