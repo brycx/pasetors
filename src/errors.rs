@@ -23,6 +23,10 @@ pub enum Errors {
     /// the expected claim did not match the actual, the token is not valid yet, has
     /// expired or DateTime parsing has failed.
     ClaimValidationError,
+    /// Error for attempting to parse a Claim but found invalid UTF-8 sequence.
+    ClaimInvalidUtf8,
+    /// Error for attempting to parse a Claim but found invalid JSON sequence.
+    ClaimInvalidJson,
 }
 
 impl From<ct_codecs::Error> for Errors {

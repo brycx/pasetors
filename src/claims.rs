@@ -39,6 +39,8 @@ impl Claims {
         Ok(claims)
     }
 
+    /// TODO: If a user want to add anything but a string to additional claims,
+    /// they have to encode it themselves beforehand, but that seems like a bad approach.
     /// Add additional claims. If `claim` already exists, it is replaced with the new.
     ///
     /// Errors:
@@ -150,6 +152,41 @@ impl Claims {
             Ok(())
         } else {
             Err(Errors::InvalidClaimError)
+        }
+    }
+
+    /// Attempt to create `Claims` from a sequence of bytes.
+    ///
+    /// Errors:
+    /// - `bytes` contains non-UTF-8 sequences
+    /// - `bytes` does not decode as valid JSON
+    /// - `bytes` top-most JSON object does not decode to a map
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Errors> {
+        let input = bytes.to_vec();
+
+        Self::from_str(&String::from_utf8(input).map_err(|_| Errors::ClaimInvalidUtf8)?)
+    }
+
+    /// Attempt to create `Claims` from a string.
+    ///
+    /// Errors:
+    /// - `string` does not decode as valid JSON
+    /// - `string` top-most JSON object does not decode to a map
+    pub fn from_str(string: &str) -> Result<Self, Errors> {
+        let list_of: HashMap<String, String> =
+            serde_json::from_str(string).map_err(|_| Errors::ClaimInvalidJson)?;
+
+        Ok(Self { list_of })
+    }
+
+    /// Return the JSON serialized representation of `Self`
+    ///
+    /// Errors:
+    /// - `self` cannot be serialized as JSON
+    pub fn to_str(&self) -> Result<String, Errors> {
+        match serde_json::to_string(&self.list_of) {
+            Ok(ret) => Ok(ret),
+            Err(_) => Err(Errors::ClaimInvalidJson),
         }
     }
 }
