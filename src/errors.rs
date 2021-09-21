@@ -17,6 +17,14 @@ pub enum Errors {
     LossyConversionError,
     /// Error for attempting to create a token with an empty payload.
     EmptyPayloadError,
+    /// Error for attempting to create an invalid claim.
+    InvalidClaimError,
+    /// Claim validation error. See [`crate::claims::ClaimsValidationRules::validate_claims`].
+    ClaimValidationError,
+    /// Error for attempting to parse a Claim but found invalid UTF-8 sequence.
+    ClaimInvalidUtf8,
+    /// Error for attempting to parse a Claim but found invalid JSON sequence.
+    ClaimInvalidJson,
 }
 
 impl From<ct_codecs::Error> for Errors {

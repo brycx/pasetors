@@ -91,7 +91,7 @@ impl Drop for AsymmetricSecretKey {
 }
 
 impl AsymmetricSecretKey {
-    /// Create a `AsymmetricSecretKey` from `bytes`, to be used with `version`.
+    /// Create an `AsymmetricSecretKey` from `bytes`, to be used with `version`.
     pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
         if version == Version::V2 || version == Version::V4 {
             if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH {
@@ -121,7 +121,7 @@ pub struct AsymmetricPublicKey {
 }
 
 impl AsymmetricPublicKey {
-    /// Create a `AsymmetricPublicKey` from `bytes`, to be used with `version`.
+    /// Create an `AsymmetricPublicKey` from `bytes`, to be used with `version`.
     pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
         if version == Version::V2 || version == Version::V4 {
             if bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH {
