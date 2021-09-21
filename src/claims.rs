@@ -268,7 +268,7 @@ impl ClaimsValidationRules {
         if self.validate_currently_valid {
             match (claims.list_of.get("iat"), claims.list_of.get("nbf")) {
                 (Some(iat), Some(nbf)) => match (iat.as_str(), nbf.as_str()) {
-                    (Some(iat), Some(nbf), Some(exp)) => {
+                    (Some(iat), Some(nbf)) => {
                         let iat = iat
                             .parse::<DateTime<Utc>>()
                             .map_err(|_| Errors::ClaimValidationError)?;
@@ -638,5 +638,18 @@ mod test {
         assert!(claims.contains_claim("one"));
         assert!(claims.contains_claim("two"));
         assert!(claims.contains_claim("three"));
+    }
+
+    #[test]
+    fn test_token_no_expiration() {
+        let mut claims = Claims::new().unwrap();
+        let mut claims_validation = ClaimsValidationRules::new();
+
+        claims.non_expiring();
+        // Claims validation is not explicitly set to allow non-expiring, so we get error here
+        // because claims is missing exp
+        assert!(claims_validation.validate_claims(&claims).is_err());
+        claims_validation.allow_non_expiring();
+        assert!(claims_validation.validate_claims(&claims).is_ok());
     }
 }
