@@ -22,7 +22,7 @@
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code)]
 #![deny(clippy::mem_forget)]
 #![warn(
@@ -44,6 +44,8 @@ pub mod errors;
 
 mod common;
 
+/// Claims for tokens and validation thereof.
+pub mod claims;
 /// Keys used for PASETO tokens.
 pub mod keys;
 /// PASETO version 2 tokens.

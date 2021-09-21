@@ -37,3 +37,15 @@ default-features = false
 [dependencies.zeroize]
 version = "1.4.1"
 default-features = false
+
+[dependencies.serde_json]
+version = "1.0.41"
+optional = true
+
+[dependencies.chrono]
+version = "0.4"
+optional = true
+
+[features]
+default = [ "std" ]
+std = [ "serde_json", "chrono" ]
