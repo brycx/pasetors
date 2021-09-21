@@ -67,6 +67,12 @@ impl Claims {
         self.list_of.contains_key(claim)
     }
 
+    /// Return Some(claim value) if claims list contains the `claim`.
+    /// None otherwise.
+    pub fn get_claim(&self, claim: &str) -> Option<&Value> {
+        self.list_of.get(claim)
+    }
+
     /// Set the `iss` claim. If it already exists, replace it with the new.
     ///
     /// Errors:
