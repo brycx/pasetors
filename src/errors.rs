@@ -15,6 +15,8 @@ pub enum Errors {
     CsprngError,
     /// Error for a conversion that would be lossy.
     LossyConversionError,
+    /// Error for attempting to create a token with an empty payload.
+    EmptyPayloadError,
 }
 
 impl From<ct_codecs::Error> for Errors {

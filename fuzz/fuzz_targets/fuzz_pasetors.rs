@@ -6,44 +6,71 @@ extern crate rand_core;
 
 use libfuzzer_sys::fuzz_target;
 
-use pasetors::version2;
-
+use pasetors::{version2, version4};
+use pasetors::keys::*;
 use ed25519_dalek::Keypair;
-use ed25519_dalek::PublicKey;
-use ed25519_dalek::SecretKey;
-
 use rand_core::{RngCore, SeedableRng};
+use rand_chacha::ChaCha20Rng;
+
+
+fn fuzztest(data: &[u8], csprng: &mut ChaCha20Rng, version: Version) {
+    let keypair: Keypair = Keypair::generate(csprng);
+    let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), version).unwrap();
+    let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), version).unwrap();
+    let mut key = [0u8; 32];
+    csprng.fill_bytes(&mut key);
+    let sk_local = SymmetricKey::from(&key, version).unwrap();
+    let message: String = String::from_utf8_lossy(data).into();
+
+    match version {
+        Version::V2 => {
+            // Public
+            if !version2::PublicToken::verify(&pk, &message, None).is_err() {
+                panic!("Invalid token was verified with version 2");
+            }
+            let public_token =
+                version2::PublicToken::sign(&sk, &pk, message.as_bytes(), None).unwrap();
+            if !version2::PublicToken::verify(&pk, &public_token, None).is_ok() {
+                panic!("Valid token was NOT verified with version 2");
+            }
+            // Local
+            if !version2::LocalToken::decrypt(&sk_local, &message, None).is_err() {
+                panic!("Invalid token was verified with version 2");
+            }
+
+            let local_token =
+                version2::LocalToken::encrypt(&sk_local, message.as_bytes(), None).unwrap();
+            if !version2::LocalToken::decrypt(&sk_local, &local_token, None).is_ok() {
+                panic!("Valid token was NOT verified with version 2");
+            }
+        }
+        Version::V4 => {
+            // Public
+            if !version4::PublicToken::verify(&pk, &message, None, None).is_err() {
+                panic!("Invalid token was verified with version 4");
+            }
+            let public_token =
+                version4::PublicToken::sign(&sk, &pk, message.as_bytes(), None, None).unwrap();
+            if !version4::PublicToken::verify(&pk, &public_token, None, None).is_ok() {
+                panic!("Valid token was NOT verified with version 4");
+            }
+            // Local
+            if !version4::LocalToken::decrypt(&sk_local, &message, None, None).is_err() {
+                panic!("Invalid token was verified with version 4");
+            }
+
+            let local_token =
+                version4::LocalToken::encrypt(&sk_local, message.as_bytes(), None, None).unwrap();
+            if !version4::LocalToken::decrypt(&sk_local, &local_token, None, None).is_ok() {
+                panic!("Valid token was NOT verified with version 4");
+            }
+        }
+    }
+}
 
 fuzz_target!(|data: &[u8]| {
     let mut csprng = rand_chacha::ChaCha20Rng::seed_from_u64(123456789u64);
 
-    // PublicToken
-    let keypair: Keypair = Keypair::generate(&mut csprng);
-    let pk: PublicKey = keypair.public;
-    let message: String = String::from_utf8_lossy(data).into();
-
-    if !version2::PublicToken::verify(pk.as_ref(), &message, None).is_err() {
-        panic!("Invalid token was verified");
-    }
-
-    let sk: SecretKey = keypair.secret;
-    let public_token =
-        version2::PublicToken::sign(sk.as_ref(), pk.as_ref(), message.as_bytes(), None).unwrap();
-    if !version2::PublicToken::verify(pk.as_ref(), &public_token, None).is_ok() {
-        panic!("Valid token was NOT verified");
-    }
-
-    // LocalToken
-    let mut key = [0u8; 32];
-    csprng.fill_bytes(&mut key);
-
-    if !version2::LocalToken::decrypt(key.as_ref(), &message, None).is_err() {
-        panic!("Invalid token was verified");
-    }
-
-    let local_token =
-        version2::LocalToken::encrypt(key.as_ref(), message.as_bytes(), None).unwrap();
-    if !version2::LocalToken::decrypt(key.as_ref(), &local_token, None).is_ok() {
-        panic!("Valid token was NOT verified");
-    }
+    fuzztest(data, &mut csprng, Version::V2);
+    fuzztest(data, &mut csprng, Version::V4);
 });
