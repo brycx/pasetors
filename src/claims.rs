@@ -199,8 +199,8 @@ impl Claims {
 
 /// The validation rules that are used to validate a set of claims.
 pub struct ClaimsValidationRules {
-    // TODO: How to allow validating for non-expiring tokens.
     validate_currently_valid: bool,
+    allow_non_expiring: bool,
     validate_issuer: Option<String>,
     validate_subject: Option<String>,
     validate_audience: Option<String>,
@@ -219,11 +219,17 @@ impl ClaimsValidationRules {
     pub fn new() -> Self {
         Self {
             validate_currently_valid: true,
+            allow_non_expiring: false,
             validate_issuer: None,
             validate_subject: None,
             validate_audience: None,
             validate_token_identifier: None,
         }
+    }
+
+    /// Explicitly allow non-expiring tokens (i.e. the `exp` claim is missing).
+    pub fn allow_non_expiring(&mut self) {
+        self.allow_non_expiring = true;
     }
 
     /// Set the `valid_issuer` the claims should be validated against.
@@ -246,44 +252,58 @@ impl ClaimsValidationRules {
         self.validate_token_identifier = Some(valid_token_identifier.to_string());
     }
 
-    /// Validate the set of `claims` against the currently defined validation rules.
+    /// Validate the set of registered `claims` against the currently defined validation rules.
     ///
-    /// Validates that the token is:
-    /// - currently valid with `iat` <= current time
-    /// - currently valid with `nbf` <= current time
-    /// - currently valid with `exp` > current time
+    /// Errors:
+    /// - Token is expired
+    /// - Token is not yet valid
+    /// - Token was issued in the future
+    /// - Token has no `exp` claim but the validation rules do not allow non-expiring tokens
+    /// - The claims values cannot be converted to `str`
+    /// - `iat`, `nbf` and `exp` fail `str -> DateTime` conversion
     ///
     /// NOTE: This does not validate any non-registered claims. They must be validated
     /// separately.
     pub fn validate_claims(&self, claims: &Claims) -> Result<(), Errors> {
         if self.validate_currently_valid {
-            match (
-                claims.list_of.get("iat"),
-                claims.list_of.get("nbf"),
-                claims.list_of.get("exp"),
-            ) {
-                (Some(iat), Some(nbf), Some(exp)) => {
-                    match (iat.as_str(), nbf.as_str(), exp.as_str()) {
-                        (Some(iat), Some(nbf), Some(exp)) => {
-                            let iat = iat
-                                .parse::<DateTime<Utc>>()
-                                .map_err(|_| Errors::ClaimValidationError)?;
-                            let nbf = nbf
-                                .parse::<DateTime<Utc>>()
-                                .map_err(|_| Errors::ClaimValidationError)?;
-                            let exp = exp
-                                .parse::<DateTime<Utc>>()
-                                .map_err(|_| Errors::ClaimValidationError)?;
-                            let current_time = Utc::now();
+            match (claims.list_of.get("iat"), claims.list_of.get("nbf")) {
+                (Some(iat), Some(nbf)) => match (iat.as_str(), nbf.as_str()) {
+                    (Some(iat), Some(nbf), Some(exp)) => {
+                        let iat = iat
+                            .parse::<DateTime<Utc>>()
+                            .map_err(|_| Errors::ClaimValidationError)?;
+                        let nbf = nbf
+                            .parse::<DateTime<Utc>>()
+                            .map_err(|_| Errors::ClaimValidationError)?;
+                        let current_time = Utc::now();
 
-                            if current_time > exp || current_time < nbf || current_time < iat {
-                                return Err(Errors::ClaimValidationError);
-                            }
+                        if current_time < nbf || current_time < iat {
+                            return Err(Errors::ClaimValidationError);
                         }
-                        _ => return Err(Errors::ClaimValidationError),
                     }
-                }
+                    _ => return Err(Errors::ClaimValidationError),
+                },
                 _ => return Err(Errors::ClaimValidationError),
+            }
+        }
+
+        if let Some(exp) = claims.list_of.get("exp") {
+            if let Some(exp) = exp.as_str() {
+                let exp = exp
+                    .parse::<DateTime<Utc>>()
+                    .map_err(|_| Errors::ClaimValidationError)?;
+                let current_time = Utc::now();
+
+                if current_time > exp {
+                    return Err(Errors::ClaimValidationError);
+                }
+            } else {
+                return Err(Errors::ClaimValidationError);
+            }
+        } else {
+            if !self.allow_non_expiring {
+                // We didn't explicitly allow non-expiring tokens so we expect `exp` claim.
+                return Err(Errors::ClaimValidationError);
             }
         }
 
