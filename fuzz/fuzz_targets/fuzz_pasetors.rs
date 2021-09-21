@@ -8,6 +8,7 @@ use libfuzzer_sys::fuzz_target;
 
 use pasetors::{version2, version4};
 use pasetors::keys::*;
+use pasetors::claims::*;
 use ed25519_dalek::Keypair;
 use rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
@@ -21,6 +22,9 @@ fn fuzztest(data: &[u8], csprng: &mut ChaCha20Rng, version: Version) {
     csprng.fill_bytes(&mut key);
     let sk_local = SymmetricKey::from(&key, version).unwrap();
     let message: String = String::from_utf8_lossy(data).into();
+    if message.is_empty() {
+        return
+    }
 
     match version {
         Version::V2 => {
@@ -68,9 +72,41 @@ fn fuzztest(data: &[u8], csprng: &mut ChaCha20Rng, version: Version) {
     }
 }
 
+fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
+    let keypair: Keypair = Keypair::generate(csprng);
+    let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), Version::V4).unwrap();
+    let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), Version::V4).unwrap();
+    let mut key = [0u8; 32];
+    csprng.fill_bytes(&mut key);
+    let sk_local = SymmetricKey::from(&key, Version::V4).unwrap();
+    let message: String = String::from_utf8_lossy(data).into();
+    if message.is_empty() {
+        return
+    }
+
+    let mut claims = Claims::new().unwrap();
+    claims.add_additional("data", message).unwrap();
+    claims.subject("test").unwrap();
+    let validation_rules = ClaimsValidationRules::new();
+
+    let public_token =
+        pasetors::public::sign(&sk, &pk, &claims, None, None).unwrap();
+    if !pasetors::public::verify(&pk, &public_token, &validation_rules, None, None).is_ok() {
+        panic!("Valid token was NOT verified with version 4");
+    }
+
+    let local_token =
+        pasetors::local::encrypt(&sk_local,&claims, None, None).unwrap();
+    if !pasetors::local::decrypt(&sk_local, &local_token, &validation_rules, None, None).is_ok() {
+        panic!("Valid token was NOT verified with version 4");
+    }
+}
+
 fuzz_target!(|data: &[u8]| {
+
     let mut csprng = rand_chacha::ChaCha20Rng::seed_from_u64(123456789u64);
 
     fuzztest(data, &mut csprng, Version::V2);
     fuzztest(data, &mut csprng, Version::V4);
+    fuzz_highlevel(data, &mut csprng);
 });
