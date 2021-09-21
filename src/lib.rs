@@ -1,23 +1,72 @@
-//! # Usage:
+//! # Creating and verifying public tokens
 //! ```rust
-//! use pasetors::version4::*;
-//! use pasetors::keys::*;
-//! use ed25519_dalek::Keypair;
+//! use pasetors::claims::{Claims, ClaimsValidationRules};
+//! use pasetors::keys::{AsymmetricSecretKey, AsymmetricPublicKey, Version};
+//! use pasetors::public;
 //!
+//! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
+//! // Add a custom `data` claim as well.
+//! let mut claims = Claims::new()?;
+//! claims.add_additional("data", "A public, signed message")?;
+//!
+//! // Generate the keys and sign the claims.
 //! let mut csprng = rand::rngs::OsRng{};
-//!
-//! // Create and verify a public token
-//! let keypair: Keypair = Keypair::generate(&mut csprng);
 //! let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), Version::V4)?;
 //! let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), Version::V4)?;
-//! let pub_token = PublicToken::sign(&sk, &pk, b"Message to sign", Some(b"footer"), Some(b"implicit assertion"))?;
-//! assert!(PublicToken::verify(&pk, &pub_token, Some(b"footer"), Some(b"implicit assertion")).is_ok());
+//! let pub_token = public::sign(&sk, &pk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
-//! // Create and verify a local token
+//! // Decide how we want to validate the claims after verifying the token itself.
+//! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
+//! // expected to be present.
+//! let validation_rules = ClaimsValidationRules::new();
+//! let claims_from = public::verify(&pk, &pub_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! assert_eq!(claims, claims_from);
+//!
+//! println!("{:?}", claims.get_claim("data"));
+//! println!("{:?}", claims.get_claim("iat"));
+//!
+//! # Ok::<(), pasetors::errors::Errors>(())
+//! ```
+
+//! # Creating and verifying local tokens
+//! ```rust
+//! use pasetors::claims::{Claims, ClaimsValidationRules};
+//! use pasetors::keys::{SymmetricKey, Version};
+//! use pasetors::private;
+//!
+//! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
+//! // Add a custom `data` claim as well.
+//! let mut claims = Claims::new()?;
+//! claims.add_additional("data", "A public, signed message")?;
+//!
+//! // Generate the keys and encrypt the claims.
 //! let sk = SymmetricKey::gen(Version::V4)?;
+//! let token = private::sign(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
-//! let local_token = LocalToken::encrypt(&sk, b"Message to encrypt and authenticate", Some(b"footer"), Some(b"implicit assertion"))?;
-//! assert!(LocalToken::decrypt(&sk, &local_token, Some(b"footer"), Some(b"implicit assertion")).is_ok());
+//! // Decide how we want to validate the claims after verifying the token itself.
+//! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
+//! // expected to be present.
+//! let validation_rules = ClaimsValidationRules::new();
+//! let claims_from = local::verify(&sk, &token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! assert_eq!(claims, claims_from);
+//!
+//! println!("{:?}", claims.get_claim("data"));
+//! println!("{:?}", claims.get_claim("iat"));
+//!
+//! # Ok::<(), pasetors::errors::Errors>(())
+//! ```
+
+//! # Additional claims and their validation
+//! ```rust
+//! use pasetors::claims::{Claims, ClaimsValidationRules};
+//!
+//! // Non-expiring tokens
+//! let mut claims = Claims::new()?;
+//! claims.add_additional("data", "A public, signed message")?;
+//! claims.non_expiring();
+//! // Now claims can be validated as non-expiring when we define the validation rule as:
+//! let mut validation_rules = ClaimsValidationRules::new();
+//! validation_rules.allow_non_expiring();
 //!
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```

@@ -268,7 +268,7 @@ impl ClaimsValidationRules {
     /// - The claims values cannot be converted to `str`
     /// - `iat`, `nbf` and `exp` fail `str -> DateTime` conversion
     ///
-    /// NOTE: This does not validate any non-registered claims. They must be validated
+    /// NOTE: This __does not__ validate any non-registered claims (see [`Claims::REGISTERED_CLAIMS`]). They must be validated
     /// separately.
     pub fn validate_claims(&self, claims: &Claims) -> Result<(), Errors> {
         if self.validate_currently_valid {

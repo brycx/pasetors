@@ -19,9 +19,7 @@ pub enum Errors {
     EmptyPayloadError,
     /// Error for attempting to create an invalid claim.
     InvalidClaimError,
-    /// Claim validation error. Either, a claim was expected but not present,
-    /// the expected claim did not match the actual, the token is not valid yet, has
-    /// expired or DateTime parsing has failed.
+    /// Claim validation error. See [`crate::claims::ClaimsValidationRules::validate_claims`].
     ClaimValidationError,
     /// Error for attempting to parse a Claim but found invalid UTF-8 sequence.
     ClaimInvalidUtf8,
