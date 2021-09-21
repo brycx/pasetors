@@ -170,7 +170,7 @@ impl Claims {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Errors> {
         let input = bytes.to_vec();
 
-        Self::from_str(&String::from_utf8(input).map_err(|_| Errors::ClaimInvalidUtf8)?)
+        Self::from_string(&String::from_utf8(input).map_err(|_| Errors::ClaimInvalidUtf8)?)
     }
 
     /// Attempt to create `Claims` from a string.
@@ -178,7 +178,7 @@ impl Claims {
     /// Errors:
     /// - `string` does not decode as valid JSON
     /// - `string` top-most JSON object does not decode to a map
-    pub fn from_str(string: &str) -> Result<Self, Errors> {
+    pub fn from_string(string: &str) -> Result<Self, Errors> {
         let list_of: HashMap<String, Value> =
             serde_json::from_str(string).map_err(|_| Errors::ClaimInvalidJson)?;
 
@@ -189,7 +189,7 @@ impl Claims {
     ///
     /// Errors:
     /// - `self` cannot be serialized as JSON
-    pub fn to_str(&self) -> Result<String, Errors> {
+    pub fn to_string(&self) -> Result<String, Errors> {
         match serde_json::to_string(&self.list_of) {
             Ok(ret) => Ok(ret),
             Err(_) => Err(Errors::ClaimInvalidJson),
@@ -300,11 +300,9 @@ impl ClaimsValidationRules {
             } else {
                 return Err(Errors::ClaimValidationError);
             }
-        } else {
-            if !self.allow_non_expiring {
-                // We didn't explicitly allow non-expiring tokens so we expect `exp` claim.
-                return Err(Errors::ClaimValidationError);
-            }
+        } else if !self.allow_non_expiring {
+            // We didn't explicitly allow non-expiring tokens so we expect `exp` claim.
+            return Err(Errors::ClaimValidationError);
         }
 
         if let Some(expected_issuer) = &self.validate_issuer {
@@ -631,8 +629,8 @@ mod test {
         claims.add_additional("two", add_claims_two).unwrap();
         claims.add_additional("three", add_claims_three).unwrap();
 
-        let as_string = claims.to_str().unwrap();
-        let from_converted = Claims::from_str(&as_string).unwrap();
+        let as_string = claims.to_string().unwrap();
+        let from_converted = Claims::from_string(&as_string).unwrap();
         assert_eq!(from_converted, claims);
 
         assert!(claims.contains_claim("one"));
