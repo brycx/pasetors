@@ -458,7 +458,6 @@ mod test {
 
     #[test]
     fn test_invalid_token_at_time() {
-        // Set all claims plus a custom one
         let claims = Claims::new().unwrap();
         let claims_validation = ClaimsValidationRules::new();
 
