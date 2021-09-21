@@ -1,12 +1,13 @@
 use crate::errors::Errors;
 use chrono::prelude::*;
 use chrono::Duration;
+use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 /// A collection of claims that are passed as payload for a PASETO token.
 pub struct Claims {
-    list_of: HashMap<String, String>,
+    list_of: HashMap<String, Value>,
 }
 
 impl Claims {
@@ -45,7 +46,7 @@ impl Claims {
     ///
     /// Errors:
     /// - `claim` is a reserved claim (see [`Self::REGISTERED_CLAIMS`])
-    pub fn add_additional(&mut self, claim: &str, value: &str) -> Result<(), Errors> {
+    pub fn add_additional(&mut self, claim: &str, value: impl Into<Value>) -> Result<(), Errors> {
         if !Self::REGISTERED_CLAIMS.contains(&claim) {
             self.list_of.insert(claim.into(), value.into());
             Ok(())
@@ -173,7 +174,7 @@ impl Claims {
     /// - `string` does not decode as valid JSON
     /// - `string` top-most JSON object does not decode to a map
     pub fn from_str(string: &str) -> Result<Self, Errors> {
-        let list_of: HashMap<String, String> =
+        let list_of: HashMap<String, Value> =
             serde_json::from_str(string).map_err(|_| Errors::ClaimInvalidJson)?;
 
         Ok(Self { list_of })
@@ -252,19 +253,24 @@ impl ClaimsValidationRules {
                 claims.list_of.get("exp"),
             ) {
                 (Some(iat), Some(nbf), Some(exp)) => {
-                    let iat = iat
-                        .parse::<DateTime<Utc>>()
-                        .map_err(|_| Errors::ClaimValidationError)?;
-                    let nbf = nbf
-                        .parse::<DateTime<Utc>>()
-                        .map_err(|_| Errors::ClaimValidationError)?;
-                    let exp = exp
-                        .parse::<DateTime<Utc>>()
-                        .map_err(|_| Errors::ClaimValidationError)?;
-                    let current_time = Utc::now();
+                    match (iat.as_str(), nbf.as_str(), exp.as_str()) {
+                        (Some(iat), Some(nbf), Some(exp)) => {
+                            let iat = iat
+                                .parse::<DateTime<Utc>>()
+                                .map_err(|_| Errors::ClaimValidationError)?;
+                            let nbf = nbf
+                                .parse::<DateTime<Utc>>()
+                                .map_err(|_| Errors::ClaimValidationError)?;
+                            let exp = exp
+                                .parse::<DateTime<Utc>>()
+                                .map_err(|_| Errors::ClaimValidationError)?;
+                            let current_time = Utc::now();
 
-                    if current_time > exp || current_time < nbf || current_time < iat {
-                        return Err(Errors::ClaimValidationError);
+                            if current_time > exp || current_time < nbf || current_time < iat {
+                                return Err(Errors::ClaimValidationError);
+                            }
+                        }
+                        _ => return Err(Errors::ClaimValidationError),
                     }
                 }
                 _ => return Err(Errors::ClaimValidationError),
@@ -411,19 +417,19 @@ mod test {
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims
             .list_of
-            .insert("iss".to_string(), "testIssuerFalse".to_string())
+            .insert("iss".to_string(), "testIssuerFalse".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("iss".to_string(), "testIssuer".to_string())
+            .insert("iss".to_string(), "testIssuer".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims.list_of.remove_entry("iss").unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("iss".to_string(), "testIssuer".to_string());
+            .insert("iss".to_string(), "testIssuer".into());
         assert!(&claims_validation.validate_claims(&claims).is_ok());
 
         // Mismatch between Claims `aud` and ClaimValidationRules `aud`
@@ -433,19 +439,19 @@ mod test {
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims
             .list_of
-            .insert("aud".to_string(), "testAudienceFalse".to_string())
+            .insert("aud".to_string(), "testAudienceFalse".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("aud".to_string(), "testAudience".to_string())
+            .insert("aud".to_string(), "testAudience".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims.list_of.remove_entry("aud").unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("aud".to_string(), "testAudience".to_string());
+            .insert("aud".to_string(), "testAudience".into());
         assert!(&claims_validation.validate_claims(&claims).is_ok());
 
         // Mismatch between Claims `sub` and ClaimValidationRules `sub`
@@ -455,19 +461,19 @@ mod test {
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims
             .list_of
-            .insert("sub".to_string(), "testSubjectFalse".to_string())
+            .insert("sub".to_string(), "testSubjectFalse".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("sub".to_string(), "testSubject".to_string())
+            .insert("sub".to_string(), "testSubject".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims.list_of.remove_entry("sub").unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("sub".to_string(), "testSubject".to_string());
+            .insert("sub".to_string(), "testSubject".into());
         assert!(&claims_validation.validate_claims(&claims).is_ok());
 
         // Mismatch between Claims `jti` and ClaimValidationRules `jti`
@@ -477,19 +483,19 @@ mod test {
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims
             .list_of
-            .insert("jti".to_string(), "testIdentifierFalse".to_string())
+            .insert("jti".to_string(), "testIdentifierFalse".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("jti".to_string(), "testIdentifier".to_string())
+            .insert("jti".to_string(), "testIdentifier".into())
             .unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_ok());
         claims.list_of.remove_entry("jti").unwrap();
         assert!(&claims_validation.validate_claims(&claims).is_err());
         claims
             .list_of
-            .insert("jti".to_string(), "testIdentifier".to_string());
+            .insert("jti".to_string(), "testIdentifier".into());
         assert!(&claims_validation.validate_claims(&claims).is_ok());
     }
 
@@ -504,17 +510,17 @@ mod test {
         let mut outdated_claims = claims.clone();
         outdated_claims
             .list_of
-            .insert("iat".to_string(), "2019-01-01T00:00:00+00:00".to_string())
+            .insert("iat".to_string(), "2019-01-01T00:00:00+00:00".into())
             .unwrap();
         assert!(claims_validation.validate_claims(&outdated_claims).is_ok());
         outdated_claims
             .list_of
-            .insert("nbf".to_string(), "2019-01-01T00:00:00+00:00".to_string())
+            .insert("nbf".to_string(), "2019-01-01T00:00:00+00:00".into())
             .unwrap();
         assert!(claims_validation.validate_claims(&outdated_claims).is_ok());
         outdated_claims
             .list_of
-            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".to_string())
+            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".into())
             .unwrap();
         // Expired
         assert_eq!(
@@ -528,7 +534,7 @@ mod test {
         let mut future_claims = claims.clone();
         let old_iat = future_claims
             .list_of
-            .insert("iat".to_string(), "2028-01-01T00:00:00+00:00".to_string())
+            .insert("iat".to_string(), "2028-01-01T00:00:00+00:00".into())
             .unwrap();
         // Issued in future
         assert_eq!(
@@ -537,12 +543,12 @@ mod test {
                 .unwrap_err(),
             Errors::ClaimValidationError
         );
-        future_claims.issued_at(&old_iat).unwrap();
+        future_claims.issued_at(&old_iat.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
         // Not yet valid
         let old_nbf = future_claims
             .list_of
-            .insert("nbf".to_string(), "2028-01-01T00:00:00+00:00".to_string())
+            .insert("nbf".to_string(), "2028-01-01T00:00:00+00:00".into())
             .unwrap();
         assert_eq!(
             claims_validation
@@ -550,7 +556,7 @@ mod test {
                 .unwrap_err(),
             Errors::ClaimValidationError
         );
-        future_claims.not_before(&old_nbf).unwrap();
+        future_claims.not_before(old_nbf.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
 
         // We expect `iat`, `exp` and `nbf` if we validate time
@@ -580,5 +586,27 @@ mod test {
                 .unwrap_err(),
             Errors::ClaimValidationError
         );
+    }
+
+    #[test]
+    fn test_add_non_string_additional_claims() {
+        // Set all claims plus a custom one
+        let mut claims = Claims::new().unwrap();
+
+        let add_claims_one = vec!["a", "b", "b"];
+        let add_claims_two = 32;
+        let add_claims_three = true;
+
+        claims.add_additional("one", add_claims_one).unwrap();
+        claims.add_additional("two", add_claims_two).unwrap();
+        claims.add_additional("three", add_claims_three).unwrap();
+
+        let as_string = claims.to_str().unwrap();
+        let from_converted = Claims::from_str(&as_string).unwrap();
+        assert_eq!(from_converted, claims);
+
+        assert!(claims.contains_claim("one"));
+        assert!(claims.contains_claim("two"));
+        assert!(claims.contains_claim("three"));
     }
 }
