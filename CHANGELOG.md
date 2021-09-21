@@ -8,6 +8,7 @@ __Changelog:__
 - Use new test vectors from https://github.com/paseto-standard/test-vectors
 - Empty payloads are no longer allowed (see https://github.com/paseto-standard/paseto-spec/issues/17) and `Errors::EmptyPayloadError` has been added
 - New `Claims` type to easily define claims for tokens and `ClaimsValidationRules` to validate such claims.
+- New `std` feature which is enabled by default. This means, that to be `no_std`, `pasetors` has to be declared without default features.
 
 ### 0.2.0
 

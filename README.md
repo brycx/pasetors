@@ -8,32 +8,14 @@ PASETO (Platform-Agnostic SEcurity TOkens) are secure stateless tokens. Read mor
 
 This library includes:
 - [x] Pure-Rust implementation of the Version 4 and 2 protocol
-- [x] `#![no_std]` and `#![forbid(unsafe_code)]`
+- [x] `#![no_std]` (with default-features disabled) and `#![forbid(unsafe_code)]`
 - [x] Fuzzing targets
 - [x] Test vectors
 - [x] Usage examples
 
 ### Usage
-```rust
-use pasetors::version4::*;
-use pasetors::keys::*;
-use ed25519_dalek::Keypair;
 
-let mut csprng = rand::rngs::OsRng{};
-
-// Create and verify a public token
-let keypair: Keypair = Keypair::generate(&mut csprng);
-let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), Version::V4)?;
-let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), Version::V4)?;
-let pub_token = PublicToken::sign(&sk, &pk, b"Message to sign", Some(b"footer"), Some(b"implicit assertion"))?;
-assert!(PublicToken::verify(&pk, &pub_token, Some(b"footer"), Some(b"implicit assertion")).is_ok());
-
-// Create and verify a local token
-let sk = SymmetricKey::gen(Version::V4)?;
-
-let local_token = LocalToken::encrypt(&sk, b"Message to encrypt and authenticate", Some(b"footer"), Some(b"implicit assertion"))?;
-assert!(LocalToken::decrypt(&sk, &local_token, Some(b"footer"), Some(b"implicit assertion")).is_ok());
-```
+[See usage examples here](https://docs.rs/pasetors/).
 
 ### Security
 
