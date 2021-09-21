@@ -40,8 +40,6 @@ impl Claims {
         Ok(claims)
     }
 
-    /// TODO: If a user want to add anything but a string to additional claims,
-    /// they have to encode it themselves beforehand, but that seems like a bad approach.
     /// Add additional claims. If `claim` already exists, it is replaced with the new.
     ///
     /// Errors:
