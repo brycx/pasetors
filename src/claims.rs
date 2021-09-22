@@ -191,7 +191,7 @@ impl Claims {
         Ok(Self { list_of })
     }
 
-    /// Return the JSON serialized representation of `Self`
+    /// Return the JSON serialized representation of `Self`.
     ///
     /// Errors:
     /// - `self` cannot be serialized as JSON
@@ -204,7 +204,7 @@ impl Claims {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-/// The validation rules that are used to validate a set of claims.
+/// The validation rules that are used to validate a set of [`Claims`].
 pub struct ClaimsValidationRules {
     validate_currently_valid: bool,
     allow_non_expiring: bool,
@@ -261,6 +261,9 @@ impl ClaimsValidationRules {
 
     /// Validate the set of registered `claims` against the currently defined validation rules.
     ///
+    /// If `claims` has defined the `exp` claim, this is validated regardless of whether the rules
+    /// have allowed for non-expiring. Non-expiring means that there should be no `exp` in `claims`.
+    ///
     /// Errors:
     /// - Token is expired
     /// - Token is not yet valid
@@ -268,6 +271,9 @@ impl ClaimsValidationRules {
     /// - Token has no `exp` claim but the validation rules do not allow non-expiring tokens
     /// - The claims values cannot be converted to `str`
     /// - `iat`, `nbf` and `exp` fail `str -> DateTime` conversion
+    /// - Claim `iss`, `sub`, `aud`, `jti` does not match the expected
+    /// - `claims` has no `nbf` or `iat`
+    /// - a claim was registered for validation in the rules but is missing from the actual `claims`
     ///
     /// NOTE: This __does not__ validate any non-registered claims (see [`Claims::REGISTERED_CLAIMS`]). They must be validated
     /// separately.
@@ -561,6 +567,26 @@ mod test {
                 .unwrap_err(),
             Errors::ClaimValidationError
         );
+        outdated_claims.non_expiring();
+        let mut claims_validation_allow_expiry = claims_validation.clone();
+        // Rules not yet defined to allow non-expiring
+        assert!(claims_validation_allow_expiry
+            .validate_claims(&outdated_claims)
+            .is_err());
+        claims_validation_allow_expiry.allow_non_expiring();
+        // Test if claim has `exp` but rules dictate allowing non-expiring (which is ignored
+        // as long as `exp` is present in the claims) so it's still expired
+        outdated_claims
+            .expiration("2019-01-01T00:00:00+00:00")
+            .unwrap();
+        assert!(claims_validation_allow_expiry
+            .validate_claims(&outdated_claims)
+            .is_err());
+        // Missing `exp` and allow in rules match
+        outdated_claims.non_expiring();
+        assert!(claims_validation_allow_expiry
+            .validate_claims(&outdated_claims)
+            .is_ok());
 
         // In-future
         let mut future_claims = claims.clone();
