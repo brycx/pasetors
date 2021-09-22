@@ -9,6 +9,7 @@
 //! If more control over the input is needed, and validation is handled manually, the [`version4`]/[`version2`]
 //! module provide a lower-level interface, where payloads are be provided as byte-slices.
 //!
+//! NOTE: [`claims`], [`local`] and [`public`] modules are __only available with default-features enabled__.
 //! ## Creating and verifying public tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
@@ -136,6 +137,7 @@ pub mod errors;
 
 mod common;
 
+#[cfg(feature = "std")]
 /// Claims for tokens and validation thereof.
 pub mod claims;
 /// Keys used for PASETO tokens.
@@ -145,6 +147,7 @@ pub mod version2;
 /// PASETO version 4 tokens.
 pub mod version4;
 
+#[cfg(feature = "std")]
 /// PASETO public tokens with [`version4`], using [`claims::Claims`].
 pub mod public {
     use crate::claims::{Claims, ClaimsValidationRules};
@@ -191,6 +194,7 @@ pub mod public {
     }
 }
 
+#[cfg(feature = "std")]
 /// PASETO local tokens with [`version4`], using [`claims::Claims`].
 pub mod local {
     use crate::claims::{Claims, ClaimsValidationRules};

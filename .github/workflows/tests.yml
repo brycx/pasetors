@@ -30,3 +30,9 @@ jobs:
         with:
           command: test
           args: --release
+
+      - name: Test no_std
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --no-default-features
