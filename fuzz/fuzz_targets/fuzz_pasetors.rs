@@ -113,4 +113,8 @@ fuzz_target!(|data: &[u8]| {
     fuzztest(data, &mut csprng, Version::V2);
     fuzztest(data, &mut csprng, Version::V4);
     fuzz_highlevel(data, &mut csprng);
+
+    if let Ok(parsed_claims) = Claims::from_bytes(data) {
+        assert!(parsed_claims.to_string().is_ok());
+    }
 });

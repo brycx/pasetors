@@ -173,6 +173,8 @@ impl Claims {
     /// - `bytes` contains non-UTF-8 sequences
     /// - `bytes` does not decode as valid JSON
     /// - `bytes` top-most JSON object does not decode to a map
+    /// - if any registered claims exist and they are not a `String`
+    /// - if `exp`, `nbf` or `iat` exist and they cannot be parsed as `DateTime`
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Errors> {
         let input = bytes.to_vec();
 
@@ -184,9 +186,28 @@ impl Claims {
     /// Errors:
     /// - `string` does not decode as valid JSON
     /// - `string` top-most JSON object does not decode to a map
+    /// - if any registered claims exist and they are not a `String`
+    /// - if `exp`, `nbf` or `iat` exist and they cannot be parsed as `DateTime`
     pub fn from_string(string: &str) -> Result<Self, Errors> {
         let list_of: HashMap<String, Value> =
             serde_json::from_str(string).map_err(|_| Errors::ClaimInvalidJson)?;
+
+        // Validate any possible registered claims for their type
+        for registered_claim in Self::REGISTERED_CLAIMS {
+            if let Some(claim) = list_of.get(registered_claim) {
+                if let Some(claim_value) = claim.as_str() {
+                    if registered_claim == "exp"
+                        || registered_claim == "nbf"
+                        || registered_claim == "iat"
+                    {
+                        DateTime::parse_from_rfc3339(claim_value)
+                            .map_err(|_| Errors::InvalidClaimError)?;
+                    }
+                } else {
+                    return Err(Errors::InvalidClaimError);
+                }
+            }
+        }
 
         Ok(Self { list_of })
     }
