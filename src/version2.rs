@@ -243,6 +243,7 @@ mod test_vectors {
     use std::fs::File;
     use std::io::BufReader;
 
+    use crate::claims::Claims;
     use crate::common::tests::*;
     use crate::keys::Version;
 
@@ -275,6 +276,16 @@ mod test_vectors {
 
         let roundtrip = LocalToken::decrypt(&sk, &test.token, Some(footer)).unwrap();
         assert_eq!(roundtrip, message.as_bytes(), "Failed {:?}", test.name);
+
+        let parsed_claims = Claims::from_bytes(&roundtrip).unwrap();
+        assert_eq!(
+            parsed_claims.get_claim("data").unwrap().as_str().unwrap(),
+            test.payload.as_ref().unwrap().data
+        );
+        assert_eq!(
+            parsed_claims.get_claim("exp").unwrap().as_str().unwrap(),
+            test.payload.as_ref().unwrap().exp
+        );
     }
 
     fn test_public(test: &PasetoTest) {
