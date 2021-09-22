@@ -34,5 +34,5 @@ jobs:
       - name: Test no_std
         uses: actions-rs/cargo@v1
         with:
-          command: test
+          command: build
           args: --no-default-features
