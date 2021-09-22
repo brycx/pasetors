@@ -1,6 +1,6 @@
 ### 0.3.0
 
-__Date:__ TBD
+__Date:__ September 22, 2021.
 
 __Changelog:__
 - Implement version 4 of the PASETO specification
