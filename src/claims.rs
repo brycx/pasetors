@@ -203,6 +203,7 @@ impl Claims {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 /// The validation rules that are used to validate a set of claims.
 pub struct ClaimsValidationRules {
     validate_currently_valid: bool,
