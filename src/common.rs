@@ -87,6 +87,8 @@ pub(crate) mod tests {
         pub(crate) public_key: Option<String>,
         #[serde(rename(deserialize = "secret-key"))]
         pub(crate) secret_key: Option<String>,
+        #[serde(rename(deserialize = "secret-key-seed"))]
+        pub(crate) secret_key_seed: Option<String>,
         #[serde(rename(deserialize = "public-key-pem"))]
         pub(crate) public_key_pem: Option<String>,
         #[serde(rename(deserialize = "secret-key-pem"))]
