@@ -1,4 +1,15 @@
-//! # Creating and verifying public tokens
+//! # Getting started
+//! This library has two ways of working with tokens. The first is the [`local`] and [`public`] module,
+//! which the below examples make use of. These use the latest version of PASETO for tokens,
+//! along with [`claims::Claims`], to enable a straightforward way of defining common claims.
+//! [`claims::ClaimsValidationRules`] lets you define validation rules, that are covered when using
+//! the [`local`] and [`public`] module. Using these modules means that validation of registered
+//! claims is handled automatically.
+//!
+//! If more control over the input is needed, and validation is handled manually, the [`version4`]/[`version2`]
+//! module provide a lower-level interface, where payloads are be provided as byte-slices.
+//!
+//! ## Creating and verifying public tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{AsymmetricSecretKey, AsymmetricPublicKey, Version};
@@ -20,6 +31,8 @@
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
 //! // expected to be present.
+//! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
+//! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
 //! let claims_from = public::verify(&pk, &pub_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
 //! assert_eq!(claims, claims_from);
@@ -30,7 +43,7 @@
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```
 
-//! # Creating and verifying local tokens
+//! ## Creating and verifying local tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{SymmetricKey, Version};
@@ -39,15 +52,17 @@
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
 //! // Add a custom `data` claim as well.
 //! let mut claims = Claims::new()?;
-//! claims.add_additional("data", "A public, signed message")?;
+//! claims.add_additional("data", "A secret, encrypted message")?;
 //!
-//! // Generate the keys and encrypt the claims.
+//! // Generate the key and encrypt the claims.
 //! let sk = SymmetricKey::gen(Version::V4)?;
 //! let token = local::encrypt(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
 //! // expected to be present.
+//! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
+//! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
 //! let claims_from = local::decrypt(&sk, &token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
 //! assert_eq!(claims, claims_from);
@@ -58,7 +73,33 @@
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```
 
-//! # Additional claims and their validation
+//! ## Additional claims and their validation
+//!
+//! ### Setting registered claims and how to validate them
+//! ```rust
+//! use pasetors::claims::{Claims, ClaimsValidationRules};
+//!
+//! // `iat`, `nbf` and `exp` have been set automatically, but could also be overridden.
+//! let mut claims = Claims::new()?;
+//! claims.issuer("paragonie.com")?;
+//! claims.subject("test")?;
+//! claims.audience("pie-hosted.com")?;
+//! claims.expiration("2039-01-01T00:00:00+00:00")?;
+//! claims.not_before("2038-04-01T00:00:00+00:00")?;
+//! claims.issued_at("2038-03-17T00:00:00+00:00")?;
+//! claims.token_identifier("87IFSGFgPNtQNNuw0AtuLttPYFfYwOkjhqdWcLoYQHvL")?;
+//!
+//! let mut validation_rules = ClaimsValidationRules::new();
+//! validation_rules.validate_issuer_with("paragonie.com");
+//! validation_rules.validate_subject_with("test");
+//! validation_rules.validate_audience_with("pie-hosted.com");
+//! validation_rules.validate_token_identifier_with("87IFSGFgPNtQNNuw0AtuLttPYFfYwOkjhqdWcLoYQHvL");
+//!
+//! // The token has been set to be issued in the future and not valid yet, so validation fails.
+//! assert!(validation_rules.validate_claims(&claims).is_err());
+//! # Ok::<(), pasetors::errors::Errors>(())
+//! ```
+//! ### Non-expiring tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //!
@@ -104,7 +145,7 @@ pub mod version2;
 /// PASETO version 4 tokens.
 pub mod version4;
 
-/// PASETO public tokens using `Claims`.
+/// PASETO public tokens with [`version4`], using [`claims::Claims`].
 pub mod public {
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Errors;
@@ -121,14 +162,14 @@ pub mod public {
         crate::version4::PublicToken::sign(
             secret_key,
             public_key,
-            message.to_string().unwrap().as_bytes(),
+            message.to_string()?.as_bytes(),
             footer,
             implicit_assert,
         )
     }
 
-    /// Verify a public token using the latest PASETO version (v4). If verification passes, validate the claims according to the
-    /// `validation_rules`.
+    /// Verify a public token using the latest PASETO version (v4). If verification passes,
+    /// validate the claims according to the `validation_rules`.
     pub fn verify(
         public_key: &AsymmetricPublicKey,
         token: &str,
@@ -137,7 +178,8 @@ pub mod public {
         implicit_assert: Option<&[u8]>,
     ) -> Result<Claims, Errors> {
         crate::version4::PublicToken::verify(public_key, token, footer, implicit_assert)?;
-
+        // The token format has been checked during `verify`, where this splitting and indexing
+        // also happens. Therefore, it's assumed safe to do the same here without additional checks.
         let parts_split = token.split('.').collect::<Vec<&str>>();
         let token_raw = crate::common::decode_b64(parts_split[2])?;
 
@@ -149,7 +191,7 @@ pub mod public {
     }
 }
 
-/// PASETO local tokens using `Claims`.
+/// PASETO local tokens with [`version4`], using [`claims::Claims`].
 pub mod local {
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Errors;
@@ -164,14 +206,14 @@ pub mod local {
     ) -> Result<String, Errors> {
         crate::version4::LocalToken::encrypt(
             secret_key,
-            message.to_string().unwrap().as_bytes(),
+            message.to_string()?.as_bytes(),
             footer,
             implicit_assert,
         )
     }
 
-    /// Verify a local token using the latest PASETO version (v4). If verification passes, validate the claims according to the
-    /// `validation_rules`.
+    /// Verify a local token using the latest PASETO version (v4). If verification passes,
+    /// validate the claims according to the `validation_rules`.
     pub fn decrypt(
         secret_key: &SymmetricKey,
         token: &str,
