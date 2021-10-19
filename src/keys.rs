@@ -1,66 +1,69 @@
 use crate::errors::Errors;
 use alloc::vec::Vec;
 use core::fmt::Debug;
+use std::marker::PhantomData;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-/// Versions associated with a key, used in PASETO.
-pub enum Version {
-    /// Keys for version 2.
-    V2,
-    /// Keys for version 4.
-    V4,
+pub struct V2;
+pub struct V4;
+
+mod private {
+    // since this trait is in a private module it
+    // cannot be implemented from other crates
+    pub trait PrivateTrait {}
 }
+
+pub trait V2orV4: private::PrivateTrait {}
+impl V2orV4 for V2 {}
+impl V2orV4 for V4 {}
+impl private::PrivateTrait for V2 {}
+impl private::PrivateTrait for V4 {}
 
 const V2_KEYSIZE: usize = 32;
 const V4_KEYSIZE: usize = V2_KEYSIZE;
 
 /// A symmetric key used for `.local` tokens.
-pub struct SymmetricKey {
+pub struct SymmetricKey<V> {
     bytes: Vec<u8>,
-    pub(crate) version: Version,
+    phantom: PhantomData<V>,
 }
 
-impl Debug for SymmetricKey {
+impl<V> Debug for SymmetricKey<V> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SymmetricKey {{***OMITTED***}}")
     }
 }
 
-impl Drop for SymmetricKey {
+impl<V> Drop for SymmetricKey<V> {
     fn drop(&mut self) {
         use zeroize::Zeroize;
         self.bytes.iter_mut().zeroize();
     }
 }
 
-impl SymmetricKey {
+impl<V: V2orV4> SymmetricKey<V> {
     /// Randomly generate a `SymmetricKey` for a `version`.
-    pub fn gen(version: Version) -> Result<Self, Errors> {
-        if version == Version::V2 || version == Version::V4 {
-            let mut rng_bytes = vec![0u8; V4_KEYSIZE];
-            getrandom::getrandom(&mut rng_bytes)?;
+    pub fn gen() -> Result<Self, Errors> {
+        let mut rng_bytes = vec![0u8; V4_KEYSIZE];
+        getrandom::getrandom(&mut rng_bytes)?;
 
-            return Ok(Self {
-                bytes: rng_bytes,
-                version,
-            });
-        }
+        return Ok(Self {
+            bytes: rng_bytes,
+            phantom: PhantomData,
+        });
 
         Err(Errors::KeyError)
     }
 
     /// Create a `SymmetricKey` from `bytes`, to be used with `version`.
-    pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
-        if version == Version::V2 || version == Version::V4 {
-            if bytes.len() != V4_KEYSIZE {
-                return Err(Errors::KeyError);
-            }
-
-            return Ok(Self {
-                bytes: bytes.to_vec(),
-                version,
-            });
+    pub fn from(bytes: &[u8]) -> Result<Self, Errors> {
+        if bytes.len() != V4_KEYSIZE {
+            return Err(Errors::KeyError);
         }
+
+        return Ok(Self {
+            bytes: bytes.to_vec(),
+            phantom: PhantomData,
+        });
 
         Err(Errors::KeyError)
     }
@@ -72,37 +75,35 @@ impl SymmetricKey {
 }
 
 /// An asymmetric secret key used for `.public` tokens.
-pub struct AsymmetricSecretKey {
+pub struct AsymmetricSecretKey<V> {
     bytes: Vec<u8>,
-    pub(crate) version: Version,
+    phantom: PhantomData<V>,
 }
 
-impl Debug for AsymmetricSecretKey {
+impl<V> Debug for AsymmetricSecretKey<V> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "AsymmetricSecretKey {{***OMITTED***}}")
     }
 }
 
-impl Drop for AsymmetricSecretKey {
+impl<V> Drop for AsymmetricSecretKey<V> {
     fn drop(&mut self) {
         use zeroize::Zeroize;
         self.bytes.iter_mut().zeroize();
     }
 }
 
-impl AsymmetricSecretKey {
+impl<V: V2orV4> AsymmetricSecretKey<V> {
     /// Create an `AsymmetricSecretKey` from `bytes`, to be used with `version`.
-    pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
-        if version == Version::V2 || version == Version::V4 {
-            if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH {
-                return Err(Errors::KeyError);
-            }
-
-            return Ok(Self {
-                bytes: bytes.to_vec(),
-                version,
-            });
+    pub fn from(bytes: &[u8]) -> Result<Self, Errors> {
+        if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH {
+            return Err(Errors::KeyError);
         }
+
+        return Ok(Self {
+            bytes: bytes.to_vec(),
+            phantom: PhantomData,
+        });
 
         Err(Errors::KeyError)
     }
@@ -115,24 +116,22 @@ impl AsymmetricSecretKey {
 
 #[derive(Debug)]
 /// An asymmetric public key used for `.public` tokens.
-pub struct AsymmetricPublicKey {
+pub struct AsymmetricPublicKey<V> {
     bytes: Vec<u8>,
-    pub(crate) version: Version,
+    phantom: PhantomData<V>,
 }
 
-impl AsymmetricPublicKey {
+impl<V: V2orV4> AsymmetricPublicKey<V> {
     /// Create an `AsymmetricPublicKey` from `bytes`, to be used with `version`.
-    pub fn from(bytes: &[u8], version: Version) -> Result<Self, Errors> {
-        if version == Version::V2 || version == Version::V4 {
-            if bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH {
-                return Err(Errors::KeyError);
-            }
-
-            return Ok(Self {
-                bytes: bytes.to_vec(),
-                version,
-            });
+    pub fn from(bytes: &[u8]) -> Result<Self, Errors> {
+        if bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH {
+            return Err(Errors::KeyError);
         }
+
+        return Ok(Self {
+            bytes: bytes.to_vec(),
+            phantom: PhantomData,
+        });
 
         Err(Errors::KeyError)
     }
@@ -149,8 +148,8 @@ mod tests {
 
     #[test]
     fn test_symmetric_gen() {
-        let randomv2 = SymmetricKey::gen(Version::V2).unwrap();
-        let randomv4 = SymmetricKey::gen(Version::V4).unwrap();
+        let randomv2 = SymmetricKey::<V2>::gen().unwrap();
+        let randomv4 = SymmetricKey::<V4>::gen().unwrap();
 
         assert_ne!(randomv2.as_bytes(), &[0u8; 32]);
         assert_ne!(randomv4.as_bytes(), &[0u8; 32]);
@@ -159,29 +158,29 @@ mod tests {
     #[test]
     fn test_invalid_sizes() {
         // Version 2
-        assert!(AsymmetricSecretKey::from(&[0u8; 31], Version::V2).is_err());
-        assert!(AsymmetricSecretKey::from(&[0u8; 32], Version::V2).is_ok());
-        assert!(AsymmetricSecretKey::from(&[0u8; 33], Version::V2).is_err());
+        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 31]).is_err());
+        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 32]).is_ok());
+        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 33]).is_err());
 
-        assert!(AsymmetricPublicKey::from(&[0u8; 31], Version::V2).is_err());
-        assert!(AsymmetricPublicKey::from(&[0u8; 32], Version::V2).is_ok());
-        assert!(AsymmetricPublicKey::from(&[0u8; 33], Version::V2).is_err());
+        assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 31]).is_err());
+        assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 32]).is_ok());
+        assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 33]).is_err());
 
-        assert!(SymmetricKey::from(&[0u8; 31], Version::V2).is_err());
-        assert!(SymmetricKey::from(&[0u8; 32], Version::V2).is_ok());
-        assert!(SymmetricKey::from(&[0u8; 33], Version::V2).is_err());
+        assert!(SymmetricKey::<V2>::from(&[0u8; 31]).is_err());
+        assert!(SymmetricKey::<V2>::from(&[0u8; 32]).is_ok());
+        assert!(SymmetricKey::<V2>::from(&[0u8; 33]).is_err());
 
         // Version 4
-        assert!(AsymmetricSecretKey::from(&[0u8; 31], Version::V4).is_err());
-        assert!(AsymmetricSecretKey::from(&[0u8; 32], Version::V4).is_ok());
-        assert!(AsymmetricSecretKey::from(&[0u8; 33], Version::V4).is_err());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 31]).is_err());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 32]).is_ok());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 33]).is_err());
 
-        assert!(AsymmetricPublicKey::from(&[0u8; 31], Version::V4).is_err());
-        assert!(AsymmetricPublicKey::from(&[0u8; 32], Version::V4).is_ok());
-        assert!(AsymmetricPublicKey::from(&[0u8; 33], Version::V4).is_err());
+        assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 31]).is_err());
+        assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 32]).is_ok());
+        assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 33]).is_err());
 
-        assert!(SymmetricKey::from(&[0u8; 31], Version::V4).is_err());
-        assert!(SymmetricKey::from(&[0u8; 32], Version::V4).is_ok());
-        assert!(SymmetricKey::from(&[0u8; 33], Version::V4).is_err());
+        assert!(SymmetricKey::<V4>::from(&[0u8; 31]).is_err());
+        assert!(SymmetricKey::<V4>::from(&[0u8; 32]).is_ok());
+        assert!(SymmetricKey::<V4>::from(&[0u8; 33]).is_err());
     }
 }

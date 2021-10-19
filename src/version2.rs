@@ -4,7 +4,7 @@ use core::convert::TryFrom;
 
 use crate::common::{decode_b64, encode_b64, validate_format_footer};
 use crate::errors::Errors;
-use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, Version};
+use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V2};
 use crate::pae;
 
 /// PASETO v2 public tokens.
@@ -16,8 +16,8 @@ impl PublicToken {
 
     /// Create a public token.
     pub fn sign(
-        secret_key: &AsymmetricSecretKey,
-        public_key: &AsymmetricPublicKey,
+        secret_key: &AsymmetricSecretKey<V2>,
+        public_key: &AsymmetricPublicKey<V2>,
         message: &[u8],
         footer: Option<&[u8]>,
     ) -> Result<String, Errors> {
@@ -26,9 +26,6 @@ impl PublicToken {
         use ed25519_dalek::SecretKey;
         use ed25519_dalek::Signer;
 
-        if secret_key.version != Version::V2 || public_key.version != Version::V2 {
-            return Err(Errors::KeyError);
-        }
         if message.is_empty() {
             return Err(Errors::EmptyPayloadError);
         }
@@ -62,16 +59,13 @@ impl PublicToken {
 
     /// Verify a public token.
     pub fn verify(
-        public_key: &AsymmetricPublicKey,
+        public_key: &AsymmetricPublicKey<V2>,
         token: &str,
         footer: Option<&[u8]>,
     ) -> Result<(), Errors> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
 
-        if public_key.version != Version::V2 {
-            return Err(Errors::KeyError);
-        }
         if token.is_empty() {
             return Err(Errors::EmptyPayloadError);
         }
@@ -118,7 +112,7 @@ impl LocalToken {
     /// Encrypt and authenticate a message using nonce_key_bytes to derive a nonce
     /// using BLAKE2b.
     pub(crate) fn encrypt_with_derived_nonce(
-        secret_key: &SymmetricKey,
+        secret_key: &SymmetricKey<V2>,
         nonce_key_bytes: &[u8],
         message: &[u8],
         footer: Option<&[u8]>,
@@ -168,15 +162,12 @@ impl LocalToken {
 
     /// Create a local token.
     pub fn encrypt(
-        secret_key: &SymmetricKey,
+        secret_key: &SymmetricKey<V2>,
         message: &[u8],
         footer: Option<&[u8]>,
     ) -> Result<String, Errors> {
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
-        if secret_key.version != Version::V2 {
-            return Err(Errors::KeyError);
-        }
         if message.is_empty() {
             return Err(Errors::EmptyPayloadError);
         }
@@ -189,7 +180,7 @@ impl LocalToken {
 
     /// Verify and decrypt a local token.
     pub fn decrypt(
-        secret_key: &SymmetricKey,
+        secret_key: &SymmetricKey<V2>,
         token: &str,
         footer: Option<&[u8]>,
     ) -> Result<Vec<u8>, Errors> {
@@ -197,9 +188,6 @@ impl LocalToken {
         use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
-        if secret_key.version != Version::V2 {
-            return Err(Errors::KeyError);
-        }
         if token.is_empty() {
             return Err(Errors::EmptyPayloadError);
         }
@@ -245,17 +233,13 @@ mod test_vectors {
 
     use crate::claims::Claims;
     use crate::common::tests::*;
-    use crate::keys::Version;
 
     fn test_local(test: &PasetoTest) {
         debug_assert!(test.nonce.is_some());
         debug_assert!(test.key.is_some());
 
-        let sk = SymmetricKey::from(
-            &hex::decode(test.key.as_ref().unwrap()).unwrap(),
-            Version::V2,
-        )
-        .unwrap();
+        let sk =
+            SymmetricKey::<V2>::from(&hex::decode(test.key.as_ref().unwrap()).unwrap()).unwrap();
 
         let nonce = hex::decode(test.nonce.as_ref().unwrap()).unwrap();
         let footer = test.footer.as_bytes();
@@ -292,14 +276,12 @@ mod test_vectors {
         debug_assert!(test.public_key.is_some());
         debug_assert!(test.secret_key.is_some());
 
-        let sk = AsymmetricSecretKey::from(
+        let sk = AsymmetricSecretKey::<V2>::from(
             &hex::decode(test.secret_key.as_ref().unwrap()).unwrap()[..32],
-            Version::V2,
         )
         .unwrap();
-        let pk = AsymmetricPublicKey::from(
+        let pk = AsymmetricPublicKey::<V2>::from(
             &hex::decode(test.public_key.as_ref().unwrap()).unwrap(),
-            Version::V2,
         )
         .unwrap();
         let footer = test.footer.as_bytes();
@@ -344,7 +326,6 @@ mod test_vectors {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     const TEST_SK_BYTES: [u8; 32] = [
@@ -365,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_local() {
-        let sk = SymmetricKey::gen(Version::V2).unwrap();
+        let sk = SymmetricKey::<V2>::gen().unwrap();
 
         let token = LocalToken::encrypt(&sk, MESSAGE.as_bytes(), None).unwrap();
         let payload = LocalToken::decrypt(&sk, &token, None).unwrap();
@@ -375,8 +356,8 @@ mod tests {
 
     #[test]
     fn test_roundtrip_public() {
-        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_sk = AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None).unwrap();
         assert!(PublicToken::verify(&test_pk, &token, None).is_ok());
@@ -384,9 +365,9 @@ mod tests {
 
     #[test]
     fn footer_none_some_empty_is_same() {
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
-        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_sk = AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
         let message =
             b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let footer = b"";
@@ -409,9 +390,9 @@ mod tests {
     #[test]
     // NOTE: See https://github.com/paseto-standard/paseto-spec/issues/17
     fn empty_payload() {
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
-        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_sk = AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::sign(&test_sk, &test_pk, b"", None).unwrap_err(),
@@ -432,34 +413,9 @@ mod tests {
     }
 
     #[test]
-    // NOTE: "Algorithm lucidity" from spec.
-    fn wrong_key_version() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V4).unwrap();
-        let test_sk = AsymmetricSecretKey::from(&TEST_SK_BYTES, Version::V4).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V4).unwrap();
-
-        assert_eq!(
-            PublicToken::sign(&test_sk, &test_pk, b"test", None).unwrap_err(),
-            Errors::KeyError
-        );
-        assert_eq!(
-            PublicToken::verify(&test_pk, "test", None).unwrap_err(),
-            Errors::KeyError
-        );
-        assert_eq!(
-            LocalToken::encrypt(&test_local_sk, b"test", None).unwrap_err(),
-            Errors::KeyError
-        );
-        assert_eq!(
-            LocalToken::decrypt(&test_local_sk, "test", None).unwrap_err(),
-            Errors::KeyError
-        );
-    }
-
-    #[test]
     fn err_on_modified_header() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(
@@ -501,8 +457,8 @@ mod tests {
 
     #[test]
     fn err_on_modified_purpose() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(
@@ -545,8 +501,8 @@ mod tests {
     #[test]
     // NOTE: Missing but created with one
     fn err_on_missing_payload() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         split_public[2] = "";
@@ -569,8 +525,8 @@ mod tests {
 
     #[test]
     fn err_on_extra_after_footer() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         split_public.push(".shouldNotBeHere");
@@ -593,8 +549,8 @@ mod tests {
 
     #[test]
     fn err_on_modified_footer() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(
@@ -618,8 +574,8 @@ mod tests {
 
     #[test]
     fn err_on_footer_in_token_none_supplied() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(&test_pk, &VALID_PUBLIC_TOKEN, Some(b"")).unwrap_err(),
@@ -633,8 +589,8 @@ mod tests {
 
     #[test]
     fn err_on_no_footer_in_token_some_supplied() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         let invalid_public: String = format!(
@@ -659,7 +615,7 @@ mod tests {
 
     #[test]
     fn err_on_modified_signature() {
-        let test_pk = AsymmetricPublicKey::from(&TEST_PK_BYTES, Version::V2).unwrap();
+        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_sig = Vec::from(decode_b64(split_public[2]).unwrap());
@@ -679,7 +635,7 @@ mod tests {
 
     #[test]
     fn err_on_modified_tag() {
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_tag = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -701,7 +657,7 @@ mod tests {
 
     #[test]
     fn err_on_modified_ciphertext() {
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_ct = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -723,7 +679,7 @@ mod tests {
 
     #[test]
     fn err_on_modified_nonce() {
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -745,7 +701,7 @@ mod tests {
 
     #[test]
     fn err_on_invalid_base64() {
-        let test_local_sk = SymmetricKey::from(&TEST_SK_BYTES, Version::V2).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -767,7 +723,7 @@ mod tests {
 
     #[test]
     fn err_on_invalid_public_secret_key() {
-        let bad_pk = AsymmetricPublicKey::from(&[0u8; 32], Version::V2).unwrap();
+        let bad_pk = AsymmetricPublicKey::<V2>::from(&[0u8; 32]).unwrap();
 
         assert_eq!(
             PublicToken::verify(&bad_pk, VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes())).unwrap_err(),
@@ -777,7 +733,7 @@ mod tests {
 
     #[test]
     fn err_on_invalid_shared_secret_key() {
-        let bad_local_sk = SymmetricKey::from(&[0u8; 32], Version::V2).unwrap();
+        let bad_local_sk = SymmetricKey::<V2>::from(&[0u8; 32]).unwrap();
 
         assert_eq!(
             LocalToken::decrypt(&bad_local_sk, VALID_LOCAL_TOKEN, Some(FOOTER.as_bytes()))

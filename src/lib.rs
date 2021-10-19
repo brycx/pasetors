@@ -13,7 +13,7 @@
 //! ## Creating and verifying public tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{AsymmetricSecretKey, AsymmetricPublicKey, Version};
+//! use pasetors::keys::{AsymmetricSecretKey, AsymmetricPublicKey, V4};
 //! use pasetors::public;
 //! use ed25519_dalek::Keypair;
 //!
@@ -25,8 +25,8 @@
 //! // Generate the keys and sign the claims.
 //! let mut csprng = rand::rngs::OsRng{};
 //! let keypair: Keypair = Keypair::generate(&mut csprng);
-//! let sk = AsymmetricSecretKey::from(&keypair.secret.to_bytes(), Version::V4)?;
-//! let pk = AsymmetricPublicKey::from(&keypair.public.to_bytes(), Version::V4)?;
+//! let sk = AsymmetricSecretKey::<V4>::from(&keypair.secret.to_bytes())?;
+//! let pk = AsymmetricPublicKey::<V4>::from(&keypair.public.to_bytes())?;
 //! let pub_token = public::sign(&sk, &pk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
@@ -47,7 +47,7 @@
 //! ## Creating and verifying local tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{SymmetricKey, Version};
+//! use pasetors::keys::{SymmetricKey, V4};
 //! use pasetors::local;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
@@ -56,7 +56,7 @@
 //! claims.add_additional("data", "A secret, encrypted message")?;
 //!
 //! // Generate the key and encrypt the claims.
-//! let sk = SymmetricKey::gen(Version::V4)?;
+//! let sk = SymmetricKey::<V4>::gen()?;
 //! let token = local::encrypt(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
@@ -152,12 +152,12 @@ pub mod version4;
 pub mod public {
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Errors;
-    use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
+    use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, V4};
 
     /// Create a public token using the latest PASETO version (v4).
     pub fn sign(
-        secret_key: &AsymmetricSecretKey,
-        public_key: &AsymmetricPublicKey,
+        secret_key: &AsymmetricSecretKey<V4>,
+        public_key: &AsymmetricPublicKey<V4>,
         message: &Claims,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
@@ -174,7 +174,7 @@ pub mod public {
     /// Verify a public token using the latest PASETO version (v4). If verification passes,
     /// validate the claims according to the `validation_rules`.
     pub fn verify(
-        public_key: &AsymmetricPublicKey,
+        public_key: &AsymmetricPublicKey<V4>,
         token: &str,
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
@@ -199,11 +199,11 @@ pub mod public {
 pub mod local {
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Errors;
-    use crate::keys::SymmetricKey;
+    use crate::keys::{SymmetricKey, V4};
 
     /// Create a local token using the latest PASETO version (v4).
     pub fn encrypt(
-        secret_key: &SymmetricKey,
+        secret_key: &SymmetricKey<V4>,
         message: &Claims,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
@@ -219,7 +219,7 @@ pub mod local {
     /// Verify a local token using the latest PASETO version (v4). If verification passes,
     /// validate the claims according to the `validation_rules`.
     pub fn decrypt(
-        secret_key: &SymmetricKey,
+        secret_key: &SymmetricKey<V4>,
         token: &str,
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
