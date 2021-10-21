@@ -23,13 +23,13 @@ impl V2orV4 for V4 {}
 impl private::PrivateTrait for V2 {}
 impl private::PrivateTrait for V4 {}
 
-const V2_KEYSIZE: usize = 32;
-const V4_KEYSIZE: usize = V2_KEYSIZE;
+pub(crate) const V2_KEYSIZE: usize = 32;
+pub(crate) const V4_KEYSIZE: usize = V2_KEYSIZE;
 
 /// A symmetric key used for `.local` tokens, given a version `V`.
 pub struct SymmetricKey<V> {
-    bytes: Vec<u8>,
-    phantom: PhantomData<V>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) phantom: PhantomData<V>,
 }
 
 impl<V> Debug for SymmetricKey<V> {
@@ -77,8 +77,8 @@ impl<V: V2orV4> SymmetricKey<V> {
 
 /// An asymmetric secret key used for `.public` tokens, given a version `V`.
 pub struct AsymmetricSecretKey<V> {
-    bytes: Vec<u8>,
-    phantom: PhantomData<V>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) phantom: PhantomData<V>,
 }
 
 impl<V> Debug for AsymmetricSecretKey<V> {
@@ -116,8 +116,8 @@ impl<V: V2orV4> AsymmetricSecretKey<V> {
 #[derive(Debug)]
 /// An asymmetric public key used for `.public` tokens, given a version `V`.
 pub struct AsymmetricPublicKey<V> {
-    bytes: Vec<u8>,
-    phantom: PhantomData<V>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) phantom: PhantomData<V>,
 }
 
 impl<V: V2orV4> AsymmetricPublicKey<V> {
@@ -136,6 +136,37 @@ impl<V: V2orV4> AsymmetricPublicKey<V> {
     /// Return this as a byte-slice.
     pub fn as_bytes(&self) -> &[u8] {
         self.bytes.as_slice()
+    }
+}
+
+#[derive(Debug)]
+/// A keypair of an [`AsymmetricSecretKey`] and its corresponding `AsymmetricPublicKey`.
+pub struct AsymmetricKeyPair<V> {
+    /// The [`AsymmetricSecretKey`].
+    pub public: AsymmetricPublicKey<V>,
+    /// The [`AsymmetricPublicKey`].
+    pub secret: AsymmetricSecretKey<V>,
+}
+
+#[cfg(test)]
+impl<V: V2orV4> AsymmetricKeyPair<V> {
+    pub(crate) fn from(bytes: &[u8]) -> Result<Self, Errors> {
+        if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH {
+            return Err(Errors::PaserkParsing);
+        }
+
+        Ok(Self {
+            secret: AsymmetricSecretKey::from(&bytes[..ed25519_dalek::SECRET_KEY_LENGTH])?,
+            public: AsymmetricPublicKey::from(&bytes[ed25519_dalek::SECRET_KEY_LENGTH..])?,
+        })
+    }
+
+    pub(crate) fn as_bytes<'a>(&self) -> [u8; 64] {
+        let mut buf = [0u8; ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH];
+        buf[..ed25519_dalek::SECRET_KEY_LENGTH].copy_from_slice(self.secret.as_bytes());
+        buf[ed25519_dalek::SECRET_KEY_LENGTH..].copy_from_slice(self.public.as_bytes());
+
+        buf
     }
 }
 

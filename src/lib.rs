@@ -142,6 +142,8 @@ mod common;
 pub mod claims;
 /// Keys used for PASETO tokens.
 pub mod keys;
+/// PASERK support for keys.
+pub mod paserk;
 /// PASETO version 2 tokens.
 pub mod version2;
 /// PASETO version 4 tokens.
