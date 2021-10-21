@@ -1,7 +1,7 @@
 use crate::errors::Errors;
 use alloc::vec::Vec;
 use core::fmt::Debug;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Version 2 of the PASETO spec.
 pub struct V2;
