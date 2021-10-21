@@ -4,6 +4,8 @@ use crate::keys::{
     AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V2, V2_KEYSIZE, V4,
     V4_KEYSIZE,
 };
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::convert::TryFrom;
 use zeroize::Zeroize;
 
@@ -199,6 +201,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V4> {
 }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 mod tests {
     use super::*;
 

@@ -149,6 +149,7 @@ pub struct AsymmetricKeyPair<V> {
 }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 impl<V: V2orV4> AsymmetricKeyPair<V> {
     pub(crate) fn from(bytes: &[u8]) -> Result<Self, Errors> {
         if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH {
