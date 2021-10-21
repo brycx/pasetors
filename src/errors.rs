@@ -27,6 +27,16 @@ pub enum Errors {
     ClaimInvalidJson,
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for Errors {}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for Errors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:?}", self))
+    }
+}
+
 impl From<ct_codecs::Error> for Errors {
     fn from(_: ct_codecs::Error) -> Self {
         Errors::Base64DecodingError
