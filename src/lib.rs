@@ -41,7 +41,7 @@
 //! println!("{:?}", claims.get_claim("data"));
 //! println!("{:?}", claims.get_claim("iat"));
 //!
-//! # Ok::<(), pasetors::errors::Errors>(())
+//! # Ok::<(), pasetors::errors::Error>(())
 //! ```
 
 //! ## Creating and verifying local tokens
@@ -71,7 +71,7 @@
 //! println!("{:?}", claims.get_claim("data"));
 //! println!("{:?}", claims.get_claim("iat"));
 //!
-//! # Ok::<(), pasetors::errors::Errors>(())
+//! # Ok::<(), pasetors::errors::Error>(())
 //! ```
 
 //! ## Additional claims and their validation
@@ -98,7 +98,7 @@
 //!
 //! // The token has been set to be issued in the future and not valid yet, so validation fails.
 //! assert!(validation_rules.validate_claims(&claims).is_err());
-//! # Ok::<(), pasetors::errors::Errors>(())
+//! # Ok::<(), pasetors::errors::Error>(())
 //! ```
 //! ### Non-expiring tokens
 //! ```rust
@@ -112,7 +112,7 @@
 //! let mut validation_rules = ClaimsValidationRules::new();
 //! validation_rules.allow_non_expiring();
 //!
-//! # Ok::<(), pasetors::errors::Errors>(())
+//! # Ok::<(), pasetors::errors::Error>(())
 //! ```
 
 //! ## PASERK serialization
@@ -127,7 +127,7 @@
 //! sk.fmt(&mut paserk).unwrap();
 //! let sk = SymmetricKey::<V4>::try_from(paserk)?;
 //!
-//! # Ok::<(), pasetors::errors::Errors>(())
+//! # Ok::<(), pasetors::errors::Error>(())
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -168,7 +168,7 @@ pub mod version4;
 /// PASETO public tokens with [`version4`], using [`claims::Claims`].
 pub mod public {
     use crate::claims::{Claims, ClaimsValidationRules};
-    use crate::errors::Errors;
+    use crate::errors::Error;
     use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, V4};
 
     /// Create a public token using the latest PASETO version (v4).
@@ -178,7 +178,7 @@ pub mod public {
         message: &Claims,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<String, Errors> {
+    ) -> Result<String, Error> {
         crate::version4::PublicToken::sign(
             secret_key,
             public_key,
@@ -196,7 +196,7 @@ pub mod public {
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<Claims, Errors> {
+    ) -> Result<Claims, Error> {
         crate::version4::PublicToken::verify(public_key, token, footer, implicit_assert)?;
         // The token format has been checked during `verify`, where this splitting and indexing
         // also happens. Therefore, it's assumed safe to do the same here without additional checks.
@@ -215,7 +215,7 @@ pub mod public {
 /// PASETO local tokens with [`version4`], using [`claims::Claims`].
 pub mod local {
     use crate::claims::{Claims, ClaimsValidationRules};
-    use crate::errors::Errors;
+    use crate::errors::Error;
     use crate::keys::{SymmetricKey, V4};
 
     /// Create a local token using the latest PASETO version (v4).
@@ -224,7 +224,7 @@ pub mod local {
         message: &Claims,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<String, Errors> {
+    ) -> Result<String, Error> {
         crate::version4::LocalToken::encrypt(
             secret_key,
             message.to_string()?.as_bytes(),
@@ -241,7 +241,7 @@ pub mod local {
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<Claims, Errors> {
+    ) -> Result<Claims, Error> {
         let raw_payload =
             crate::version4::LocalToken::decrypt(secret_key, token, footer, implicit_assert)?;
         let claims = Claims::from_bytes(&raw_payload)?;

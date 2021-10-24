@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::errors::Error;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -47,7 +47,7 @@ impl<V> Drop for SymmetricKey<V> {
 
 impl<V: V2orV4> SymmetricKey<V> {
     /// Randomly generate a `SymmetricKey`.
-    pub fn gen() -> Result<Self, Errors> {
+    pub fn gen() -> Result<Self, Error> {
         let mut rng_bytes = vec![0u8; V4_KEYSIZE];
         getrandom::getrandom(&mut rng_bytes)?;
 
@@ -58,9 +58,9 @@ impl<V: V2orV4> SymmetricKey<V> {
     }
 
     /// Create a `SymmetricKey` from `bytes`.
-    pub fn from(bytes: &[u8]) -> Result<Self, Errors> {
+    pub fn from(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() != V4_KEYSIZE {
-            return Err(Errors::KeyError);
+            return Err(Error::Key);
         }
 
         Ok(Self {
@@ -96,9 +96,9 @@ impl<V> Drop for AsymmetricSecretKey<V> {
 
 impl<V: V2orV4> AsymmetricSecretKey<V> {
     /// Create an `AsymmetricSecretKey` from `bytes`.
-    pub fn from(bytes: &[u8]) -> Result<Self, Errors> {
+    pub fn from(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH {
-            return Err(Errors::KeyError);
+            return Err(Error::Key);
         }
 
         Ok(Self {
@@ -122,9 +122,9 @@ pub struct AsymmetricPublicKey<V> {
 
 impl<V: V2orV4> AsymmetricPublicKey<V> {
     /// Create an `AsymmetricPublicKey` from `bytes`.
-    pub fn from(bytes: &[u8]) -> Result<Self, Errors> {
+    pub fn from(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH {
-            return Err(Errors::KeyError);
+            return Err(Error::Key);
         }
 
         Ok(Self {
@@ -151,9 +151,9 @@ pub struct AsymmetricKeyPair<V> {
 #[cfg(test)]
 #[cfg(feature = "std")]
 impl<V: V2orV4> AsymmetricKeyPair<V> {
-    pub(crate) fn from(bytes: &[u8]) -> Result<Self, Errors> {
+    pub(crate) fn from(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() != ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH {
-            return Err(Errors::PaserkParsing);
+            return Err(Error::PaserkParsing);
         }
 
         Ok(Self {
