@@ -43,8 +43,7 @@ pub trait FormatAsPaserk {
 
 impl FormatAsPaserk for SymmetricKey<V2> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write.write_str("k2.")?;
-        write.write_str("local.")?;
+        write.write_str("k2.local.")?;
         write.write_str(&encode_b64(self.as_bytes()).map_err(|_| core::fmt::Error)?)
     }
 }
@@ -62,8 +61,7 @@ impl TryFrom<String> for SymmetricKey<V2> {
 
 impl FormatAsPaserk for SymmetricKey<V4> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write.write_str("k4.")?;
-        write.write_str("local.")?;
+        write.write_str("k4.local.")?;
         write.write_str(&encode_b64(self.as_bytes()).map_err(|_| core::fmt::Error)?)
     }
 }
@@ -81,8 +79,7 @@ impl TryFrom<String> for SymmetricKey<V4> {
 
 impl FormatAsPaserk for AsymmetricKeyPair<V2> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write.write_str("k2.")?;
-        write.write_str("secret.")?;
+        write.write_str("k2.secret.")?;
 
         // See spec: "Here, Ed25519 secret key means the clamped 32-byte seed followed by the
         // 32-byte public key, as used in the NaCl and libsodium APIs, rather than just the
@@ -119,8 +116,7 @@ impl TryFrom<String> for AsymmetricKeyPair<V2> {
 
 impl FormatAsPaserk for AsymmetricKeyPair<V4> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write.write_str("k4.")?;
-        write.write_str("secret.")?;
+        write.write_str("k4.secret.")?;
 
         let mut buf = [0u8; ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH];
         buf[..ed25519_dalek::SECRET_KEY_LENGTH].copy_from_slice(self.secret.as_bytes());
@@ -154,8 +150,7 @@ impl TryFrom<String> for AsymmetricKeyPair<V4> {
 
 impl FormatAsPaserk for AsymmetricPublicKey<V2> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write.write_str("k2.")?;
-        write.write_str("public.")?;
+        write.write_str("k2.public.")?;
         write.write_str(&encode_b64(self.as_bytes()).map_err(|_| core::fmt::Error)?)
     }
 }
@@ -178,8 +173,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V2> {
 
 impl FormatAsPaserk for AsymmetricPublicKey<V4> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write.write_str("k4.")?;
-        write.write_str("public.")?;
+        write.write_str("k4.public.")?;
         write.write_str(&encode_b64(self.as_bytes()).map_err(|_| core::fmt::Error)?)
     }
 }
