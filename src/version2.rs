@@ -223,6 +223,7 @@ impl LocalToken {
 }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 mod test_vectors {
 
     use hex;

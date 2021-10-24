@@ -25,6 +25,8 @@ pub enum Errors {
     ClaimInvalidUtf8,
     /// Error for attempting to parse a Claim but found invalid JSON sequence.
     ClaimInvalidJson,
+    /// Error during (de)serialization of PASERK types.
+    PaserkParsing,
 }
 
 #[cfg(feature = "std")]

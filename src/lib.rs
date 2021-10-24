@@ -115,6 +115,21 @@
 //! # Ok::<(), pasetors::errors::Errors>(())
 //! ```
 
+//! ## PASERK serialization
+//! ```rust
+//! use pasetors::paserk::FormatAsPaserk;
+//! use pasetors::keys::{SymmetricKey, V4};
+//! use core::convert::TryFrom;
+//!
+//! // Generate the key and serialize to and from PASERK.
+//! let sk = SymmetricKey::<V4>::gen()?;
+//! let mut paserk = String::new();
+//! sk.fmt(&mut paserk).unwrap();
+//! let sk = SymmetricKey::<V4>::try_from(paserk)?;
+//!
+//! # Ok::<(), pasetors::errors::Errors>(())
+//! ```
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code)]
 #![deny(clippy::mem_forget)]
@@ -142,6 +157,8 @@ mod common;
 pub mod claims;
 /// Keys used for PASETO tokens.
 pub mod keys;
+/// PASERK key-wrapping and serialization.
+pub mod paserk;
 /// PASETO version 2 tokens.
 pub mod version2;
 /// PASETO version 4 tokens.
