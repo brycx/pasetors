@@ -1,8 +1,8 @@
 use crate::errors::Errors;
-use chrono::prelude::*;
-use chrono::Duration;
 use serde_json::Value;
 use std::collections::HashMap;
+use time::format_description::well_known::Rfc3339;
+use time::{Duration, OffsetDateTime};
 
 #[derive(Debug, PartialEq, Clone)]
 /// A collection of claims that are passed as payload for a PASETO token.
@@ -22,20 +22,27 @@ impl Claims {
     /// Errors:
     /// - If adding current time with one hour would overflow
     pub fn new() -> Result<Self, Errors> {
-        let iat = Utc::now();
+        let iat = OffsetDateTime::now_utc();
         let nbf = iat;
-        let exp = match iat.checked_add_signed(Duration::hours(1)) {
-            Some(value) => value,
-            None => return Err(Errors::InvalidClaimError),
-        };
+        let mut exp = iat;
+        exp += Duration::hours(1);
 
         let mut claims = Self {
             list_of: HashMap::new(),
         };
 
-        claims.issued_at(&iat.to_rfc3339())?;
-        claims.not_before(&nbf.to_rfc3339())?;
-        claims.expiration(&exp.to_rfc3339())?;
+        claims.issued_at(
+            &iat.format(&Rfc3339)
+                .map_err(|_| Errors::InvalidClaimError)?,
+        )?;
+        claims.not_before(
+            &nbf.format(&Rfc3339)
+                .map_err(|_| Errors::InvalidClaimError)?,
+        )?;
+        claims.expiration(
+            &exp.format(&Rfc3339)
+                .map_err(|_| Errors::InvalidClaimError)?,
+        )?;
 
         Ok(claims)
     }
@@ -118,7 +125,7 @@ impl Claims {
     /// - `exp` is empty
     /// - `exp` cannot be parsed as a ISO 8601 compliant DateTime string.
     pub fn expiration(&mut self, exp: &str) -> Result<(), Errors> {
-        if let Ok(_exp_str) = DateTime::parse_from_rfc3339(exp) {
+        if let Ok(_exp_str) = OffsetDateTime::parse(exp, &Rfc3339) {
             self.list_of.insert("exp".into(), exp.into());
             Ok(())
         } else {
@@ -132,7 +139,7 @@ impl Claims {
     /// - `nbf` is empty
     /// - `nbf` cannot be parsed as a ISO 8601 compliant DateTime string.
     pub fn not_before(&mut self, nbf: &str) -> Result<(), Errors> {
-        if let Ok(_nbf_str) = DateTime::parse_from_rfc3339(nbf) {
+        if let Ok(_nbf_str) = OffsetDateTime::parse(nbf, &Rfc3339) {
             self.list_of.insert("nbf".into(), nbf.into());
             Ok(())
         } else {
@@ -146,7 +153,7 @@ impl Claims {
     /// - `iat` is empty
     /// - `iat` cannot be parsed as a ISO 8601 compliant DateTime string.
     pub fn issued_at(&mut self, iat: &str) -> Result<(), Errors> {
-        if let Ok(_iat_str) = DateTime::parse_from_rfc3339(iat) {
+        if let Ok(_iat_str) = OffsetDateTime::parse(iat, &Rfc3339) {
             self.list_of.insert("iat".into(), iat.into());
             Ok(())
         } else {
@@ -200,7 +207,7 @@ impl Claims {
                         || registered_claim == "nbf"
                         || registered_claim == "iat"
                     {
-                        DateTime::parse_from_rfc3339(claim_value)
+                        OffsetDateTime::parse(claim_value, &Rfc3339)
                             .map_err(|_| Errors::InvalidClaimError)?;
                     }
                 } else {
@@ -303,11 +310,11 @@ impl ClaimsValidationRules {
             match (claims.list_of.get("iat"), claims.list_of.get("nbf")) {
                 (Some(iat), Some(nbf)) => match (iat.as_str(), nbf.as_str()) {
                     (Some(iat), Some(nbf)) => {
-                        let iat = DateTime::parse_from_rfc3339(iat)
+                        let iat = OffsetDateTime::parse(iat, &Rfc3339)
                             .map_err(|_| Errors::ClaimValidationError)?;
-                        let nbf = DateTime::parse_from_rfc3339(nbf)
+                        let nbf = OffsetDateTime::parse(nbf, &Rfc3339)
                             .map_err(|_| Errors::ClaimValidationError)?;
-                        let current_time = Utc::now();
+                        let current_time = OffsetDateTime::now_utc();
 
                         if current_time < nbf || current_time < iat {
                             return Err(Errors::ClaimValidationError);
@@ -321,9 +328,9 @@ impl ClaimsValidationRules {
 
         if let Some(exp) = claims.list_of.get("exp") {
             if let Some(exp) = exp.as_str() {
-                let exp =
-                    DateTime::parse_from_rfc3339(exp).map_err(|_| Errors::ClaimValidationError)?;
-                let current_time = Utc::now();
+                let exp = OffsetDateTime::parse(exp, &Rfc3339)
+                    .map_err(|_| Errors::ClaimValidationError)?;
+                let current_time = OffsetDateTime::now_utc();
 
                 if current_time > exp {
                     return Err(Errors::ClaimValidationError);

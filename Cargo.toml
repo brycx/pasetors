@@ -42,10 +42,11 @@ default-features = false
 version = "1.0.41"
 optional = true
 
-[dependencies.chrono]
-version = "0.4"
+[dependencies.time]
+version = "0.3"
+features = ["parsing", "formatting"]
 optional = true
 
 [features]
 default = [ "std" ]
-std = [ "serde_json", "chrono" ]
+std = [ "serde_json", "time" ]
