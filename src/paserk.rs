@@ -282,4 +282,85 @@ mod tests {
         V4,
         "./test_vectors/PASERK/k4.secret.json"
     );
+
+    #[test]
+    fn test_wrong_version_or_purpose() {
+        assert!(SymmetricKey::<V2>::try_from(
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_ok());
+        assert!(SymmetricKey::<V2>::try_from(
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(SymmetricKey::<V2>::try_from(
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(SymmetricKey::<V2>::try_from(
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+
+        assert!(SymmetricKey::<V4>::try_from(
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_ok());
+        assert!(SymmetricKey::<V4>::try_from(
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(SymmetricKey::<V4>::try_from(
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(SymmetricKey::<V4>::try_from(
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+
+        assert!(AsymmetricPublicKey::<V2>::try_from(
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_ok());
+        assert!(AsymmetricPublicKey::<V2>::try_from(
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(AsymmetricPublicKey::<V2>::try_from(
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(AsymmetricPublicKey::<V2>::try_from(
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+
+        assert!(AsymmetricPublicKey::<V4>::try_from(
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_ok());
+        assert!(AsymmetricPublicKey::<V4>::try_from(
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(AsymmetricPublicKey::<V4>::try_from(
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+        assert!(AsymmetricPublicKey::<V4>::try_from(
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+        )
+        .is_err());
+
+        assert!(AsymmetricKeyPair::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_ok());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+
+        assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_ok());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+    }
 }
