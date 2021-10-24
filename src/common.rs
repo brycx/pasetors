@@ -1,10 +1,10 @@
-use crate::errors::Errors;
+use crate::errors::Error;
 use alloc::string::String;
 use alloc::vec::Vec;
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
 
 /// Encode bytes with Base64 URL-safe and no padding.
-pub(crate) fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Errors> {
+pub(crate) fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Error> {
     let inlen = bytes.as_ref().len();
     let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
 
@@ -14,7 +14,7 @@ pub(crate) fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Errors> {
 }
 
 /// Decode string with Base64 URL-safe and no padding.
-pub(crate) fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Errors> {
+pub(crate) fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Error> {
     let inlen = encoded.as_ref().len();
     // We can use encoded len here, even if it returns more than needed,
     // because ct-codecs allows this.
@@ -32,30 +32,30 @@ pub(crate) fn validate_format_footer<'a>(
     header: &'a str,
     token: &'a str,
     footer: &[u8],
-) -> Result<Vec<&'a str>, Errors> {
+) -> Result<Vec<&'a str>, Error> {
     use orion::util::secure_cmp;
 
     if !token.starts_with(header) {
-        return Err(Errors::TokenFormatError);
+        return Err(Error::TokenFormat);
     }
 
     let parts_split = token.split('.').collect::<Vec<&str>>();
     if parts_split.len() < 3 || parts_split.len() > 4 {
-        return Err(Errors::TokenFormatError);
+        return Err(Error::TokenFormat);
     }
 
     let is_footer_present = parts_split.len() == 4;
     if !is_footer_present && !footer.is_empty() {
-        return Err(Errors::TokenValidationError);
+        return Err(Error::TokenValidation);
     }
     if is_footer_present {
         if footer.is_empty() {
-            return Err(Errors::TokenValidationError);
+            return Err(Error::TokenValidation);
         }
 
         let token_footer = decode_b64(parts_split[3])?;
         if secure_cmp(footer, token_footer.as_ref()).is_err() {
-            return Err(Errors::TokenValidationError);
+            return Err(Error::TokenValidation);
         }
     }
 

@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::errors::Error;
 use alloc::vec::Vec;
 use core::convert::TryInto;
 
@@ -28,7 +28,7 @@ pub fn le64(n: u64) -> [u8; core::mem::size_of::<u64>()] {
 }
 
 /// Pre-Authentication Encoding. See [specification](https://github.com/paragonie/paseto/blob/master/docs/01-Protocol-Versions/Common.md#pae-definition).
-pub fn pae(pieces: &[&[u8]]) -> Result<Vec<u8>, Errors> {
+pub fn pae(pieces: &[&[u8]]) -> Result<Vec<u8>, Error> {
     let mut out: Vec<u8> = Vec::with_capacity(64);
 
     out.extend_from_slice(&le64(pieces.len().try_into()?));

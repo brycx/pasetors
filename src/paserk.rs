@@ -1,5 +1,5 @@
 use crate::common::{decode_b64, encode_b64};
-use crate::errors::Errors;
+use crate::errors::Error;
 use crate::keys::{
     AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V2, V2_KEYSIZE, V4,
     V4_KEYSIZE,
@@ -17,21 +17,21 @@ fn validate_paserk_string(
     version_id: &str,
     type_id: &str,
     expected_len: usize,
-) -> Result<Vec<u8>, Errors> {
+) -> Result<Vec<u8>, Error> {
     let split = input.split('.').collect::<Vec<&str>>();
     if split.len() != 3 {
-        return Err(Errors::PaserkParsing);
+        return Err(Error::PaserkParsing);
     }
 
     if split[0] == version_id && split[1] == type_id {
         let ret = decode_b64(split[2])?;
         if ret.len() != expected_len {
-            return Err(Errors::PaserkParsing);
+            return Err(Error::PaserkParsing);
         }
 
         Ok(ret)
     } else {
-        Err(Errors::PaserkParsing)
+        Err(Error::PaserkParsing)
     }
 }
 
@@ -49,7 +49,7 @@ impl FormatAsPaserk for SymmetricKey<V2> {
 }
 
 impl TryFrom<String> for SymmetricKey<V2> {
-    type Error = Errors;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -67,7 +67,7 @@ impl FormatAsPaserk for SymmetricKey<V4> {
 }
 
 impl TryFrom<String> for SymmetricKey<V4> {
-    type Error = Errors;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -95,7 +95,7 @@ impl FormatAsPaserk for AsymmetricKeyPair<V2> {
 }
 
 impl TryFrom<String> for AsymmetricKeyPair<V2> {
-    type Error = Errors;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let mut buf = validate_paserk_string(
@@ -129,7 +129,7 @@ impl FormatAsPaserk for AsymmetricKeyPair<V4> {
 }
 
 impl TryFrom<String> for AsymmetricKeyPair<V4> {
-    type Error = Errors;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let mut buf = validate_paserk_string(
@@ -156,7 +156,7 @@ impl FormatAsPaserk for AsymmetricPublicKey<V2> {
 }
 
 impl TryFrom<String> for AsymmetricPublicKey<V2> {
-    type Error = Errors;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -179,7 +179,7 @@ impl FormatAsPaserk for AsymmetricPublicKey<V4> {
 }
 
 impl TryFrom<String> for AsymmetricPublicKey<V4> {
-    type Error = Errors;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {

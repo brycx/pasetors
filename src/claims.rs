@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::errors::Error;
 use serde_json::Value;
 use std::collections::HashMap;
 use time::format_description::well_known::Rfc3339;
@@ -21,7 +21,7 @@ impl Claims {
     ///
     /// Errors:
     /// - If adding current time with one hour would overflow
-    pub fn new() -> Result<Self, Errors> {
+    pub fn new() -> Result<Self, Error> {
         let iat = OffsetDateTime::now_utc();
         let nbf = iat;
         let mut exp = iat;
@@ -31,18 +31,9 @@ impl Claims {
             list_of: HashMap::new(),
         };
 
-        claims.issued_at(
-            &iat.format(&Rfc3339)
-                .map_err(|_| Errors::InvalidClaimError)?,
-        )?;
-        claims.not_before(
-            &nbf.format(&Rfc3339)
-                .map_err(|_| Errors::InvalidClaimError)?,
-        )?;
-        claims.expiration(
-            &exp.format(&Rfc3339)
-                .map_err(|_| Errors::InvalidClaimError)?,
-        )?;
+        claims.issued_at(&iat.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        claims.not_before(&nbf.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        claims.expiration(&exp.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
 
         Ok(claims)
     }
@@ -58,12 +49,12 @@ impl Claims {
     ///
     /// Errors:
     /// - `claim` is a reserved claim (see [`Self::REGISTERED_CLAIMS`])
-    pub fn add_additional(&mut self, claim: &str, value: impl Into<Value>) -> Result<(), Errors> {
+    pub fn add_additional(&mut self, claim: &str, value: impl Into<Value>) -> Result<(), Error> {
         if !Self::REGISTERED_CLAIMS.contains(&claim) {
             self.list_of.insert(claim.into(), value.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -84,12 +75,12 @@ impl Claims {
     ///
     /// Errors:
     /// - `iss` is empty
-    pub fn issuer(&mut self, iss: &str) -> Result<(), Errors> {
+    pub fn issuer(&mut self, iss: &str) -> Result<(), Error> {
         if !iss.is_empty() {
             self.list_of.insert("iss".into(), iss.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -97,12 +88,12 @@ impl Claims {
     ///
     /// Errors:
     /// - `sub` is empty
-    pub fn subject(&mut self, sub: &str) -> Result<(), Errors> {
+    pub fn subject(&mut self, sub: &str) -> Result<(), Error> {
         if !sub.is_empty() {
             self.list_of.insert("sub".into(), sub.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -110,12 +101,12 @@ impl Claims {
     ///
     /// Errors:
     /// - `aud` is empty
-    pub fn audience(&mut self, aud: &str) -> Result<(), Errors> {
+    pub fn audience(&mut self, aud: &str) -> Result<(), Error> {
         if !aud.is_empty() {
             self.list_of.insert("aud".into(), aud.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -124,12 +115,12 @@ impl Claims {
     /// Errors:
     /// - `exp` is empty
     /// - `exp` cannot be parsed as a ISO 8601 compliant DateTime string.
-    pub fn expiration(&mut self, exp: &str) -> Result<(), Errors> {
+    pub fn expiration(&mut self, exp: &str) -> Result<(), Error> {
         if let Ok(_exp_str) = OffsetDateTime::parse(exp, &Rfc3339) {
             self.list_of.insert("exp".into(), exp.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -138,12 +129,12 @@ impl Claims {
     /// Errors:
     /// - `nbf` is empty
     /// - `nbf` cannot be parsed as a ISO 8601 compliant DateTime string.
-    pub fn not_before(&mut self, nbf: &str) -> Result<(), Errors> {
+    pub fn not_before(&mut self, nbf: &str) -> Result<(), Error> {
         if let Ok(_nbf_str) = OffsetDateTime::parse(nbf, &Rfc3339) {
             self.list_of.insert("nbf".into(), nbf.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -152,12 +143,12 @@ impl Claims {
     /// Errors:
     /// - `iat` is empty
     /// - `iat` cannot be parsed as a ISO 8601 compliant DateTime string.
-    pub fn issued_at(&mut self, iat: &str) -> Result<(), Errors> {
+    pub fn issued_at(&mut self, iat: &str) -> Result<(), Error> {
         if let Ok(_iat_str) = OffsetDateTime::parse(iat, &Rfc3339) {
             self.list_of.insert("iat".into(), iat.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -165,12 +156,12 @@ impl Claims {
     ///
     /// Errors:
     /// - `jti` is empty
-    pub fn token_identifier(&mut self, jti: &str) -> Result<(), Errors> {
+    pub fn token_identifier(&mut self, jti: &str) -> Result<(), Error> {
         if !jti.is_empty() {
             self.list_of.insert("jti".into(), jti.into());
             Ok(())
         } else {
-            Err(Errors::InvalidClaimError)
+            Err(Error::InvalidClaim)
         }
     }
 
@@ -182,10 +173,10 @@ impl Claims {
     /// - `bytes` top-most JSON object does not decode to a map
     /// - if any registered claims exist and they are not a `String`
     /// - if `exp`, `nbf` or `iat` exist and they cannot be parsed as `DateTime`
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Errors> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         let input = bytes.to_vec();
 
-        Self::from_string(&String::from_utf8(input).map_err(|_| Errors::ClaimInvalidUtf8)?)
+        Self::from_string(&String::from_utf8(input).map_err(|_| Error::ClaimInvalidUtf8)?)
     }
 
     /// Attempt to create `Claims` from a string.
@@ -195,9 +186,9 @@ impl Claims {
     /// - `string` top-most JSON object does not decode to a map
     /// - if any registered claims exist and they are not a `String`
     /// - if `exp`, `nbf` or `iat` exist and they cannot be parsed as `DateTime`
-    pub fn from_string(string: &str) -> Result<Self, Errors> {
+    pub fn from_string(string: &str) -> Result<Self, Error> {
         let list_of: HashMap<String, Value> =
-            serde_json::from_str(string).map_err(|_| Errors::ClaimInvalidJson)?;
+            serde_json::from_str(string).map_err(|_| Error::ClaimInvalidJson)?;
 
         // Validate any possible registered claims for their type
         for registered_claim in Self::REGISTERED_CLAIMS {
@@ -208,10 +199,10 @@ impl Claims {
                         || registered_claim == "iat"
                     {
                         OffsetDateTime::parse(claim_value, &Rfc3339)
-                            .map_err(|_| Errors::InvalidClaimError)?;
+                            .map_err(|_| Error::InvalidClaim)?;
                     }
                 } else {
-                    return Err(Errors::InvalidClaimError);
+                    return Err(Error::InvalidClaim);
                 }
             }
         }
@@ -223,10 +214,10 @@ impl Claims {
     ///
     /// Errors:
     /// - `self` cannot be serialized as JSON
-    pub fn to_string(&self) -> Result<String, Errors> {
+    pub fn to_string(&self) -> Result<String, Error> {
         match serde_json::to_string(&self.list_of) {
             Ok(ret) => Ok(ret),
-            Err(_) => Err(Errors::ClaimInvalidJson),
+            Err(_) => Err(Error::ClaimInvalidJson),
         }
     }
 }
@@ -305,81 +296,81 @@ impl ClaimsValidationRules {
     ///
     /// NOTE: This __does not__ validate any non-registered claims (see [`Claims::REGISTERED_CLAIMS`]). They must be validated
     /// separately.
-    pub fn validate_claims(&self, claims: &Claims) -> Result<(), Errors> {
+    pub fn validate_claims(&self, claims: &Claims) -> Result<(), Error> {
         if self.validate_currently_valid {
             match (claims.list_of.get("iat"), claims.list_of.get("nbf")) {
                 (Some(iat), Some(nbf)) => match (iat.as_str(), nbf.as_str()) {
                     (Some(iat), Some(nbf)) => {
                         let iat = OffsetDateTime::parse(iat, &Rfc3339)
-                            .map_err(|_| Errors::ClaimValidationError)?;
+                            .map_err(|_| Error::ClaimValidation)?;
                         let nbf = OffsetDateTime::parse(nbf, &Rfc3339)
-                            .map_err(|_| Errors::ClaimValidationError)?;
+                            .map_err(|_| Error::ClaimValidation)?;
                         let current_time = OffsetDateTime::now_utc();
 
                         if current_time < nbf || current_time < iat {
-                            return Err(Errors::ClaimValidationError);
+                            return Err(Error::ClaimValidation);
                         }
                     }
-                    _ => return Err(Errors::ClaimValidationError),
+                    _ => return Err(Error::ClaimValidation),
                 },
-                _ => return Err(Errors::ClaimValidationError),
+                _ => return Err(Error::ClaimValidation),
             }
         }
 
         if let Some(exp) = claims.list_of.get("exp") {
             if let Some(exp) = exp.as_str() {
-                let exp = OffsetDateTime::parse(exp, &Rfc3339)
-                    .map_err(|_| Errors::ClaimValidationError)?;
+                let exp =
+                    OffsetDateTime::parse(exp, &Rfc3339).map_err(|_| Error::ClaimValidation)?;
                 let current_time = OffsetDateTime::now_utc();
 
                 if current_time > exp {
-                    return Err(Errors::ClaimValidationError);
+                    return Err(Error::ClaimValidation);
                 }
             } else {
-                return Err(Errors::ClaimValidationError);
+                return Err(Error::ClaimValidation);
             }
         } else if !self.allow_non_expiring {
             // We didn't explicitly allow non-expiring tokens so we expect `exp` claim.
-            return Err(Errors::ClaimValidationError);
+            return Err(Error::ClaimValidation);
         }
 
         if let Some(expected_issuer) = &self.validate_issuer {
             if let Some(actual_issuer) = claims.list_of.get("iss") {
                 if expected_issuer != actual_issuer {
-                    return Err(Errors::ClaimValidationError);
+                    return Err(Error::ClaimValidation);
                 }
             } else {
-                return Err(Errors::ClaimValidationError);
+                return Err(Error::ClaimValidation);
             }
         }
 
         if let Some(expected_subject) = &self.validate_subject {
             if let Some(actual_subject) = claims.list_of.get("sub") {
                 if expected_subject != actual_subject {
-                    return Err(Errors::ClaimValidationError);
+                    return Err(Error::ClaimValidation);
                 }
             } else {
-                return Err(Errors::ClaimValidationError);
+                return Err(Error::ClaimValidation);
             }
         }
 
         if let Some(expected_audience) = &self.validate_audience {
             if let Some(actual_audience) = claims.list_of.get("aud") {
                 if expected_audience != actual_audience {
-                    return Err(Errors::ClaimValidationError);
+                    return Err(Error::ClaimValidation);
                 }
             } else {
-                return Err(Errors::ClaimValidationError);
+                return Err(Error::ClaimValidation);
             }
         }
 
         if let Some(expected_token_identifier) = &self.validate_token_identifier {
             if let Some(actual_token_identifier) = claims.list_of.get("jti") {
                 if expected_token_identifier != actual_token_identifier {
-                    return Err(Errors::ClaimValidationError);
+                    return Err(Error::ClaimValidation);
                 }
             } else {
-                return Err(Errors::ClaimValidationError);
+                return Err(Error::ClaimValidation);
             }
         }
 
@@ -593,7 +584,7 @@ mod test {
             claims_validation
                 .validate_claims(&outdated_claims)
                 .unwrap_err(),
-            Errors::ClaimValidationError
+            Error::ClaimValidation
         );
         outdated_claims.non_expiring();
         let mut claims_validation_allow_expiry = claims_validation.clone();
@@ -627,7 +618,7 @@ mod test {
             claims_validation
                 .validate_claims(&future_claims)
                 .unwrap_err(),
-            Errors::ClaimValidationError
+            Error::ClaimValidation
         );
         future_claims.issued_at(&old_iat.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
@@ -640,7 +631,7 @@ mod test {
             claims_validation
                 .validate_claims(&future_claims)
                 .unwrap_err(),
-            Errors::ClaimValidationError
+            Error::ClaimValidation
         );
         future_claims.not_before(old_nbf.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
@@ -652,7 +643,7 @@ mod test {
             claims_validation
                 .validate_claims(&incomplete_claims)
                 .unwrap_err(),
-            Errors::ClaimValidationError
+            Error::ClaimValidation
         );
 
         let mut incomplete_claims = claims.clone();
@@ -661,7 +652,7 @@ mod test {
             claims_validation
                 .validate_claims(&incomplete_claims)
                 .unwrap_err(),
-            Errors::ClaimValidationError
+            Error::ClaimValidation
         );
 
         let mut incomplete_claims = claims.clone();
@@ -670,7 +661,7 @@ mod test {
             claims_validation
                 .validate_claims(&incomplete_claims)
                 .unwrap_err(),
-            Errors::ClaimValidationError
+            Error::ClaimValidation
         );
     }
 

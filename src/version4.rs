@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 
-use crate::errors::Errors;
+use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V4};
 
 use orion::hazardous::hash::blake2b;
@@ -30,14 +30,14 @@ impl PublicToken {
         message: &[u8],
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<String, Errors> {
+    ) -> Result<String, Error> {
         use ed25519_dalek::Keypair;
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::SecretKey;
         use ed25519_dalek::Signer;
 
         if message.is_empty() {
-            return Err(Errors::EmptyPayloadError);
+            return Err(Error::EmptyPayload);
         }
 
         let secret = SecretKey::from_bytes(secret_key.as_bytes());
@@ -48,7 +48,7 @@ impl PublicToken {
                 secret: sk,
                 public: pk,
             },
-            _ => return Err(Errors::KeyError),
+            _ => return Err(Error::Key),
         };
 
         let f = footer.unwrap_or(&[]);
@@ -74,12 +74,12 @@ impl PublicToken {
         token: &str,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<(), Errors> {
+    ) -> Result<(), Error> {
         use ed25519_dalek::PublicKey;
         use ed25519_dalek::Signature;
 
         if token.is_empty() {
-            return Err(Errors::EmptyPayloadError);
+            return Err(Error::EmptyPayload);
         }
 
         let f = footer.unwrap_or(&[]);
@@ -88,7 +88,7 @@ impl PublicToken {
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let sm = decode_b64(parts_split[2])?;
         if sm.len() < ed25519_dalek::SIGNATURE_LENGTH {
-            return Err(Errors::TokenFormatError);
+            return Err(Error::TokenFormat);
         }
 
         let m = sm[..(sm.len() - ed25519_dalek::SIGNATURE_LENGTH)].as_ref();
@@ -97,20 +97,20 @@ impl PublicToken {
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f, i])?;
         let pk: PublicKey = match PublicKey::from_bytes(public_key.as_bytes()) {
             Ok(val) => val,
-            Err(_) => return Err(Errors::KeyError),
+            Err(_) => return Err(Error::Key),
         };
 
         debug_assert!(s.len() == ed25519_dalek::SIGNATURE_LENGTH);
         // If the below fails, it is an invalid signature.
         let sig = match Signature::try_from(s) {
             Ok(val) => val,
-            Err(_) => return Err(Errors::TokenValidationError),
+            Err(_) => return Err(Error::TokenValidation),
         };
 
         if pk.verify_strict(m2.as_ref(), &sig).is_ok() {
             Ok(())
         } else {
-            Err(Errors::TokenValidationError)
+            Err(Error::TokenValidation)
         }
     }
 }
@@ -138,7 +138,7 @@ impl LocalToken {
     const TAG_LEN: usize = 32;
 
     /// Split the user-provided secret key into keys used for encryption and authentication.
-    fn key_split(sk: &[u8], n: &[u8]) -> Result<(EncKey, EncNonce, AuthKey), Errors> {
+    fn key_split(sk: &[u8], n: &[u8]) -> Result<(EncKey, EncNonce, AuthKey), Error> {
         debug_assert_eq!(n.len(), 32);
         debug_assert_eq!(sk.len(), 32);
 
@@ -171,7 +171,7 @@ impl LocalToken {
         message: &[u8],
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<String, Errors> {
+    ) -> Result<String, Error> {
         debug_assert_eq!(nonce.len(), 32);
         let f = footer.unwrap_or(&[]);
         let i = implicit_assert.unwrap_or(&[]);
@@ -180,19 +180,19 @@ impl LocalToken {
 
         let mut ciphertext = vec![0u8; message.len()];
         xchacha20::encrypt(&enc_key, &n2, 0, message, &mut ciphertext)
-            .map_err(|_| Errors::EncryptError)?;
+            .map_err(|_| Error::Encryption)?;
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce, ciphertext.as_slice(), f, i])?;
 
         let mut b2_ctx = Blake2b::new(Some(&auth_key), Self::TAG_LEN).unwrap();
         b2_ctx
             .update(pre_auth.as_slice())
-            .map_err(|_| Errors::EncryptError)?;
-        let tag = b2_ctx.finalize().map_err(|_| Errors::EncryptError)?;
+            .map_err(|_| Error::Encryption)?;
+        let tag = b2_ctx.finalize().map_err(|_| Error::Encryption)?;
 
         // nonce and tag lengths are both 32, so obviously safe to op::add
         let concat_len: usize = match (nonce.len() + tag.len()).checked_add(ciphertext.len()) {
             Some(len) => len,
-            None => return Err(Errors::EncryptError),
+            None => return Err(Error::Encryption),
         };
         let mut concat = vec![0u8; concat_len];
         concat[..32].copy_from_slice(nonce);
@@ -214,9 +214,9 @@ impl LocalToken {
         message: &[u8],
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<String, Errors> {
+    ) -> Result<String, Error> {
         if message.is_empty() {
-            return Err(Errors::EmptyPayloadError);
+            return Err(Error::EmptyPayload);
         }
 
         let mut n = [0u8; 32];
@@ -232,9 +232,9 @@ impl LocalToken {
         token: &str,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<Vec<u8>, Errors> {
+    ) -> Result<Vec<u8>, Error> {
         if token.is_empty() {
-            return Err(Errors::EmptyPayloadError);
+            return Err(Error::EmptyPayload);
         }
 
         let f = footer.unwrap_or(&[]);
@@ -243,27 +243,25 @@ impl LocalToken {
 
         let nc = decode_b64(parts_split[2])?;
         if nc.len() < (Self::N_LEN + Self::TAG_LEN) {
-            return Err(Errors::TokenFormatError);
+            return Err(Error::TokenFormat);
         }
         let mut n: [u8; 32] = [0u8; 32];
         n.copy_from_slice(nc[..32].as_ref());
         let c = nc[n.len()..nc.len() - 32].as_ref();
         if c.is_empty() {
-            return Err(Errors::EmptyPayloadError);
+            return Err(Error::EmptyPayload);
         }
         let t = nc[nc.len() - Self::TAG_LEN..].as_ref();
 
         let (enc_key, n2, auth_key) = Self::key_split(secret_key.as_bytes(), &n)?;
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n.as_ref(), c, f, i])?;
-        let expected_tag =
-            blake2b::Digest::from_slice(t).map_err(|_| Errors::TokenValidationError)?;
+        let expected_tag = blake2b::Digest::from_slice(t).map_err(|_| Error::TokenValidation)?;
         blake2b::Blake2b::verify(&expected_tag, &auth_key, 32, pre_auth.as_slice())
-            .map_err(|_| Errors::TokenValidationError)?;
+            .map_err(|_| Error::TokenValidation)?;
 
         let mut out = vec![0u8; c.len()];
-        xchacha20::decrypt(&enc_key, &n2, 0, c, &mut out)
-            .map_err(|_| Errors::TokenValidationError)?;
+        xchacha20::decrypt(&enc_key, &n2, 0, c, &mut out).map_err(|_| Error::TokenValidation)?;
         Ok(out)
     }
 }
@@ -511,19 +509,19 @@ mod tests {
 
         assert_eq!(
             PublicToken::sign(&test_sk, &test_pk, b"", None, None).unwrap_err(),
-            Errors::EmptyPayloadError
+            Error::EmptyPayload
         );
         assert_eq!(
             PublicToken::verify(&test_pk, "", None, None).unwrap_err(),
-            Errors::EmptyPayloadError
+            Error::EmptyPayload
         );
         assert_eq!(
             LocalToken::encrypt(&test_local_sk, b"", None, None).unwrap_err(),
-            Errors::EmptyPayloadError
+            Error::EmptyPayload
         );
         assert_eq!(
             LocalToken::decrypt(&test_local_sk, "", None, None).unwrap_err(),
-            Errors::EmptyPayloadError
+            Error::EmptyPayload
         );
     }
 
@@ -540,7 +538,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -550,7 +548,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             PublicToken::verify(
@@ -560,7 +558,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -570,7 +568,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
     }
 
@@ -587,7 +585,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -597,7 +595,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             PublicToken::verify(
@@ -607,7 +605,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -617,7 +615,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
     }
 
@@ -638,7 +636,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
                 .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -648,7 +646,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
     }
 
@@ -668,7 +666,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
                 .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -678,7 +676,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenFormatError
+            Error::TokenFormat
         );
     }
 
@@ -695,7 +693,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -705,7 +703,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -725,7 +723,7 @@ mod tests {
                 Some(b"WRONG IMPLICIT")
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
         assert!(LocalToken::decrypt(
             &test_local_sk,
@@ -742,7 +740,7 @@ mod tests {
                 Some(b"WRONG IMPLICIT")
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -753,11 +751,11 @@ mod tests {
 
         assert_eq!(
             PublicToken::verify(&test_pk, &VALID_PUBLIC_TOKEN, Some(b""), None).unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
         assert_eq!(
             LocalToken::decrypt(&test_local_sk, &VALID_LOCAL_TOKEN, Some(b""), None).unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -779,7 +777,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
                 .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
         assert_eq!(
             LocalToken::decrypt(
@@ -789,7 +787,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -810,7 +808,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
                 .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -837,7 +835,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -864,7 +862,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -891,7 +889,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -918,7 +916,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -929,7 +927,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(&bad_pk, VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes()), None)
                 .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 
@@ -945,7 +943,7 @@ mod tests {
                 None
             )
             .unwrap_err(),
-            Errors::TokenValidationError
+            Error::TokenValidation
         );
     }
 }
