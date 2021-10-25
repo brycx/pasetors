@@ -8,6 +8,7 @@ PASETO (Platform-Agnostic SEcurity TOkens) are secure stateless tokens. Read mor
 
 This library includes:
 - [x] Pure-Rust implementation of the Version 4 and 2 protocol
+- [x] PASERK support (limited amount of PASERK-types)
 - [x] `#![no_std]` (with default-features disabled) and `#![forbid(unsafe_code)]`
 - [x] Fuzzing targets
 - [x] Test vectors
