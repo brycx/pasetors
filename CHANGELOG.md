@@ -1,3 +1,14 @@
+### 0.4.0
+
+__Date:__ October 25, 2021.
+
+__Changelog:__
+- [Security fix]: Switched from `chrono` to `time` crate ([#30](https://github.com/brycx/pasetors/pull/30))
+- `Error` now implements `std::error::Error` ([#27](https://github.com/brycx/pasetors/pull/27)) (by [@not-my-profile](https://github.com/not-my-profile))
+- `Errors` enum has be renamed to `Error` and "error" postfixes have been trimmed from variants ([#33](https://github.com/brycx/pasetors/pull/33))
+- `SymmetricKey`, `AsymmetricPublicKey` and `AsymmetricSecretKey` have been made generic over their versions ([#31](https://github.com/brycx/pasetors/pull/31)) (by [@not-my-profile](https://github.com/not-my-profile))
+- Add support for `local`, `public` and `secret` PASERK types for keys ([#24](https://github.com/brycx/pasetors/pull/24))
+
 ### 0.3.0
 
 __Date:__ September 22, 2021.
