@@ -10,6 +10,7 @@ This library includes:
 - [x] Pure-Rust implementation of the Version 4 and 2 protocol
 - [x] PASERK support (limited amount of PASERK-types)
 - [x] `#![no_std]` (with default-features disabled) and `#![forbid(unsafe_code)]`
+- [x] WASM-friendly (`wasm32-unknown-unknown` using `#![no_std]`)
 - [x] Fuzzing targets
 - [x] Test vectors
 - [x] Usage examples
