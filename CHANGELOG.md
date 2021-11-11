@@ -1,3 +1,10 @@
+### 0.4.1
+
+__Date:__ November 11, 2021.
+
+__Changelog:__
+- Enable `getrandom/js` feature and test `wasm32-unknown-unknown` in CI ([#37](https://github.com/brycx/pasetors/pull/37))
+
 ### 0.4.0
 
 __Date:__ October 25, 2021.
