@@ -36,3 +36,25 @@ jobs:
         with:
           command: build
           args: --no-default-features
+
+  # https://rustwasm.github.io/docs/book/reference/add-wasm-support-to-crate.html#maintaining-ongoing-support-for-webassembly
+  web_assembly:
+    name: WebAssembly - Release build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch:
+          - wasm32-unknown-unknown
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.arch }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --no-default-features --target ${{ matrix.arch }}
