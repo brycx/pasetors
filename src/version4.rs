@@ -5,8 +5,8 @@ use core::convert::TryFrom;
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V4};
 
-use orion::hazardous::hash::blake2b;
-use orion::hazardous::hash::blake2b::Blake2b;
+use orion::hazardous::mac::blake2b;
+use orion::hazardous::mac::blake2b::Blake2b;
 
 use crate::common::{decode_b64, encode_b64, validate_format_footer};
 use crate::pae;
@@ -151,15 +151,16 @@ impl LocalToken {
         m2[24..].copy_from_slice(n);
 
         let sk = blake2b::SecretKey::from_slice(sk).unwrap();
-        let mut b2_ctx = Blake2b::new(Some(&sk), 56).unwrap();
+        let mut b2_ctx = Blake2b::new(&sk, 56).unwrap();
         b2_ctx.update(&m1).unwrap();
         let tmp = b2_ctx.finalize().unwrap();
-        let enc_key = EncKey::from_slice(&tmp.as_ref()[..32]).unwrap();
-        let n2 = EncNonce::from_slice(&tmp.as_ref()[32..]).unwrap();
+        let enc_key = EncKey::from_slice(&tmp.unprotected_as_bytes()[..32]).unwrap();
+        let n2 = EncNonce::from_slice(&tmp.unprotected_as_bytes()[32..]).unwrap();
 
-        b2_ctx = Blake2b::new(Some(&sk), 32).unwrap();
+        b2_ctx = Blake2b::new(&sk, 32).unwrap();
         b2_ctx.update(&m2).unwrap();
-        let auth_key = AuthKey::from_slice(b2_ctx.finalize().unwrap().as_ref()).unwrap();
+        let auth_key =
+            AuthKey::from_slice(b2_ctx.finalize().unwrap().unprotected_as_bytes()).unwrap();
 
         Ok((enc_key, n2, auth_key))
     }
@@ -183,7 +184,7 @@ impl LocalToken {
             .map_err(|_| Error::Encryption)?;
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce, ciphertext.as_slice(), f, i])?;
 
-        let mut b2_ctx = Blake2b::new(Some(&auth_key), Self::TAG_LEN).unwrap();
+        let mut b2_ctx = Blake2b::new(&auth_key, Self::TAG_LEN).unwrap();
         b2_ctx
             .update(pre_auth.as_slice())
             .map_err(|_| Error::Encryption)?;
@@ -197,7 +198,7 @@ impl LocalToken {
         let mut concat = vec![0u8; concat_len];
         concat[..32].copy_from_slice(nonce);
         concat[32..32 + ciphertext.len()].copy_from_slice(ciphertext.as_slice());
-        concat[concat_len - Self::TAG_LEN..].copy_from_slice(tag.as_ref());
+        concat[concat_len - Self::TAG_LEN..].copy_from_slice(tag.unprotected_as_bytes());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(concat)?);
 
@@ -256,7 +257,7 @@ impl LocalToken {
         let (enc_key, n2, auth_key) = Self::key_split(secret_key.as_bytes(), &n)?;
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n.as_ref(), c, f, i])?;
-        let expected_tag = blake2b::Digest::from_slice(t).map_err(|_| Error::TokenValidation)?;
+        let expected_tag = blake2b::Tag::from_slice(t).map_err(|_| Error::TokenValidation)?;
         blake2b::Blake2b::verify(&expected_tag, &auth_key, 32, pre_auth.as_slice())
             .map_err(|_| Error::TokenValidation)?;
 
