@@ -118,7 +118,7 @@ impl LocalToken {
         footer: Option<&[u8]>,
     ) -> Result<String, Error> {
         use orion::hazardous::aead::xchacha20poly1305::*;
-        use orion::hazardous::hash::blake2b;
+        use orion::hazardous::mac::blake2b;
         use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
         use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
@@ -126,9 +126,9 @@ impl LocalToken {
 
         // Safe unwrap()s due to lengths.
         let nonce_key = blake2b::SecretKey::from_slice(nonce_key_bytes).unwrap();
-        let mut blake2b = blake2b::Blake2b::new(Some(&nonce_key), XCHACHA_NONCESIZE).unwrap();
+        let mut blake2b = blake2b::Blake2b::new(&nonce_key, XCHACHA_NONCESIZE).unwrap();
         blake2b.update(message.as_ref()).unwrap();
-        let nonce = Nonce::from_slice(blake2b.finalize().unwrap().as_ref()).unwrap();
+        let nonce = Nonce::from_slice(blake2b.finalize().unwrap().unprotected_as_bytes()).unwrap();
 
         let f = footer.unwrap_or(&[]);
 
