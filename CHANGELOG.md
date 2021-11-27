@@ -1,3 +1,11 @@
+### 0.4.2
+
+__Date:__ November 27, 2021.
+
+__Changelog:__
+- Update Orion to `0.17` ([#39](https://github.com/brycx/pasetors/pull/39))
+- Bump MSRV to `1.52`
+
 ### 0.4.1
 
 __Date:__ November 11, 2021.
