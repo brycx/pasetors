@@ -587,7 +587,26 @@ mod tests {
             "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
         )
         .is_err());
-
+        assert!(AsymmetricPublicKey::<V3>::try_from(
+            "k3.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                .to_string()
+        )
+        .is_ok());
+        assert!(AsymmetricPublicKey::<V3>::try_from(
+            "k4.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                .to_string()
+        )
+        .is_err());
+        assert!(AsymmetricPublicKey::<V3>::try_from(
+            "k3.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                .to_string()
+        )
+        .is_err());
+        assert!(AsymmetricPublicKey::<V3>::try_from(
+            "k4.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                .to_string()
+        )
+        .is_err());
         assert!(AsymmetricPublicKey::<V4>::try_from(
             "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
         )
