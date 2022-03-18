@@ -48,6 +48,11 @@ version = "0.3"
 features = ["parsing", "formatting"]
 optional = true
 
+[dependencies]
+ring = "0.16.20"
+num-bigint = "0.4.3"
+num-traits = "0.2.14"
+
 [features]
 default = [ "std" ]
 std = [ "serde_json", "time" ]

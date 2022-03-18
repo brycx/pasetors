@@ -161,6 +161,8 @@ pub mod keys;
 pub mod paserk;
 /// PASETO version 2 tokens.
 pub mod version2;
+/// PASETO version 3 tokens.
+pub mod version3;
 /// PASETO version 4 tokens.
 pub mod version4;
 

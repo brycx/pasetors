@@ -223,7 +223,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V4> {
 ///
 /// This operation calculates the unique ID for a given PASERK.
 ///
-/// See: https://github.com/paseto-standard/paserk/blob/master/operations/ID.md
+/// See: <https://github.com/paseto-standard/paserk/blob/master/operations/ID.md>
 pub struct Id {
     header: String,
     identifier: String,
