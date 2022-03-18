@@ -1,8 +1,8 @@
 use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
+use crate::keys::private::Version;
 use crate::keys::{
-    AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V2, V2_KEYSIZE, V4,
-    V4_KEYSIZE,
+    AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V2, V4,
 };
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -53,7 +53,7 @@ impl TryFrom<String> for SymmetricKey<V2> {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k2", "local", V2_KEYSIZE)?,
+            bytes: validate_paserk_string(value.as_str(), "k2", "local", V2::LOCAL)?,
             phantom: core::marker::PhantomData,
         })
     }
@@ -71,7 +71,7 @@ impl TryFrom<String> for SymmetricKey<V4> {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k4", "local", V4_KEYSIZE)?,
+            bytes: validate_paserk_string(value.as_str(), "k4", "local", V4::LOCAL)?,
             phantom: core::marker::PhantomData,
         })
     }
@@ -84,9 +84,9 @@ impl FormatAsPaserk for AsymmetricKeyPair<V2> {
         // See spec: "Here, Ed25519 secret key means the clamped 32-byte seed followed by the
         // 32-byte public key, as used in the NaCl and libsodium APIs, rather than just the
         // clamped 32-byte seed."
-        let mut buf = [0u8; ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH];
-        buf[..ed25519_dalek::SECRET_KEY_LENGTH].copy_from_slice(self.secret.as_bytes());
-        buf[ed25519_dalek::SECRET_KEY_LENGTH..].copy_from_slice(self.public.as_bytes());
+        let mut buf = [0u8; V2::SECRET + V2::PUBLIC];
+        buf[..V2::SECRET].copy_from_slice(self.secret.as_bytes());
+        buf[V2::SECRET..].copy_from_slice(self.public.as_bytes());
         write.write_str(&encode_b64(buf).map_err(|_| core::fmt::Error)?)?;
         buf.iter_mut().zeroize();
 
@@ -98,15 +98,11 @@ impl TryFrom<String> for AsymmetricKeyPair<V2> {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let mut buf = validate_paserk_string(
-            value.as_str(),
-            "k2",
-            "secret",
-            ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH,
-        )?;
+        let mut buf =
+            validate_paserk_string(value.as_str(), "k2", "secret", V2::SECRET + V2::PUBLIC)?;
         let ret = Self {
-            secret: AsymmetricSecretKey::from(&buf[..ed25519_dalek::SECRET_KEY_LENGTH])?,
-            public: AsymmetricPublicKey::from(&buf[ed25519_dalek::SECRET_KEY_LENGTH..])?,
+            secret: AsymmetricSecretKey::from(&buf[..V2::SECRET])?,
+            public: AsymmetricPublicKey::from(&buf[V2::SECRET..])?,
         };
         buf.iter_mut().zeroize();
 
@@ -118,9 +114,9 @@ impl FormatAsPaserk for AsymmetricKeyPair<V4> {
     fn fmt(&self, write: &mut dyn core::fmt::Write) -> core::fmt::Result {
         write.write_str("k4.secret.")?;
 
-        let mut buf = [0u8; ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH];
-        buf[..ed25519_dalek::SECRET_KEY_LENGTH].copy_from_slice(self.secret.as_bytes());
-        buf[ed25519_dalek::SECRET_KEY_LENGTH..].copy_from_slice(self.public.as_bytes());
+        let mut buf = [0u8; V4::SECRET + V4::LOCAL];
+        buf[..V4::SECRET].copy_from_slice(self.secret.as_bytes());
+        buf[V4::SECRET..].copy_from_slice(self.public.as_bytes());
         write.write_str(&encode_b64(buf).map_err(|_| core::fmt::Error)?)?;
         buf.iter_mut().zeroize();
 
@@ -132,15 +128,11 @@ impl TryFrom<String> for AsymmetricKeyPair<V4> {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let mut buf = validate_paserk_string(
-            value.as_str(),
-            "k4",
-            "secret",
-            ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH,
-        )?;
+        let mut buf =
+            validate_paserk_string(value.as_str(), "k4", "secret", V4::SECRET + V4::PUBLIC)?;
         let ret = Self {
-            secret: AsymmetricSecretKey::from(&buf[..ed25519_dalek::SECRET_KEY_LENGTH])?,
-            public: AsymmetricPublicKey::from(&buf[ed25519_dalek::SECRET_KEY_LENGTH..])?,
+            secret: AsymmetricSecretKey::from(&buf[..V4::SECRET])?,
+            public: AsymmetricPublicKey::from(&buf[V4::SECRET..])?,
         };
         buf.iter_mut().zeroize();
 
@@ -160,12 +152,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V2> {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(
-                value.as_str(),
-                "k2",
-                "public",
-                ed25519_dalek::PUBLIC_KEY_LENGTH,
-            )?,
+            bytes: validate_paserk_string(value.as_str(), "k2", "public", V2::PUBLIC)?,
             phantom: core::marker::PhantomData,
         })
     }
@@ -183,12 +170,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V4> {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(
-                value.as_str(),
-                "k4",
-                "public",
-                ed25519_dalek::PUBLIC_KEY_LENGTH,
-            )?,
+            bytes: validate_paserk_string(value.as_str(), "k4", "public", V4::PUBLIC)?,
             phantom: core::marker::PhantomData,
         })
     }
