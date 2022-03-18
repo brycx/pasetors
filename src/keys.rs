@@ -215,7 +215,7 @@ impl<V: Version> AsymmetricPublicKey<V> {
 }
 
 #[derive(Debug)]
-/// A keypair of an [`AsymmetricSecretKey`] and its corresponding `AsymmetricPublicKey`.
+/// A keypair of an [`AsymmetricSecretKey`] and its corresponding [`AsymmetricPublicKey`].
 pub struct AsymmetricKeyPair<V> {
     /// The [`AsymmetricSecretKey`].
     pub public: AsymmetricPublicKey<V>,
