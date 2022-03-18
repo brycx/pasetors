@@ -358,7 +358,7 @@ impl From<&AsymmetricPublicKey<V4>> for Id {
 }
 
 impl FormatAsPaserk for Id {
-    fn fmt(&self, write: &mut dyn Write) -> std::fmt::Result {
+    fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str(&self.header)?;
         write.write_str(&self.identifier)
     }
