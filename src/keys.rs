@@ -261,6 +261,12 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_v3_local_not_implemented() {
+        assert!(SymmetricKey::<V3>::from(&[0u8; 32]).is_ok());
+    }
+
+    #[test]
     fn test_invalid_sizes() {
         // Version 2
         assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 31]).is_err());
@@ -274,6 +280,21 @@ mod tests {
         assert!(SymmetricKey::<V2>::from(&[0u8; 31]).is_err());
         assert!(SymmetricKey::<V2>::from(&[0u8; 32]).is_ok());
         assert!(SymmetricKey::<V2>::from(&[0u8; 33]).is_err());
+
+        // Version 3
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 47]).is_err());
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 48]).is_ok());
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 49]).is_err());
+
+        let mut pk2 = [0u8; 49];
+        pk2[0] = 0x02;
+        let mut pk3 = [0u8; 49];
+        pk3[0] = 0x03;
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 48]).is_err());
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 49]).is_err());
+        assert!(AsymmetricPublicKey::<V3>::from(&pk2).is_ok());
+        assert!(AsymmetricPublicKey::<V3>::from(&pk3).is_ok());
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 50]).is_err());
 
         // Version 4
         assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 31]).is_err());
