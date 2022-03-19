@@ -232,7 +232,7 @@ mod test_vectors {
             return;
         }
 
-        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
+        let message = test.payload.as_ref().unwrap().as_str().unwrap();
 
         let actual = PublicToken::sign(
             &sk,

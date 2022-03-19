@@ -67,6 +67,7 @@ pub(crate) mod tests {
     use alloc::string::String;
     use alloc::vec::Vec;
     use serde::{Deserialize, Serialize};
+    use serde_json::Value;
 
     #[allow(non_snake_case)]
     #[derive(Serialize, Deserialize, Debug)]
@@ -94,7 +95,7 @@ pub(crate) mod tests {
         #[serde(rename(deserialize = "secret-key-pem"))]
         pub(crate) secret_key_pem: Option<String>,
         pub(crate) token: String,
-        pub(crate) payload: Option<Payload>,
+        pub(crate) payload: Option<Value>,
         pub(crate) footer: String,
         #[serde(rename(deserialize = "implicit-assertion"))]
         pub(crate) implicit_assertion: String,
