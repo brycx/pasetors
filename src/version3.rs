@@ -202,17 +202,34 @@ mod test_vectors {
         let uc_pk = UncompressedPublicKey::try_from(pk).unwrap();
         let c_pk: AsymmetricPublicKey<V3> = AsymmetricPublicKey::try_from(&uc_pk).unwrap();
 
-        assert_eq!(pk.as_bytes(), c_pk.as_bytes());
+        assert_eq!(
+            pk.as_bytes(),
+            c_pk.as_bytes(),
+            "Failed to roundtrip conversion between compressed and uncompressed public key"
+        );
+    }
+
+    #[test]
+    /// These are not covered during test-vector runs, because of the use of CSPRNG for k-value generation
+    /// within *ring*.
+    fn sign_verify_roundtrip() {
+        // Values taken from 3-S-1
+        let raw_sk = hex::decode("20347609607477aca8fbfbc5e6218455f3199669792ef8b466faa87bdc67798144c848dd03661eed5ac62461340cea96").unwrap();
+        let raw_pk = hex::decode("02fbcb7c69ee1c60579be7a334134878d9c5c5bf35d552dab63c0140397ed14cef637d7720925c44699ea30e72874c72fb").unwrap();
+
+        let sk = AsymmetricSecretKey::<V3>::from(&raw_sk).unwrap();
+        let pk = AsymmetricPublicKey::<V3>::from(&raw_pk).unwrap();
+        let message = "this is a signed message";
+
+        let token = PublicToken::sign(&sk, &pk, message.as_bytes(), Some(b"footer"), Some(b"impl"))
+            .unwrap();
+        PublicToken::sign(&sk, &pk, message.as_bytes(), Some(b"footer"), Some(b"impl")).unwrap();
+        assert!(PublicToken::verify(&pk, &token, Some(b"footer"), Some(b"impl")).is_ok());
     }
 
     fn test_public(test: &PasetoTest) {
         debug_assert!(test.public_key.is_some());
         debug_assert!(test.secret_key.is_some());
-
-        let sk = AsymmetricSecretKey::<V3>::from(
-            &hex::decode(test.secret_key.as_ref().unwrap()).unwrap(),
-        )
-        .unwrap();
         let pk = AsymmetricPublicKey::<V3>::from(
             &hex::decode(test.public_key.as_ref().unwrap()).unwrap(),
         )
@@ -232,17 +249,8 @@ mod test_vectors {
             return;
         }
 
-        let message = test.payload.as_ref().unwrap().as_str().unwrap();
-
-        let actual = PublicToken::sign(
-            &sk,
-            &pk,
-            message.as_bytes(),
-            Some(footer),
-            Some(implicit_assert),
-        )
-        .unwrap();
-        assert_eq!(actual, test.token, "Failed {:?}", test.name);
+        // We do not have support for deterministic nonces, so we cannot reproduce a signature
+        // because ring uses CSPRNG for k-value. Therefor, we can only validate (compared to V2/V4 tests).
         assert!(
             PublicToken::verify(&pk, &test.token, Some(footer), Some(implicit_assert)).is_ok(),
             "Failed {:?}",

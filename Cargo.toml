@@ -52,6 +52,7 @@ optional = true
 ring = "0.16.20"
 num-bigint = "0.4.3"
 num-traits = "0.2.14"
+byteorder = { version = "1", default-features = false }
 
 [features]
 default = [ "std" ]
