@@ -30,7 +30,7 @@ use ring::signature::{EcdsaKeyPair, ECDSA_P384_SHA384_FIXED, ECDSA_P384_SHA384_F
 ///
 /// This is provided to be able to convert uncompressed keys to compressed ones, as compressed is
 /// required by PASETO and what an `AsymmetricPublicKey<V3>` represents.
-pub struct UncompressedPublicKey(pub(crate) [u8; 97]);
+pub struct UncompressedPublicKey(pub [u8; 97]);
 
 impl TryFrom<&[u8]> for UncompressedPublicKey {
     type Error = Error;
@@ -233,6 +233,34 @@ impl PublicToken {
         unparsed_pk
             .verify(m2.as_ref(), s)
             .map_err(|_| Error::TokenValidation)
+    }
+}
+
+#[cfg(test)]
+mod test_regression {
+    use crate::keys::{AsymmetricPublicKey, V3};
+    use crate::version3::UncompressedPublicKey;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn fuzzer_regression_1() {
+        let pk_bytes: [u8; 97] = [
+            4, 0, 205, 193, 144, 253, 175, 61, 67, 178, 31, 65, 80, 197, 219, 197, 12, 136, 239,
+            15, 12, 155, 112, 129, 17, 35, 64, 33, 149, 251, 222, 174, 69, 197, 171, 176, 115, 67,
+            144, 76, 135, 147, 21, 48, 196, 235, 169, 93, 34, 100, 63, 20, 128, 61, 191, 214, 161,
+            240, 38, 228, 74, 250, 91, 185, 68, 243, 172, 203, 43, 174, 99, 230, 231, 239, 161, 78,
+            148, 160, 170, 87, 200, 24, 220, 196, 53, 107, 22, 85, 59, 227, 237, 150, 83, 81, 41,
+            2, 132,
+        ];
+
+        let uc_pk = UncompressedPublicKey::try_from(pk_bytes.as_slice()).unwrap();
+        assert_eq!(&pk_bytes, &uc_pk.0);
+        let c_pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
+        assert_eq!(&c_pk.as_bytes()[1..], &pk_bytes[1..49]);
+
+        let round = UncompressedPublicKey::try_from(&c_pk).unwrap();
+
+        assert_eq!(round.0, pk_bytes);
     }
 }
 
