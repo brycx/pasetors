@@ -15,6 +15,8 @@ use crate::common::{decode_b64, encode_b64, validate_format_footer};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, V3};
 use crate::pae;
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 use core::marker::PhantomData;
 use num_bigint::BigUint;
@@ -330,11 +332,11 @@ mod test_wycheproof_point_compression {
     use alloc::string::String;
     use alloc::vec::Vec;
     use serde::{Deserialize, Serialize};
-    use serde_json::Value;
     use std::convert::TryFrom;
     use std::fs::File;
     use std::io::BufReader;
 
+    #[allow(dead_code)] // `notes` field
     #[allow(non_snake_case)]
     #[derive(Serialize, Deserialize, Debug)]
     pub(crate) struct WycheproofSecp384r1Tests {
@@ -388,7 +390,7 @@ mod test_wycheproof_point_compression {
         let reader = BufReader::new(file);
         let tests: WycheproofSecp384r1Tests = serde_json::from_reader(reader).unwrap();
 
-        for (n, test_group) in tests.testGroups.iter().enumerate() {
+        for test_group in tests.testGroups.iter() {
             let uc_pk = UncompressedPublicKey::try_from(
                 hex::decode(&test_group.key.uncompressed)
                     .unwrap()
