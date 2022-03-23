@@ -85,13 +85,11 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         if xbytes.len() != 48 {
             debug_assert!(xbytes.len() < 48);
             let diff = 48 - xbytes.len();
-            dbg!(&diff);
             x_start += diff as usize;
         }
         if y2bytes.len() != 48 {
             debug_assert!(y2bytes.len() < 48);
             let diff = 48 - y2bytes.len();
-            dbg!(&diff);
             y_start += diff as usize;
         }
 
