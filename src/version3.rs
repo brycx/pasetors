@@ -15,7 +15,7 @@ use ring::signature::{EcdsaKeyPair, ECDSA_P384_SHA384_FIXED, ECDSA_P384_SHA384_F
 ///
 /// This is provided to be able to convert uncompressed keys to compressed ones, as compressed is
 /// required by PASETO and what an `AsymmetricPublicKey<V3>` represents.
-pub struct UncompressedPublicKey([u8; 97]);
+pub struct UncompressedPublicKey(pub(crate) [u8; 97]);
 
 impl TryFrom<&[u8]> for UncompressedPublicKey {
     type Error = Error;
@@ -49,6 +49,7 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         ]);
         let sign_y = BigUint::from(&value.bytes[0] - 2);
 
+        // (1): This will drop trailing zeroes from the x-coord.
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
         let mut y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
         y2 = y2.modpow(&p_ident, &prime);
@@ -58,9 +59,43 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         }
 
         let mut ret = [0u8; 97];
-        ret[0] = 4;
-        ret[1..49].copy_from_slice(&x.to_bytes_be());
-        ret[49..].copy_from_slice(&y2.to_bytes_be());
+        ret[0] = 0x04;
+
+        // (1): Trailing zeroes from input bytes are dropped. We require the output to be
+        // 384 bits always.
+        // (2): If full 384 bits is not required to represent the BigNum, it will be less.
+        // If that is the case, there would be leading zeroes, as in Wycheproof test vectors.
+        //
+        // To accommodate (2), we check how many bits are required for the BigNum (.bits()),
+        // and use a starting index relative thereto, to ensure leading zeroes are included.
+        // To accommodate (1), we simply only copy the length of the byte representation, and
+        // trailing zeroes are included by default, because the array was initialized with this.
+
+        let mut x_start: usize = 1;
+        let mut y_start: usize = 49;
+
+        let x_bytes = x.bits() / 8;
+        let y2_bytes = y2.bits() / 8;
+
+        if x_bytes != 48 {
+            debug_assert!(x_bytes < 48);
+            let diff = 48 - x_bytes;
+            x_start += diff as usize - 1; // diff-1 because zero-indexed.
+        }
+        if y2_bytes != 48 {
+            debug_assert!(y2_bytes < 48);
+            let diff = 48 - y2_bytes;
+            y_start += diff as usize - 1; // diff-1 because zero-indexed.
+        }
+
+        debug_assert!((1..=49).contains(&x_start));
+        debug_assert!((49..=97).contains(&y_start));
+
+        let xbytes = x.to_bytes_be();
+        let y2bytes = y2.to_bytes_be();
+
+        ret[x_start..xbytes.len() + x_start].copy_from_slice(&xbytes);
+        ret[y_start..y2bytes.len() + y_start].copy_from_slice(&y2bytes);
 
         Ok(UncompressedPublicKey(ret))
     }
@@ -271,5 +306,96 @@ mod test_vectors {
                 test_public(&t);
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod test_wycheproof_point_compression {
+    use crate::keys::{AsymmetricPublicKey, V3};
+    use crate::version3::UncompressedPublicKey;
+    use alloc::string::String;
+    use alloc::vec::Vec;
+    use serde::{Deserialize, Serialize};
+    use serde_json::Value;
+    use std::convert::TryFrom;
+    use std::fs::File;
+    use std::io::BufReader;
+
+    #[allow(non_snake_case)]
+    #[derive(Serialize, Deserialize, Debug)]
+    pub(crate) struct WycheproofSecp384r1Tests {
+        algorithm: String,
+        generatorVersion: String,
+        numberOfTests: u64,
+        header: Vec<String>,
+        #[serde(skip)]
+        notes: Vec<String>, // Not a Vec<>, but we don't need this so skip it.
+        schema: String,
+        testGroups: Vec<Secp384r1TestGroup>,
+    }
+
+    #[allow(non_snake_case)]
+    #[derive(Serialize, Deserialize, Debug)]
+    pub(crate) struct Secp384r1TestGroup {
+        key: Secp384r1Key,
+        keyDer: String,
+        keyPem: String,
+        sha: String,
+        #[serde(rename(deserialize = "type"))]
+        testType: String,
+        tests: Vec<TestVector>,
+    }
+
+    #[allow(non_snake_case)]
+    #[derive(Serialize, Deserialize, Debug)]
+    pub(crate) struct Secp384r1Key {
+        curve: String,
+        keySize: u64,
+        #[serde(rename(deserialize = "type"))]
+        keyType: String,
+        uncompressed: String,
+        wx: String,
+        wy: String,
+    }
+
+    #[allow(non_snake_case)]
+    #[derive(Serialize, Deserialize, Debug)]
+    pub(crate) struct TestVector {
+        tcId: u64,
+        comment: String,
+        msg: String,
+        sig: String,
+        result: String,
+        flags: Vec<String>,
+    }
+
+    fn wycheproof_point_compression(path: &str) {
+        let file = File::open(path).unwrap();
+        let reader = BufReader::new(file);
+        let tests: WycheproofSecp384r1Tests = serde_json::from_reader(reader).unwrap();
+
+        for (n, test_group) in tests.testGroups.iter().enumerate() {
+            let uc_pk = UncompressedPublicKey::try_from(
+                hex::decode(&test_group.key.uncompressed)
+                    .unwrap()
+                    .as_slice(),
+            )
+            .expect("Failed Wycheproof -> Uncompressed");
+
+            let pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
+            assert_eq!(
+                hex::encode(UncompressedPublicKey::try_from(&pk).unwrap().0),
+                test_group.key.uncompressed,
+                "Failed {:?}",
+                &test_group.key.uncompressed
+            );
+        }
+    }
+
+    #[test]
+    fn run_wycheproof_points() {
+        wycheproof_point_compression("./test_vectors/wycheproof/ecdsa_secp384r1_sha3_384_test.json");
+        wycheproof_point_compression("./test_vectors/wycheproof/ecdsa_secp384r1_sha384_test.json");
     }
 }
