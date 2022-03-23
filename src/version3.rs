@@ -64,7 +64,6 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         ]);
         let sign_y = BigUint::from(&value.bytes[0] - 2);
 
-        // (1): This will drop trailing zeroes from the x-coord.
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
         let mut y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
         y2 = y2.modpow(&p_ident, &prime);
@@ -76,38 +75,28 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         let mut ret = [0u8; 97];
         ret[0] = 0x04;
 
-        // (1): Trailing zeroes from input bytes are dropped. We require the output to be
-        // 384 bits always.
-        // (2): If full 384 bits is not required to represent the BigNum, it will be less.
-        // If that is the case, there would be leading zeroes, as in Wycheproof test vectors.
-        //
-        // To accommodate (2), we check how many bits are required for the BigNum (.bits()),
-        // and use a starting index relative thereto, to ensure leading zeroes are included.
-        // To accommodate (1), we simply only copy the length of the byte representation, and
-        // trailing zeroes are included by default, because the array was initialized with this.
+        let mut x_start: usize = 1; // 0-indexed
+        let mut y_start: usize = 49; // 0-indexed
+        let xbytes = x.to_bytes_be();
+        let y2bytes = y2.to_bytes_be();
 
-        let mut x_start: usize = 1;
-        let mut y_start: usize = 49;
-
-        let x_bytes = x.bits() / 8;
-        let y2_bytes = y2.bits() / 8;
-
-        if x_bytes != 48 {
-            debug_assert!(x_bytes < 48);
-            let diff = 48 - x_bytes;
-            x_start += diff as usize - 1; // diff-1 because zero-indexed.
+        // Leading zeroes can have been dropped in some cases, so we check here if we should
+        // keep any, based on the BE repr of the integer.
+        if xbytes.len() != 48 {
+            debug_assert!(xbytes.len() < 48);
+            let diff = 48 - xbytes.len();
+            dbg!(&diff);
+            x_start += diff as usize;
         }
-        if y2_bytes != 48 {
-            debug_assert!(y2_bytes < 48);
-            let diff = 48 - y2_bytes;
-            y_start += diff as usize - 1; // diff-1 because zero-indexed.
+        if y2bytes.len() != 48 {
+            debug_assert!(y2bytes.len() < 48);
+            let diff = 48 - y2bytes.len();
+            dbg!(&diff);
+            y_start += diff as usize;
         }
 
         debug_assert!((1..=49).contains(&x_start));
         debug_assert!((49..=97).contains(&y_start));
-
-        let xbytes = x.to_bytes_be();
-        let y2bytes = y2.to_bytes_be();
 
         ret[x_start..xbytes.len() + x_start].copy_from_slice(&xbytes);
         ret[y_start..y2bytes.len() + y_start].copy_from_slice(&y2bytes);
