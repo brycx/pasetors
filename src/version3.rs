@@ -1,3 +1,16 @@
+//! This is an implementation of the [version 3 specification of PASETO](https://github.com/paseto-standard/paseto-spec/blob/master/docs/01-Protocol-Versions/Version3.md#sign).
+//!
+//! The following points apply to this implementation, in regards to the specification:
+//! - PASETO requires the use of compressed public keys. If these are not readily supported in a given
+//! setting, [UncompressedPublicKey] and [AsymmetricPublicKey<V3>] conversions can be used to obtain
+//! the compressed form.
+//! - PASETO recommends use of deterministic nonces (RFC-6979), but this is not supported by the P-384
+//! implementation provided by [*ring*](https://crates.io/crates/ring). This may change in the future.
+//! - Hedged signatures, according to the PASETO spec, are not used.
+//!
+//! [AsymmetricPublicKey<V3>]: crate::keys::AsymmetricPublicKey
+//! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
+
 use crate::common::{decode_b64, encode_b64, validate_format_footer};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, V3};
@@ -395,7 +408,9 @@ mod test_wycheproof_point_compression {
 
     #[test]
     fn run_wycheproof_points() {
-        wycheproof_point_compression("./test_vectors/wycheproof/ecdsa_secp384r1_sha3_384_test.json");
+        wycheproof_point_compression(
+            "./test_vectors/wycheproof/ecdsa_secp384r1_sha3_384_test.json",
+        );
         wycheproof_point_compression("./test_vectors/wycheproof/ecdsa_secp384r1_sha384_test.json");
     }
 }
