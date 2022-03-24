@@ -109,16 +109,16 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         let sign_y = BigUint::from(&value.bytes[0] - 2);
 
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
-        let mut y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
+        let y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
         if legendre_symbol(&y2) != 1 {
             return Err(Error::PublicKeyConversion);
         }
 
         // Because P mod 4 === 3, we can get the square root by taking (y^{2})^{(P+1)/4}.
-        y2 = y2.modpow(&p_ident, &prime);
+        let mut y = y2.modpow(&p_ident, &prime);
 
-        if &y2 % 2u32 != sign_y {
-            y2 = prime - y2;
+        if &y % 2u32 != sign_y {
+            y = prime - y;
         }
 
         let mut ret = [0u8; 97];
@@ -127,7 +127,7 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         let mut x_start: usize = 1; // 0-indexed
         let mut y_start: usize = 49; // 0-indexed
         let xbytes = x.to_bytes_be();
-        let y2bytes = y2.to_bytes_be();
+        let ybytes = y.to_bytes_be();
 
         // Leading zeroes can have been dropped in some cases, so we check here if we should
         // keep any, based on the BE repr of the integer.
@@ -136,9 +136,9 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
             let diff = 48 - xbytes.len();
             x_start += diff as usize;
         }
-        if y2bytes.len() != 48 {
-            debug_assert!(y2bytes.len() < 48);
-            let diff = 48 - y2bytes.len();
+        if ybytes.len() != 48 {
+            debug_assert!(ybytes.len() < 48);
+            let diff = 48 - ybytes.len();
             y_start += diff as usize;
         }
 
@@ -146,7 +146,7 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         debug_assert!((49..=97).contains(&y_start));
 
         ret[x_start..xbytes.len() + x_start].copy_from_slice(&xbytes);
-        ret[y_start..y2bytes.len() + y_start].copy_from_slice(&y2bytes);
+        ret[y_start..ybytes.len() + y_start].copy_from_slice(&ybytes);
 
         Ok(UncompressedPublicKey(ret))
     }
