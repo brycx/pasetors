@@ -20,6 +20,7 @@ use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 use core::marker::PhantomData;
 use num_bigint::BigUint;
+use num_traits::{One, ToPrimitive};
 use ring::signature::{EcdsaKeyPair, ECDSA_P384_SHA384_FIXED, ECDSA_P384_SHA384_FIXED_SIGNING};
 
 /// P384 prime in big-endian: 2^384 - 2^128 - 2^96 + 2^32 - 1.
@@ -30,10 +31,17 @@ const P: [u8; 48] = [
 ];
 
 /// (P+1)/4 in big-endian.
-const P_IDENT: [u8; 48] = [
+const P_PLUS_ONE_DIV_FOUR: [u8; 48] = [
     63, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 191, 255, 255, 255, 192, 0, 0,
     0, 0, 0, 0, 0, 64, 0, 0, 0,
+];
+
+/// (P-1)/2 in big-endian.
+const P_MINUS_ONE_DIV_TWO: [u8; 48] = [
+    127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127, 255, 255, 255, 128, 0, 0,
+    0, 0, 0, 0, 0, 127, 255, 255, 255,
 ];
 
 /// P384 constant B.
@@ -65,6 +73,24 @@ impl TryFrom<&[u8]> for UncompressedPublicKey {
     }
 }
 
+/// Compute the Legendre symbol for a given prime [`P`].
+///
+/// Ref: <https://en.wikipedia.org/wiki/Legendre_symbol>
+fn legendre_symbol(a: &BigUint) -> i32 {
+    let p = BigUint::from_bytes_be(&P);
+    debug_assert_eq!(&p % BigUint::from(2u32), BigUint::one()); // Ensure odd prime
+
+    match a
+        .modpow(&BigUint::from_bytes_be(&P_MINUS_ONE_DIV_TWO), &p)
+        .to_u64()
+    {
+        Some(1) => 1,
+        Some(0) => 0,
+        Some(_) => -1,
+        None => panic!("FATAL: Unexpected Legendre-symbol computed"),
+    }
+}
+
 impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
     type Error = Error;
 
@@ -76,15 +102,17 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         );
 
         let prime = BigUint::from_bytes_be(&P);
-        let p_ident = BigUint::from_bytes_be(&P_IDENT);
+        let p_ident = BigUint::from_bytes_be(&P_PLUS_ONE_DIV_FOUR);
         let b = BigUint::from_bytes_be(&B);
         let sign_y = BigUint::from(&value.bytes[0] - 2);
 
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
         let mut y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
-        // TODO: Add Legendre-symbol check here and error if not a quadratic residue.
+        if legendre_symbol(&y2) != 1 {
+            return Err(Error::PublicKeyConversion);
+        }
 
-        // Because P mod 4 === 3, we can the square root by taking (y^{2})^{(P+1)/4}.
+        // Because P mod 4 === 3, we can get the square root by taking (y^{2})^{(P+1)/4}.
         y2 = y2.modpow(&p_ident, &prime);
 
         if &y2 % 2u32 != sign_y {
