@@ -20,7 +20,7 @@ use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 use core::marker::PhantomData;
 use num_bigint::BigUint;
-use num_traits::{One, ToPrimitive};
+use num_traits::{One, Zero};
 use ring::signature::{EcdsaKeyPair, ECDSA_P384_SHA384_FIXED, ECDSA_P384_SHA384_FIXED_SIGNING};
 
 /// P384 prime in big-endian: 2^384 - 2^128 - 2^96 + 2^32 - 1.
@@ -80,14 +80,16 @@ fn legendre_symbol(a: &BigUint) -> i32 {
     let p = BigUint::from_bytes_be(&P);
     debug_assert_eq!(&p % BigUint::from(2u32), BigUint::one()); // Ensure odd prime
 
-    match a
-        .modpow(&BigUint::from_bytes_be(&P_MINUS_ONE_DIV_TWO), &p)
-        .to_u64()
-    {
-        Some(1) => 1,
-        Some(0) => 0,
-        Some(_) => -1,
-        None => panic!("FATAL: Unexpected Legendre-symbol computed"),
+    let one = BigUint::one();
+    let zero = BigUint::zero();
+    let r = a.modpow(&BigUint::from_bytes_be(&P_MINUS_ONE_DIV_TWO), &p);
+
+    if r == one {
+        1
+    } else if r == zero {
+        0
+    } else {
+        -1
     }
 }
 
@@ -294,6 +296,26 @@ mod test_regression {
         let round = UncompressedPublicKey::try_from(&c_pk).unwrap();
 
         assert_eq!(round.0, pk_bytes);
+    }
+
+    #[test]
+    fn fuzzer_regression_2() {
+        let data: [u8; 49] = [
+            2, 0, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49,
+            49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49,
+            49, 49, 49, 49, 49,
+        ];
+
+        if let Ok(compressed_pk) = AsymmetricPublicKey::<V3>::from(&data) {
+            if let Ok(uncompressed) = UncompressedPublicKey::try_from(&compressed_pk) {
+                assert_eq!(
+                    AsymmetricPublicKey::<V3>::try_from(&uncompressed)
+                        .unwrap()
+                        .as_bytes(),
+                    compressed_pk.as_bytes()
+                );
+            }
+        }
     }
 }
 
