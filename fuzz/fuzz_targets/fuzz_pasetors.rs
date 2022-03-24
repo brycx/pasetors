@@ -114,11 +114,10 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
 }
 
 fn fuzz_paserk(data: &[u8]) {
-    use pasetors::paserk::FormatAsPaserk;
     use core::convert::TryFrom;
+    use pasetors::paserk::FormatAsPaserk;
 
     let data: String = String::from_utf8_lossy(data).into();
-
 
     if let Ok(valid_paserk) = AsymmetricKeyPair::<V2>::try_from(data.clone()) {
         let mut buf = String::new();
@@ -131,7 +130,6 @@ fn fuzz_paserk(data: &[u8]) {
         assert_eq!(&data, &buf);
     }
 
-
     if let Ok(valid_paserk) = AsymmetricPublicKey::<V2>::try_from(data.clone()) {
         let mut buf = String::new();
         valid_paserk.fmt(&mut buf).unwrap();
@@ -142,7 +140,6 @@ fn fuzz_paserk(data: &[u8]) {
         valid_paserk.fmt(&mut buf).unwrap();
         assert_eq!(&data, &buf);
     }
-
 
     if let Ok(valid_paserk) = SymmetricKey::<V2>::try_from(data.clone()) {
         let mut buf = String::new();
