@@ -107,8 +107,11 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
         let p_ident = BigUint::from_bytes_be(&P_PLUS_ONE_DIV_FOUR);
         let b = BigUint::from_bytes_be(&B);
         let sign_y = BigUint::from(&value.bytes[0] - 2);
-
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
+        if x >= prime {
+            return Err(Error::PublicKeyConversion);
+        }
+
         let y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
         if legendre_symbol(&y2) != 1 {
             return Err(Error::PublicKeyConversion);
@@ -304,6 +307,25 @@ mod test_regression {
             2, 0, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49,
             49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49,
             49, 49, 49, 49, 49,
+        ];
+
+        if let Ok(compressed_pk) = AsymmetricPublicKey::<V3>::from(&data) {
+            if let Ok(uncompressed) = UncompressedPublicKey::try_from(&compressed_pk) {
+                assert_eq!(
+                    AsymmetricPublicKey::<V3>::try_from(&uncompressed)
+                        .unwrap()
+                        .as_bytes(),
+                    compressed_pk.as_bytes()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn fuzzer_regression_3() {
+        let data: [u8; 49] = [
+            2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
         ];
 
         if let Ok(compressed_pk) = AsymmetricPublicKey::<V3>::from(&data) {
