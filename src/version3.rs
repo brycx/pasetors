@@ -20,8 +20,28 @@ use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 use core::marker::PhantomData;
 use num_bigint::BigUint;
-use num_traits::{FromPrimitive, One};
 use ring::signature::{EcdsaKeyPair, ECDSA_P384_SHA384_FIXED, ECDSA_P384_SHA384_FIXED_SIGNING};
+
+/// P384 prime in big-endian: 2^384 - 2^128 - 2^96 + 2^32 - 1.
+const P: [u8; 48] = [
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 255, 255, 255, 255, 0, 0, 0,
+    0, 0, 0, 0, 0, 255, 255, 255, 255,
+];
+
+/// (P+1)/4 in big-endian.
+const P_IDENT: [u8; 48] = [
+    63, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 191, 255, 255, 255, 192, 0, 0,
+    0, 0, 0, 0, 0, 64, 0, 0, 0,
+];
+
+/// P384 constant B.
+const B: [u8; 48] = [
+    179, 49, 47, 167, 226, 62, 231, 228, 152, 142, 5, 107, 227, 248, 45, 25, 24, 29, 156, 110, 254,
+    129, 65, 18, 3, 20, 8, 143, 80, 19, 135, 90, 198, 86, 57, 141, 138, 46, 209, 157, 42, 133, 200,
+    237, 211, 236, 42, 239,
+];
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
@@ -52,16 +72,9 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
     fn try_from(value: &AsymmetricPublicKey<V3>) -> Result<Self, Self::Error> {
         debug_assert_eq!(value.bytes.len(), 49);
 
-        let two = BigUint::from_u8(2).unwrap();
-        let prime =
-            two.pow(384u32) - two.pow(128u32) - two.pow(96u32) + two.pow(32) - BigUint::one();
-        let p_ident = (&prime + BigUint::one()) / BigUint::from(4u32);
-        let b = BigUint::from_bytes_be(&[
-            0xb3, 0x31, 0x2f, 0xa7, 0xe2, 0x3e, 0xe7, 0xe4, 0x98, 0x8e, 0x05, 0x6b, 0xe3, 0xf8,
-            0x2d, 0x19, 0x18, 0x1d, 0x9c, 0x6e, 0xfe, 0x81, 0x41, 0x12, 0x03, 0x14, 0x08, 0x8f,
-            0x50, 0x13, 0x87, 0x5a, 0xc6, 0x56, 0x39, 0x8d, 0x8a, 0x2e, 0xd1, 0x9d, 0x2a, 0x85,
-            0xc8, 0xed, 0xd3, 0xec, 0x2a, 0xef,
-        ]);
+        let prime = BigUint::from_bytes_be(&P);
+        let p_ident = BigUint::from_bytes_be(&P_IDENT);
+        let b = BigUint::from_bytes_be(&B);
         let sign_y = BigUint::from(&value.bytes[0] - 2);
 
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
