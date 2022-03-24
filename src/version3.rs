@@ -73,7 +73,7 @@ impl TryFrom<&[u8]> for UncompressedPublicKey {
     }
 }
 
-/// Compute the Legendre symbol for a given prime [`P`].
+/// Compute the Legendre symbol for `a`, given prime [`P`].
 ///
 /// Ref: <https://en.wikipedia.org/wiki/Legendre_symbol>
 fn legendre_symbol(a: &BigUint) -> i32 {
