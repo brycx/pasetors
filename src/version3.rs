@@ -65,12 +65,15 @@ impl TryFrom<&[u8]> for UncompressedPublicKey {
     }
 }
 
-// TODO: Tonelli-Shanks?
 impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
     type Error = Error;
 
     fn try_from(value: &AsymmetricPublicKey<V3>) -> Result<Self, Self::Error> {
         debug_assert_eq!(value.bytes.len(), 49);
+        debug_assert_eq!(
+            BigUint::from_bytes_be(&P) % BigUint::from(4u32),
+            BigUint::from(3u32)
+        );
 
         let prime = BigUint::from_bytes_be(&P);
         let p_ident = BigUint::from_bytes_be(&P_IDENT);
@@ -79,6 +82,9 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
 
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
         let mut y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
+        // TODO: Add Legendre-symbol check here and error if not a quadratic residue.
+
+        // Because P mod 4 === 3, we can the square root by taking (y^{2})^{(P+1)/4}.
         y2 = y2.modpow(&p_ident, &prime);
 
         if &y2 % 2u32 != sign_y {
@@ -122,7 +128,6 @@ impl TryFrom<&UncompressedPublicKey> for AsymmetricPublicKey<V3> {
     fn try_from(value: &UncompressedPublicKey) -> Result<Self, Self::Error> {
         let mut compressed = [0u8; 49];
         compressed[0] = 0x02;
-        // TODO: Maybe we should check sign without making a BigUint here
         let tmp: i8 = (BigUint::from_bytes_be(&value.0[49..]) % 2u32)
             .try_into()
             .unwrap();
