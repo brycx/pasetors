@@ -6,7 +6,10 @@ jobs:
   test:
     strategy:
       matrix:
-        rust: [stable, nightly]
+        rust:
+          - stable
+          # TODO: RE-TEST ON NIGHTLY ONCE RING IS FIXED (see https://github.com/briansmith/ring/issues/1469)
+          #- nightly
     
     runs-on: ubuntu-latest
     steps:

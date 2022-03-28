@@ -11,7 +11,8 @@ jobs:
       matrix:
         rust:
           - stable
-          - nightly
+          # TODO: RE-TEST ON NIGHTLY ONCE RING IS FIXED (see https://github.com/briansmith/ring/issues/1469)
+          #- nightly
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
