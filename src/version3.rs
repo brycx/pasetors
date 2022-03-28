@@ -1,3 +1,6 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "v3")))]
+
+//!
 //! This is an implementation of the [version 3 specification of PASETO](https://github.com/paseto-standard/paseto-spec/blob/master/docs/01-Protocol-Versions/Version3.md#sign).
 //!
 //! The following points apply to this implementation, in regards to the specification:

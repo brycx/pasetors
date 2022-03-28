@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "paserk")))]
+
 use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
 use crate::keys::private::Version;

@@ -141,6 +141,7 @@
     overflowing_literals
 )]
 #![doc(html_root_url = "https://docs.rs/pasetors/0.4.2")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
 extern crate alloc;
@@ -155,18 +156,28 @@ mod common;
 #[cfg(feature = "std")]
 /// Claims for tokens and validation thereof.
 pub mod claims;
+
 /// Keys used for PASETO tokens.
 pub mod keys;
+
+#[cfg(feature = "paserk")]
 /// PASERK key-wrapping and serialization.
 pub mod paserk;
+
+#[cfg(feature = "v2")]
 /// PASETO version 2 tokens.
 pub mod version2;
+
+#[cfg(feature = "v3")]
 /// PASETO version 3 tokens.
 pub mod version3;
+
+#[cfg(feature = "v4")]
 /// PASETO version 4 tokens.
 pub mod version4;
 
-#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "std", feature = "v4"))))]
+#[cfg(all(feature = "std", feature = "v4"))]
 /// PASETO public tokens with [`version4`], using [`claims::Claims`].
 pub mod public {
     use crate::claims::{Claims, ClaimsValidationRules};
@@ -213,7 +224,8 @@ pub mod public {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "std", feature = "v4"))))]
+#[cfg(all(feature = "std", feature = "v4"))]
 /// PASETO local tokens with [`version4`], using [`claims::Claims`].
 pub mod local {
     use crate::claims::{Claims, ClaimsValidationRules};

@@ -27,18 +27,19 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --all-features
       
       - name: Test release-mode
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release
+          args: --release --all-features
 
       - name: Test no_std
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --no-default-features
+          args: --no-default-features --features v2,v3,v4
 
   # https://rustwasm.github.io/docs/book/reference/add-wasm-support-to-crate.html#maintaining-ongoing-support-for-webassembly
   web_assembly:
@@ -60,4 +61,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --no-default-features --target ${{ matrix.arch }}
+          args: --no-default-features --features v2,v3,v4 --target ${{ matrix.arch }}

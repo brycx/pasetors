@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "v2")))]
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;

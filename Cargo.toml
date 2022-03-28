@@ -11,6 +11,10 @@ repository = "https://github.com/brycx/pasetors"
 documentation = "https://docs.rs/pasetors"
 license = "MIT"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dev-dependencies]
 hex = "0.4.2"
 rand = "0.7.3"
@@ -22,10 +26,12 @@ serde = { version = "1.0", features = ["derive"] }
 version = "1.0.1"
 default-features = false
 features = ["u64_backend"]
+optional = true
 
 [dependencies.orion]
 version = "0.17.0"
 default-features = false
+optional = true
 
 [dependencies.getrandom]
 version = "0.2"
@@ -48,11 +54,29 @@ version = "0.3"
 features = ["parsing", "formatting"]
 optional = true
 
-[dependencies]
-ring = "0.16.20"
-num-bigint = "0.4.3"
-num-traits = "0.2.14"
+[dependencies.subtle]
+version = "2.4.1"
+default-features = false
+
+[dependencies.num-bigint]
+version = "0.4.3"
+default-features = false
+optional = true
+
+[dependencies.num-traits]
+version = "0.2.14"
+default-features = false
+optional = true
+
+[dependencies.ring]
+version = "0.16.20"
+default-features = false
+optional = true
 
 [features]
-default = [ "std" ]
+default = [ "std", "v4", "paserk" ]
 std = [ "serde_json", "time" ]
+v2 = [ "orion", "ed25519-dalek" ]
+v3 = [ "num-bigint", "num-traits", "ring" ]
+v4 = [ "orion", "ed25519-dalek" ]
+paserk = [ "orion" ]
