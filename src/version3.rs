@@ -51,6 +51,13 @@ const B: [u8; 48] = [
     237, 211, 236, 42, 239,
 ];
 
+/// The constant A (-3) mod P, equivalent to P-3.
+const A_MOD_P: [u8; 48] = [
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 255, 255, 255, 255, 0, 0, 0,
+    0, 0, 0, 0, 0, 255, 255, 255, 252,
+];
+
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
 ///
@@ -105,6 +112,7 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
 
         let prime = BigUint::from_bytes_be(&P);
         let p_ident = BigUint::from_bytes_be(&P_PLUS_ONE_DIV_FOUR);
+        let a = BigUint::from_bytes_be(&A_MOD_P);
         let b = BigUint::from_bytes_be(&B);
         let sign_y = BigUint::from(&value.bytes[0] - 2);
         let x = BigUint::from_bytes_be(&value.bytes[1..]);
@@ -112,7 +120,8 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
             return Err(Error::PublicKeyConversion);
         }
 
-        let y2 = x.pow(3u32) - BigUint::from(3u32) * &x + b;
+        // Pre-computed -3 so no sub op.
+        let y2 = x.pow(3u32) + (&a * &x) + b;
         if legendre_symbol(&y2) != 1 {
             return Err(Error::PublicKeyConversion);
         }
