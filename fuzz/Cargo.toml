@@ -17,6 +17,7 @@ ring = "0.16.20"
 
 [dependencies.pasetors]
 path = ".."
+features = ["paserk", "std", "v2", "v3", "v4"]
 
 # Prevent this from interfering with workspaces
 [workspace]
