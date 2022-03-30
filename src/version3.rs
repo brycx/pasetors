@@ -544,3 +544,261 @@ mod test_wycheproof_point_compression {
         wycheproof_point_compression("./test_vectors/wycheproof/ecdsa_secp384r1_sha384_test.json");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 3-S-2 values
+    const TEST_SK_BYTES: [u8; 48] = [
+        32, 52, 118, 9, 96, 116, 119, 172, 168, 251, 251, 197, 230, 33, 132, 85, 243, 25, 150, 105,
+        121, 46, 248, 180, 102, 250, 168, 123, 220, 103, 121, 129, 68, 200, 72, 221, 3, 102, 30,
+        237, 90, 198, 36, 97, 52, 12, 234, 150,
+    ];
+    const TEST_PK_BYTES: [u8; 49] = [
+        2, 251, 203, 124, 105, 238, 28, 96, 87, 155, 231, 163, 52, 19, 72, 120, 217, 197, 197, 191,
+        53, 213, 82, 218, 182, 60, 1, 64, 57, 126, 209, 76, 239, 99, 125, 119, 32, 146, 92, 68,
+        105, 158, 163, 14, 114, 135, 76, 114, 251,
+    ];
+
+    const MESSAGE: &'static str =
+        "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}";
+    const FOOTER: &'static str = "{\"kid\":\"dYkISylxQeecEcHELfzF88UZrwbLolNiCdpzUHGw9Uqn\"}";
+    const VALID_PUBLIC_TOKEN: &'static str = "v3.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9ZWrbGZ6L0MDK72skosUaS0Dz7wJ_2bMcM6tOxFuCasO9GhwHrvvchqgXQNLQQyWzGC2wkr-VKII71AvkLpC8tJOrzJV1cap9NRwoFzbcXjzMZyxQ0wkshxZxx8ImmNWP.eyJraWQiOiJkWWtJU3lseFFlZWNFY0hFTGZ6Rjg4VVpyd2JMb2xOaUNkcHpVSEd3OVVxbiJ9";
+
+    #[test]
+    fn test_roundtrip_public() {
+        let test_sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None, None).unwrap();
+        assert!(PublicToken::verify(&test_pk, &token, None, None).is_ok());
+    }
+
+    #[test]
+    fn footer_none_some_empty_is_same() {
+        let test_sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+        let message =
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+        let footer = b"";
+
+        let actual_some =
+            PublicToken::sign(&test_sk, &test_pk, message, Some(footer), None).unwrap();
+        let actual_none = PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap();
+        assert_eq!(actual_some, actual_none);
+
+        assert!(PublicToken::verify(&test_pk, &actual_none, Some(footer), None).is_ok());
+        assert!(PublicToken::verify(&test_pk, &actual_some, None, None).is_ok());
+    }
+
+    #[test]
+    fn implicit_none_some_empty_is_same() {
+        let test_sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+        let message =
+            b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
+        let implicit = b"";
+
+        let actual_some =
+            PublicToken::sign(&test_sk, &test_pk, message, None, Some(implicit)).unwrap();
+        let actual_none = PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap();
+        assert_eq!(actual_some, actual_none);
+
+        assert!(PublicToken::verify(&test_pk, &actual_none, None, Some(implicit)).is_ok());
+        assert!(PublicToken::verify(&test_pk, &actual_some, None, None).is_ok());
+    }
+
+    #[test]
+    // NOTE: See https://github.com/paseto-standard/paseto-spec/issues/17
+    fn empty_payload() {
+        let test_sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        assert_eq!(
+            PublicToken::sign(&test_sk, &test_pk, b"", None, None).unwrap_err(),
+            Error::EmptyPayload
+        );
+        assert_eq!(
+            PublicToken::verify(&test_pk, "", None, None).unwrap_err(),
+            Error::EmptyPayload
+        );
+    }
+
+    #[test]
+    fn err_on_modified_header() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN.replace("v4", "v2"),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .unwrap_err(),
+            Error::TokenFormat
+        );
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN.replace("v4", ""),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .unwrap_err(),
+            Error::TokenFormat
+        );
+    }
+
+    #[test]
+    fn err_on_modified_purpose() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN.replace("public", "local"),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .unwrap_err(),
+            Error::TokenFormat
+        );
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN.replace("public", ""),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .unwrap_err(),
+            Error::TokenFormat
+        );
+    }
+
+    #[test]
+    // NOTE: Missing but created with one
+    fn err_on_missing_payload() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        split_public[2] = "";
+        let invalid_public: String = split_public.iter().map(|x| *x).collect();
+
+        assert_eq!(
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
+                .unwrap_err(),
+            Error::TokenFormat
+        );
+    }
+
+    #[test]
+    fn err_on_extra_after_footer() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        split_public.push(".shouldNotBeHere");
+        let invalid_public: String = split_public.iter().map(|x| *x).collect();
+
+        assert_eq!(
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
+                .unwrap_err(),
+            Error::TokenFormat
+        );
+    }
+
+    #[test]
+    fn err_on_modified_footer() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN,
+                Some(&FOOTER.replace("kid", "mid").as_bytes()),
+                None
+            )
+            .unwrap_err(),
+            Error::TokenValidation
+        );
+    }
+
+    #[test]
+    fn err_on_wrong_implicit_assert() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+        assert!(
+            PublicToken::verify(&test_pk, &VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes()), None)
+                .is_ok()
+        );
+        assert_eq!(
+            PublicToken::verify(
+                &test_pk,
+                &VALID_PUBLIC_TOKEN,
+                Some(FOOTER.as_bytes()),
+                Some(b"WRONG IMPLICIT")
+            )
+            .unwrap_err(),
+            Error::TokenValidation
+        );
+    }
+
+    #[test]
+    fn err_on_footer_in_token_none_supplied() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        assert_eq!(
+            PublicToken::verify(&test_pk, &VALID_PUBLIC_TOKEN, Some(b""), None).unwrap_err(),
+            Error::TokenValidation
+        );
+    }
+
+    #[test]
+    fn err_on_no_footer_in_token_some_supplied() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        let split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        let invalid_public: String = format!(
+            "{}.{}.{}",
+            split_public[0], split_public[1], split_public[2]
+        );
+
+        assert_eq!(
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
+                .unwrap_err(),
+            Error::TokenValidation
+        );
+    }
+
+    #[test]
+    fn err_on_modified_signature() {
+        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
+
+        let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
+        let mut bad_sig = Vec::from(decode_b64(split_public[2]).unwrap());
+        bad_sig.copy_within(0..32, 32);
+        let tmp = encode_b64(bad_sig).unwrap();
+        split_public[2] = &tmp;
+        let invalid_public: String = format!(
+            "{}.{}.{}.{}",
+            split_public[0], split_public[1], split_public[2], split_public[3]
+        );
+
+        assert_eq!(
+            PublicToken::verify(&test_pk, &invalid_public, Some(FOOTER.as_bytes()), None)
+                .unwrap_err(),
+            Error::TokenValidation
+        );
+    }
+
+    #[test]
+    fn err_on_invalid_public_secret_key() {
+        let bad_pk = AsymmetricPublicKey::<V3>::from(&[0u8; 32]).unwrap();
+
+        assert_eq!(
+            PublicToken::verify(&bad_pk, VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes()), None)
+                .unwrap_err(),
+            Error::TokenValidation
+        );
+    }
+}
