@@ -632,7 +632,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &VALID_PUBLIC_TOKEN.replace("v4", "v2"),
+                &VALID_PUBLIC_TOKEN.replace("v3", "v2"),
                 Some(FOOTER.as_bytes()),
                 None
             )
@@ -642,7 +642,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &VALID_PUBLIC_TOKEN.replace("v4", ""),
+                &VALID_PUBLIC_TOKEN.replace("v3", ""),
                 Some(FOOTER.as_bytes()),
                 None
             )
@@ -793,7 +793,9 @@ mod tests {
 
     #[test]
     fn err_on_invalid_public_secret_key() {
-        let bad_pk = AsymmetricPublicKey::<V3>::from(&[0u8; 32]).unwrap();
+        let mut pk_bytes = [0u8; 49];
+        pk_bytes[0] = 2;
+        let bad_pk = AsymmetricPublicKey::<V3>::from(&pk_bytes).unwrap();
 
         assert_eq!(
             PublicToken::verify(&bad_pk, VALID_PUBLIC_TOKEN, Some(FOOTER.as_bytes()), None)
