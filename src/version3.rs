@@ -586,7 +586,6 @@ mod tests {
         let actual_some =
             PublicToken::sign(&test_sk, &test_pk, message, Some(footer), None).unwrap();
         let actual_none = PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap();
-        assert_eq!(actual_some, actual_none);
 
         assert!(PublicToken::verify(&test_pk, &actual_none, Some(footer), None).is_ok());
         assert!(PublicToken::verify(&test_pk, &actual_some, None, None).is_ok());
@@ -603,7 +602,6 @@ mod tests {
         let actual_some =
             PublicToken::sign(&test_sk, &test_pk, message, None, Some(implicit)).unwrap();
         let actual_none = PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap();
-        assert_eq!(actual_some, actual_none);
 
         assert!(PublicToken::verify(&test_pk, &actual_none, None, Some(implicit)).is_ok());
         assert!(PublicToken::verify(&test_pk, &actual_some, None, None).is_ok());
