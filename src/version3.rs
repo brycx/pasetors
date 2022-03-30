@@ -201,7 +201,7 @@ impl PublicToken {
     /// The `secret_key` and `public_key` **must** be in big-endian.
     ///
     /// ### Error:
-    /// - *ring* calls `generate()` on internally, when creating the signature. Thus, it is possible
+    /// - *ring* calls `generate()` internally, when creating the signature. Thus, it is possible
     /// for [`Error::Signing`] to represent a failed call to the CSPRNG.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V3>,
