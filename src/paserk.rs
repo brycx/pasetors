@@ -631,6 +631,27 @@ mod tests {
         assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
         assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
 
+        assert!(AsymmetricSecretKey::<V3>::try_from(
+            "k3.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+                .to_string()
+        )
+        .is_ok());
+        assert!(AsymmetricSecretKey::<V3>::try_from(
+            "k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+                .to_string()
+        )
+        .is_err());
+        assert!(AsymmetricSecretKey::<V3>::try_from(
+            "k3.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+                .to_string()
+        )
+        .is_err());
+        assert!(AsymmetricSecretKey::<V3>::try_from(
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+                .to_string()
+        )
+        .is_err());
+
         assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_ok());
         assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
         assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
