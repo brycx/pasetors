@@ -197,6 +197,12 @@ impl PublicToken {
     const SIGNATURE_LEN: usize = 96;
 
     /// Create a public token.
+    ///
+    /// The `secret_key` and `public_key` **must** be in big-endian.
+    ///
+    /// ### Error:
+    /// - *ring* calls `generate()` on internally, when creating the signature. Thus, it is possible
+    /// for [`Error::Signing`] to represent a failed call to the CSPRNG.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V3>,
         public_key: &AsymmetricPublicKey<V3>,
@@ -211,7 +217,6 @@ impl PublicToken {
         }
 
         let uc_pk = UncompressedPublicKey::try_from(public_key)?;
-        // TODO: Check on what conditions we error out here and document
         let kp = EcdsaKeyPair::from_private_key_and_public_key(
             &ECDSA_P384_SHA384_FIXED_SIGNING,
             secret_key.as_bytes(),
@@ -219,7 +224,6 @@ impl PublicToken {
         )
         .map_err(|_| Error::Key)?;
 
-        // TODO: Check on what conditions we panic out here and document
         let csprng = rand::SystemRandom::new();
 
         let f = footer.unwrap_or(&[]);
@@ -231,7 +235,7 @@ impl PublicToken {
             f,
             i,
         ])?;
-        // TODO: Check on what conditions we error out here and document
+
         let sig = kp.sign(&csprng, m2.as_ref()).map_err(|_| Error::Signing)?;
         debug_assert_eq!(sig.as_ref().len(), Self::SIGNATURE_LEN);
 
@@ -248,6 +252,13 @@ impl PublicToken {
     }
 
     /// Verify a public token.
+    ///
+    /// The `public_key` **must** be in big-endian.
+    ///
+    /// ### Security:
+    /// - `public_key` is not verified by constructing `AsymmetricPublicKey<V3>`, but first
+    /// when the signature of the token is verified as well. Therefor, [`Error::TokenValidation`]
+    /// returned here can both mean an invalid public key and an invalid signature.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V3>,
         token: &str,
