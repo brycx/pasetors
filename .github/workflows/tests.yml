@@ -9,8 +9,7 @@ jobs:
         rust:
           - stable
           - 1.52.0 # MSRV
-          # TODO: RE-TEST ON NIGHTLY ONCE RING IS FIXED (see https://github.com/briansmith/ring/issues/1469)
-          #- nightly
+          - nightly
     
     runs-on: ubuntu-latest
     steps:
