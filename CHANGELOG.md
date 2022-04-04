@@ -3,6 +3,7 @@
 __Date:__ TBD
 
 __Changelog:__
+- Bump MSRV to `1.56.0`
 - Implement `v3.public` tokens ([#40](https://github.com/brycx/pasetors/issues/40))
 - Introduce separate crate-features for each version and one for PASERK: `v2`, `v3`, `v4` and `paserk`. `std`, `v4` and `paserk` are enabled by default
 - Add support for the PASERK [ID operation](https://github.com/paseto-standard/paserk/blob/master/operations/ID.md) ([#40](https://github.com/brycx/pasetors/issues/40))

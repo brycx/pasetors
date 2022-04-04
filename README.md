@@ -1,4 +1,4 @@
-![Tests](https://github.com/brycx/pasetors/workflows/Tests/badge.svg) [![Documentation](https://docs.rs/pasetors/badge.svg)](https://docs.rs/pasetors/) [![Crates.io](https://img.shields.io/crates/v/pasetors.svg)](https://crates.io/crates/pasetors) [![Safety Dance](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/) [![MSRV](https://img.shields.io/badge/MSRV-1.52-informational.svg)](https://img.shields.io/badge/MSRV-1.52-informational)
+![Tests](https://github.com/brycx/pasetors/workflows/Tests/badge.svg) [![Documentation](https://docs.rs/pasetors/badge.svg)](https://docs.rs/pasetors/) [![Crates.io](https://img.shields.io/crates/v/pasetors.svg)](https://crates.io/crates/pasetors) [![Safety Dance](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/) [![MSRV](https://img.shields.io/badge/MSRV-1.56-informational.svg)](https://img.shields.io/badge/MSRV-1.56-informational)
 
 ### PASETOrs
 
@@ -26,10 +26,10 @@ This library includes:
 This library has **not undergone any third-party security audit**. Usage is at **own risk**. 
 
 
-The [ed25519-dalek](https://github.com/dalek-cryptography/ed25519-dalek) library, used for public tokens, was [included in an audit](https://blog.quarkslab.com/security-audit-of-dalek-libraries.html). The [orion](https://github.com/brycx/orion) library, used for local tokens, has **not** been audited.
+The [ed25519-dalek](https://github.com/dalek-cryptography/ed25519-dalek) library, used for public tokens, was [included in an audit](https://blog.quarkslab.com/security-audit-of-dalek-libraries.html). The [orion](https://github.com/orion-rs/orion) library, used for local tokens, has **not** been audited.
 
 ### Minimum Supported Rust Version
-Rust 1.52 or later is supported however, the majority of testing happens with latest stable Rust.
+Rust 1.56 or later is supported however, the majority of testing happens with latest stable Rust.
 
 MSRV may be changed at any point and will not be considered a SemVer breaking change.
 
