@@ -314,7 +314,7 @@ mod test_regression {
             2, 132,
         ];
 
-        let uc_pk = UncompressedPublicKey::try_from(pk_bytes.as_slice()).unwrap();
+        let uc_pk = UncompressedPublicKey::try_from(pk_bytes.as_ref()).unwrap();
         assert_eq!(&pk_bytes, &uc_pk.0);
         let c_pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
         assert_eq!(&c_pk.as_bytes()[1..], &pk_bytes[1..49]);
