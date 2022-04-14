@@ -13,9 +13,11 @@ libfuzzer-sys = "0.3"
 rand_chacha = "0.2.2"
 rand_core = "0.5.0"
 ed25519-dalek = "1.0.1"
+ring = "0.16.20"
 
 [dependencies.pasetors]
 path = ".."
+features = ["paserk", "std", "v2", "v3", "v4"]
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -24,5 +26,11 @@ members = ["."]
 [[bin]]
 name = "fuzz_pasetors"
 path = "fuzz_targets/fuzz_pasetors.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_point_comp"
+path = "fuzz_targets/fuzz_point_comp.rs"
 test = false
 doc = false

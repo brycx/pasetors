@@ -2,6 +2,7 @@ use crate::errors::Error;
 use alloc::string::String;
 use alloc::vec::Vec;
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
+use subtle::ConstantTimeEq;
 
 /// Encode bytes with Base64 URL-safe and no padding.
 pub(crate) fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Error> {
@@ -33,8 +34,6 @@ pub(crate) fn validate_format_footer<'a>(
     token: &'a str,
     footer: &[u8],
 ) -> Result<Vec<&'a str>, Error> {
-    use orion::util::secure_cmp;
-
     if !token.starts_with(header) {
         return Err(Error::TokenFormat);
     }
@@ -54,7 +53,7 @@ pub(crate) fn validate_format_footer<'a>(
         }
 
         let token_footer = decode_b64(parts_split[3])?;
-        if secure_cmp(footer, token_footer.as_ref()).is_err() {
+        if !bool::from(footer.ct_eq(token_footer.as_ref())) {
             return Err(Error::TokenValidation);
         }
     }
@@ -67,6 +66,7 @@ pub(crate) mod tests {
     use alloc::string::String;
     use alloc::vec::Vec;
     use serde::{Deserialize, Serialize};
+    use serde_json::Value;
 
     #[allow(non_snake_case)]
     #[derive(Serialize, Deserialize, Debug)]
@@ -94,7 +94,7 @@ pub(crate) mod tests {
         #[serde(rename(deserialize = "secret-key-pem"))]
         pub(crate) secret_key_pem: Option<String>,
         pub(crate) token: String,
-        pub(crate) payload: Option<Payload>,
+        pub(crate) payload: Option<Value>,
         pub(crate) footer: String,
         #[serde(rename(deserialize = "implicit-assertion"))]
         pub(crate) implicit_assertion: String,

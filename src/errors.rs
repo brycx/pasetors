@@ -27,6 +27,10 @@ pub enum Error {
     ClaimInvalidJson,
     /// Error during (de)serialization of PASERK types.
     PaserkParsing,
+    /// Error during signing of a message.
+    Signing,
+    /// Error during conversion between uncompressed<->compressed public keys.
+    PublicKeyConversion,
 }
 
 #[cfg(feature = "std")]

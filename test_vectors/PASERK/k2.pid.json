@@ -1,0 +1,20 @@
+{
+  "name": "PASERK k2.pid Test Vectors",
+  "tests": [
+    {
+      "name": "k2.pid-1",
+      "key": "0000000000000000000000000000000000000000000000000000000000000000",
+      "paserk": "k2.pid.gUztDB_2F1oxWaUa0RYxGYtLw_0TN-g5mw_M7HUMLh7D"
+    },
+    {
+      "name": "k2.pid-2",
+      "key": "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f",
+      "paserk": "k2.pid.4zgEvkSaB64DlcV9ChYZPEqBATLwUsB5zCrlpEOk2wD9"
+    },
+    {
+      "name": "k2.pid-3",
+      "key": "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e90",
+      "paserk": "k2.pid.2Jd0YsfxY7YWVCHWG0BOc9CCVZmSqRXz0B-p7ENnkxqG"
+    }
+  ]
+}
