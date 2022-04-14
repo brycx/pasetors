@@ -1,4 +1,6 @@
 name: Security Audit
+permissions:
+  contents: read
 on:
   schedule:
     - cron: '0 0 * * *' # Midnight of each day
@@ -11,6 +13,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
         with:
+          persist-credentials: false
           ref: master
 
       - name: Install stable toolchain
