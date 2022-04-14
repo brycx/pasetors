@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "v4")))]
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -300,7 +302,7 @@ mod test_vectors {
             return;
         }
 
-        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
+        let message = test.payload.as_ref().unwrap().as_str().unwrap();
 
         let actual = LocalToken::encrypt_with_nonce(
             &sk,
@@ -317,13 +319,15 @@ mod test_vectors {
         assert_eq!(roundtrip, message.as_bytes(), "Failed {:?}", test.name);
 
         let parsed_claims = Claims::from_bytes(&roundtrip).unwrap();
+        let test_vector_claims = serde_json::from_str::<Payload>(message).unwrap();
+
         assert_eq!(
             parsed_claims.get_claim("data").unwrap().as_str().unwrap(),
-            test.payload.as_ref().unwrap().data
+            test_vector_claims.data,
         );
         assert_eq!(
             parsed_claims.get_claim("exp").unwrap().as_str().unwrap(),
-            test.payload.as_ref().unwrap().exp
+            test_vector_claims.exp,
         );
     }
 
@@ -351,7 +355,7 @@ mod test_vectors {
             return;
         }
 
-        let message = serde_json::to_string(test.payload.as_ref().unwrap()).unwrap();
+        let message = test.payload.as_ref().unwrap().as_str().unwrap();
 
         let actual = PublicToken::sign(
             &sk,

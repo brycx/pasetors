@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "std")))]
+
 use crate::errors::Error;
 use serde_json::Value;
 use std::collections::HashMap;

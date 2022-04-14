@@ -1,0 +1,15 @@
+{
+  "name": "PASERK k3.pid Test Vectors",
+  "tests": [
+    {
+      "name": "k3.pid-1",
+      "key": "02000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "paserk": "k3.pid.mL4lGxNG7cz128frmpn83_76V9C7LmV2sHAMtJ8vIdwG"
+    },
+    {
+      "name": "k3.pid-2",
+      "key": "02707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
+      "paserk": "k3.pid.gnwg7IkzZyQF9wJgLLT0OpbdMT7BYmdQoG2u-xXpeeHz"
+    }
+  ]
+}
