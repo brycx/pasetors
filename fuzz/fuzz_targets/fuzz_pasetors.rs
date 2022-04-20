@@ -1,12 +1,12 @@
 #![no_main]
-extern crate ed25519_dalek;
+extern crate ed25519_compact;
 extern crate pasetors;
 extern crate rand_chacha;
 extern crate rand_core;
 
 use libfuzzer_sys::fuzz_target;
 
-use ed25519_dalek::Keypair;
+use ed25519_compact::{Seed, PublicKey, KeyPair};
 use pasetors::claims::*;
 use pasetors::keys::*;
 use pasetors::{version2, version4};
@@ -14,7 +14,12 @@ use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 
 fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
-    let keypair: Keypair = Keypair::generate(csprng);
+    let mut seed_bytes = [0u8; 32];
+    csprng.fill(&mut seed_bytes).unwrap();
+    let seed = Seed::from_slice(&seed_bytes).unwrap();
+    let keypair: Keypair = Keypair::from_seed(seed);
+    // TODO: Currently fails. KeyPair will be replaced. See https://github.com/brycx/pasetors/issues/45
+    // TODO: AsymmetricKeyPair should have generate from seed for fuzzing purposes.
     let sk = AsymmetricSecretKey::<V2>::from(&keypair.secret.to_bytes()).unwrap();
     let pk = AsymmetricPublicKey::<V2>::from(&keypair.public.to_bytes()).unwrap();
     let mut key = [0u8; 32];

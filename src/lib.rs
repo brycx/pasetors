@@ -213,7 +213,7 @@ pub mod public {
         let token_raw = crate::common::decode_b64(parts_split[2])?;
 
         let claims =
-            Claims::from_bytes(&token_raw[..token_raw.len() - ed25519_dalek::SIGNATURE_LENGTH])?;
+            Claims::from_bytes(&token_raw[..token_raw.len() - ed25519_compact::Signature::BYTES])?;
         validation_rules.validate_claims(&claims)?;
 
         Ok(claims)
