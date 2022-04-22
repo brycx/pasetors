@@ -30,9 +30,9 @@ impl PublicToken {
         }
 
         let mut raw_key = Zeroizing::new([0u8; 64]);
-        raw_key.as_mut_slice()[..32].copy_from_slice(secret_key.as_bytes());
-        raw_key.as_mut_slice()[32..].copy_from_slice(public_key.as_bytes());
-        let kp = KeyPair::from_slice(raw_key.as_slice()).map_err(|_| Error::Key)?;
+        raw_key.as_mut()[..32].copy_from_slice(secret_key.as_bytes());
+        raw_key.as_mut()[32..].copy_from_slice(public_key.as_bytes());
+        let kp = KeyPair::from_slice(raw_key.as_ref()).map_err(|_| Error::Key)?;
 
         let f = footer.unwrap_or(&[]);
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f])?;
