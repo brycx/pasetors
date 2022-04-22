@@ -216,6 +216,7 @@ pub struct AsymmetricKeyPair<V> {
     pub secret: AsymmetricSecretKey<V>,
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "v2")))]
 #[cfg(feature = "v2")]
 impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
     fn generate() -> Result<AsymmetricKeyPair<V2>, Error> {
@@ -232,6 +233,7 @@ impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "v2")))]
 #[cfg(feature = "v2")]
 impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
     fn generate() -> Result<SymmetricKey<V2>, Error> {
@@ -246,6 +248,7 @@ impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "v3")))]
 #[cfg(feature = "v3")]
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
@@ -284,6 +287,7 @@ impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "v4")))]
 #[cfg(feature = "v4")]
 impl Generate<SymmetricKey<V4>, V4> for SymmetricKey<V4> {
     fn generate() -> Result<SymmetricKey<V4>, Error> {
@@ -298,6 +302,7 @@ impl Generate<SymmetricKey<V4>, V4> for SymmetricKey<V4> {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "v4")))]
 #[cfg(feature = "v4")]
 impl Generate<AsymmetricKeyPair<V4>, V4> for AsymmetricKeyPair<V4> {
     fn generate() -> Result<AsymmetricKeyPair<V4>, Error> {
