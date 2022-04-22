@@ -2,7 +2,6 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::convert::TryFrom;
 
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey, V4};
@@ -17,6 +16,7 @@ use orion::hazardous::stream::xchacha20;
 use blake2b::SecretKey as AuthKey;
 use xchacha20::Nonce as EncNonce;
 use xchacha20::SecretKey as EncKey;
+use zeroize::Zeroizing;
 
 /// PASETO v4 public tokens.
 pub struct PublicToken;
@@ -33,33 +33,24 @@ impl PublicToken {
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<String, Error> {
-        use ed25519_dalek::Keypair;
-        use ed25519_dalek::PublicKey;
-        use ed25519_dalek::SecretKey;
-        use ed25519_dalek::Signer;
+        use ed25519_compact::KeyPair;
 
         if message.is_empty() {
             return Err(Error::EmptyPayload);
         }
 
-        let secret = SecretKey::from_bytes(secret_key.as_bytes());
-        let public = PublicKey::from_bytes(public_key.as_bytes());
-
-        let kp: Keypair = match (secret, public) {
-            (Ok(sk), Ok(pk)) => Keypair {
-                secret: sk,
-                public: pk,
-            },
-            _ => return Err(Error::Key),
-        };
+        let mut raw_key = Zeroizing::new([0u8; 64]);
+        raw_key.as_mut()[..32].copy_from_slice(secret_key.as_bytes());
+        raw_key.as_mut()[32..].copy_from_slice(public_key.as_bytes());
+        let kp = KeyPair::from_slice(raw_key.as_ref()).map_err(|_| Error::Key)?;
 
         let f = footer.unwrap_or(&[]);
         let i = implicit_assert.unwrap_or(&[]);
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f, i])?;
-        let sig = kp.sign(m2.as_ref());
+        let sig = kp.sk.sign(m2, None);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
-        m_sig.extend_from_slice(sig.to_bytes().as_ref());
+        m_sig.extend_from_slice(sig.as_ref());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
 
@@ -77,8 +68,7 @@ impl PublicToken {
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<(), Error> {
-        use ed25519_dalek::PublicKey;
-        use ed25519_dalek::Signature;
+        use ed25519_compact::{PublicKey, Signature};
 
         if token.is_empty() {
             return Err(Error::EmptyPayload);
@@ -89,27 +79,21 @@ impl PublicToken {
 
         let parts_split = validate_format_footer(Self::HEADER, token, f)?;
         let sm = decode_b64(parts_split[2])?;
-        if sm.len() < ed25519_dalek::SIGNATURE_LENGTH {
+        if sm.len() < ed25519_compact::Signature::BYTES {
             return Err(Error::TokenFormat);
         }
 
-        let m = sm[..(sm.len() - ed25519_dalek::SIGNATURE_LENGTH)].as_ref();
-        let s = sm[m.len()..m.len() + ed25519_dalek::SIGNATURE_LENGTH].as_ref();
+        let m = sm[..(sm.len() - ed25519_compact::Signature::BYTES)].as_ref();
+        let s = sm[m.len()..m.len() + ed25519_compact::Signature::BYTES].as_ref();
 
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f, i])?;
-        let pk: PublicKey = match PublicKey::from_bytes(public_key.as_bytes()) {
-            Ok(val) => val,
-            Err(_) => return Err(Error::Key),
-        };
+        let pk: PublicKey = PublicKey::from_slice(public_key.as_bytes()).map_err(|_| Error::Key)?;
 
-        debug_assert!(s.len() == ed25519_dalek::SIGNATURE_LENGTH);
+        debug_assert!(s.len() == ed25519_compact::Signature::BYTES);
         // If the below fails, it is an invalid signature.
-        let sig = match Signature::try_from(s) {
-            Ok(val) => val,
-            Err(_) => return Err(Error::TokenValidation),
-        };
+        let sig = Signature::from_slice(s).map_err(|_| Error::TokenValidation)?;
 
-        if pk.verify_strict(m2.as_ref(), &sig).is_ok() {
+        if pk.verify(m2, &sig).is_ok() {
             Ok(())
         } else {
             Err(Error::TokenValidation)
