@@ -223,9 +223,9 @@ impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
         // TODO: This panics. catch_unwind and propagate
         let key_pair = KeyPair::generate();
 
-        let secret = AsymmetricSecretKey::<V2>::from(&key_pair.sk.as_slice()[..32])
+        let secret = AsymmetricSecretKey::<V2>::from(&key_pair.sk[..32])
             .map_err(|_| Error::KeyGeneration)?;
-        let public = AsymmetricPublicKey::<V2>::from(key_pair.pk.as_slice())
+        let public = AsymmetricPublicKey::<V2>::from(key_pair.pk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
 
         Ok(Self { public, secret })
@@ -305,9 +305,9 @@ impl Generate<AsymmetricKeyPair<V4>, V4> for AsymmetricKeyPair<V4> {
         // TODO: This panics. catch_unwind and propagate
         let key_pair = KeyPair::generate();
 
-        let secret = AsymmetricSecretKey::<V4>::from(&key_pair.sk.as_slice()[..32])
+        let secret = AsymmetricSecretKey::<V4>::from(&key_pair.sk[..32])
             .map_err(|_| Error::KeyGeneration)?;
-        let public = AsymmetricPublicKey::<V4>::from(key_pair.pk.as_slice())
+        let public = AsymmetricPublicKey::<V4>::from(key_pair.pk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
 
         Ok(Self { public, secret })
