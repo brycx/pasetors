@@ -8,6 +8,7 @@ __Changelog:__
 - Introduce separate crate-features for each version and one for PASERK: `v2`, `v3`, `v4` and `paserk`. `std`, `v4` and `paserk` are enabled by default
 - Add support for the PASERK [ID operation](https://github.com/paseto-standard/paserk/blob/master/operations/ID.md) ([#40](https://github.com/brycx/pasetors/issues/40))
 - Stricter permissions for GH Actions workflows ([#43](https://github.com/brycx/pasetors/pull/43))
+- Add `Generate` trait and implement this for all key-types, removing also `SymmetricKey::gen()` ([#45](https://github.com/brycx/pasetors/issues/45))
 
 ### 0.4.2
 

@@ -73,10 +73,25 @@ version = "0.16.20"
 default-features = false
 optional = true
 
+[dependencies.ed25519-compact]
+version = "1.0.11"
+default-features = false
+features = ["random"]
+optional = true
+
+[dependencies.pkcs8]
+version = "0.8.0"
+features = ["alloc"]
+optional = true
+
+[dependencies.sec1]
+version = "0.2.1"
+optional = true
+
 [features]
 default = [ "std", "v4", "paserk" ]
 std = [ "serde_json", "time" ]
-v2 = [ "orion", "ed25519-dalek" ]
-v3 = [ "num-bigint", "num-traits", "ring" ]
-v4 = [ "orion", "ed25519-dalek" ]
+v2 = [ "orion", "ed25519-dalek", "ed25519-compact" ]
+v3 = [ "num-bigint", "num-traits", "ring", "pkcs8", "sec1" ]
+v4 = [ "orion", "ed25519-dalek", "ed25519-compact" ]
 paserk = [ "orion" ]

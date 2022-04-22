@@ -332,6 +332,7 @@ mod test_vectors {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keys::{AsymmetricKeyPair, Generate};
 
     const TEST_SK_BYTES: [u8; 32] = [
         180, 203, 251, 67, 223, 76, 226, 16, 114, 125, 149, 62, 74, 113, 51, 7, 250, 25, 187, 125,
@@ -350,8 +351,16 @@ mod tests {
     const VALID_LOCAL_TOKEN: &'static str = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
     #[test]
+    fn test_gen_keypair() {
+        let kp = AsymmetricKeyPair::<V2>::generate().unwrap();
+
+        let token = PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None).unwrap();
+        assert!(PublicToken::verify(&kp.public, &token, None).is_ok());
+    }
+
+    #[test]
     fn test_roundtrip_local() {
-        let sk = SymmetricKey::<V2>::gen().unwrap();
+        let sk = SymmetricKey::<V2>::generate().unwrap();
 
         let token = LocalToken::encrypt(&sk, MESSAGE.as_bytes(), None).unwrap();
         let payload = LocalToken::decrypt(&sk, &token, None).unwrap();
