@@ -87,8 +87,7 @@ impl PublicToken {
         let s = sm[m.len()..m.len() + ed25519_compact::Signature::BYTES].as_ref();
 
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), m, f, i])?;
-        let pk: PublicKey =
-            PublicKey::from_slice(public_key.as_bytes()).map_err(|_| Error::Key)?;
+        let pk: PublicKey = PublicKey::from_slice(public_key.as_bytes()).map_err(|_| Error::Key)?;
 
         debug_assert!(s.len() == ed25519_compact::Signature::BYTES);
         // If the below fails, it is an invalid signature.
