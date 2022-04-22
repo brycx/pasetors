@@ -9,6 +9,7 @@ __Changelog:__
 - Add support for the PASERK [ID operation](https://github.com/paseto-standard/paserk/blob/master/operations/ID.md) ([#40](https://github.com/brycx/pasetors/issues/40))
 - Stricter permissions for GH Actions workflows ([#43](https://github.com/brycx/pasetors/pull/43))
 - Add `Generate` trait and implement this for all key-types, removing also `SymmetricKey::gen()` ([#45](https://github.com/brycx/pasetors/issues/45))
+- Switch from `ed25519-dalek` to `ed25519-compact` ([#48](https://github.com/brycx/pasetors/issues/48))
 
 ### 0.4.2
 

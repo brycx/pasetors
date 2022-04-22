@@ -1,22 +1,25 @@
 #![no_main]
-extern crate ed25519_dalek;
+extern crate ed25519_compact;
 extern crate pasetors;
 extern crate rand_chacha;
 extern crate rand_core;
 
 use libfuzzer_sys::fuzz_target;
 
-use ed25519_dalek::Keypair;
+use ed25519_compact::{KeyPair, Seed};
 use pasetors::claims::*;
 use pasetors::keys::*;
-use pasetors::{version2, version4};
+use pasetors::{version2, version3, version4};
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 
 fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
-    let keypair: Keypair = Keypair::generate(csprng);
-    let sk = AsymmetricSecretKey::<V2>::from(&keypair.secret.to_bytes()).unwrap();
-    let pk = AsymmetricPublicKey::<V2>::from(&keypair.public.to_bytes()).unwrap();
+    let mut seed_bytes = [0u8; 32];
+    csprng.fill_bytes(&mut seed_bytes);
+    let seed = Seed::from_slice(&seed_bytes).unwrap();
+    let keypair: KeyPair = KeyPair::from_seed(seed);
+    let sk = AsymmetricSecretKey::<V2>::from(&keypair.sk[..32]).unwrap();
+    let pk = AsymmetricPublicKey::<V2>::from(keypair.pk.as_ref()).unwrap();
     let mut key = [0u8; 32];
     csprng.fill_bytes(&mut key);
     let sk_local = SymmetricKey::<V2>::from(&key).unwrap();
@@ -44,10 +47,33 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 }
 
+fn fuzztest_v3(data: &[u8]) {
+    // *ring* keypair must be randomly generated. No way to seed it from their API.
+    let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
+    let message: String = String::from_utf8_lossy(data).into();
+    if message.is_empty() {
+        return;
+    }
+
+    // Public
+    if version3::PublicToken::verify(&kp.public, &message, None, None).is_ok() {
+        panic!("Invalid token was verified with version 3");
+    }
+    let public_token =
+        version3::PublicToken::sign(&kp.secret, &kp.public, message.as_bytes(), None, None)
+            .unwrap();
+    if version3::PublicToken::verify(&kp.public, &public_token, None, None).is_err() {
+        panic!("Valid token was NOT verified with version 3");
+    }
+}
+
 fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
-    let keypair: Keypair = Keypair::generate(csprng);
-    let sk = AsymmetricSecretKey::<V4>::from(&keypair.secret.to_bytes()).unwrap();
-    let pk = AsymmetricPublicKey::<V4>::from(&keypair.public.to_bytes()).unwrap();
+    let mut seed_bytes = [0u8; 32];
+    csprng.fill_bytes(&mut seed_bytes);
+    let seed = Seed::from_slice(&seed_bytes).unwrap();
+    let keypair: KeyPair = KeyPair::from_seed(seed);
+    let sk = AsymmetricSecretKey::<V4>::from(&keypair.sk[..32]).unwrap();
+    let pk = AsymmetricPublicKey::<V4>::from(keypair.pk.as_ref()).unwrap();
     let mut key = [0u8; 32];
     csprng.fill_bytes(&mut key);
     let sk_local = SymmetricKey::<V4>::from(&key).unwrap();
@@ -78,9 +104,12 @@ fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
 }
 
 fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
-    let keypair: Keypair = Keypair::generate(csprng);
-    let sk = AsymmetricSecretKey::<V4>::from(&keypair.secret.to_bytes()).unwrap();
-    let pk = AsymmetricPublicKey::<V4>::from(&keypair.public.to_bytes()).unwrap();
+    let mut seed_bytes = [0u8; 32];
+    csprng.fill_bytes(&mut seed_bytes);
+    let seed = Seed::from_slice(&seed_bytes).unwrap();
+    let keypair: KeyPair = KeyPair::from_seed(seed);
+    let sk = AsymmetricSecretKey::<V4>::from(&keypair.sk[..32]).unwrap();
+    let pk = AsymmetricPublicKey::<V4>::from(keypair.pk.as_ref()).unwrap();
     let mut key = [0u8; 32];
     csprng.fill_bytes(&mut key);
     let sk_local = SymmetricKey::<V4>::from(&key).unwrap();
@@ -175,6 +204,7 @@ fuzz_target!(|data: &[u8]| {
     let mut csprng = rand_chacha::ChaCha20Rng::seed_from_u64(123456789u64);
 
     fuzztest_v2(data, &mut csprng);
+    fuzztest_v3(data);
     fuzztest_v4(data, &mut csprng);
     fuzz_highlevel(data, &mut csprng);
     fuzz_paserk(data);
