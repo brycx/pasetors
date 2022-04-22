@@ -396,7 +396,7 @@ mod test_vectors {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keys::SymmetricKey;
+    use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
 
     // In version 2 tests, the SK used for public tokens is valid for the local as well.
     // Not the case with version 4.
@@ -420,6 +420,15 @@ mod tests {
     const FOOTER: &'static str = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
     const VALID_PUBLIC_TOKEN: &'static str = "v4.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9v3Jt8mx_TdM2ceTGoqwrh4yDFn0XsHvvV_D0DtwQxVrJEBMl0F2caAdgnpKlt4p7xBnx1HcO-SPo8FPp214HDw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
     const VALID_LOCAL_TOKEN: &'static str = "v4.local.32VIErrEkmY4JVILovbmfPXKW9wT1OdQepjMTC_MOtjA4kiqw7_tcaOM5GNEcnTxl60WkwMsYXw6FSNb_UdJPXjpzm0KW9ojM5f4O2mRvE2IcweP-PRdoHjd5-RHCiExR1IK6t4x-RMNXtQNbz7FvFZ_G-lFpk5RG3EOrwDL6CgDqcerSQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
+
+    #[test]
+    fn test_gen_keypair() {
+        let kp = AsymmetricKeyPair::<V4>::generate().unwrap();
+
+        let token =
+            PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None, None).unwrap();
+        assert!(PublicToken::verify(&kp.public, &token, None, None).is_ok());
+    }
 
     #[test]
     fn test_roundtrip_local() {

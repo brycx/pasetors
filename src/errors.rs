@@ -31,6 +31,8 @@ pub enum Error {
     Signing,
     /// Error during conversion between uncompressed<->compressed public keys.
     PublicKeyConversion,
+    /// Error during key generation.
+    KeyGeneration,
 }
 
 #[cfg(feature = "std")]
