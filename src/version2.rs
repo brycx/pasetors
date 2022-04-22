@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_local() {
-        let sk = SymmetricKey::<V2>::gen().unwrap();
+        let sk = SymmetricKey::<V2>::generate().unwrap();
 
         let token = LocalToken::encrypt(&sk, MESSAGE.as_bytes(), None).unwrap();
         let payload = LocalToken::decrypt(&sk, &token, None).unwrap();

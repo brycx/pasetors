@@ -43,7 +43,7 @@
 //! ## Creating and verifying local tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{SymmetricKey, V4};
+//! use pasetors::keys::{Generate, SymmetricKey, V4};
 //! use pasetors::local;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
@@ -52,7 +52,7 @@
 //! claims.add_additional("data", "A secret, encrypted message")?;
 //!
 //! // Generate the key and encrypt the claims.
-//! let sk = SymmetricKey::<V4>::gen()?;
+//! let sk = SymmetricKey::<V4>::generate()?;
 //! let token = local::encrypt(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
@@ -114,11 +114,11 @@
 //! ## PASERK serialization
 //! ```rust
 //! use pasetors::paserk::FormatAsPaserk;
-//! use pasetors::keys::{SymmetricKey, V4};
+//! use pasetors::keys::{Generate, SymmetricKey, V4};
 //! use core::convert::TryFrom;
 //!
 //! // Generate the key and serialize to and from PASERK.
-//! let sk = SymmetricKey::<V4>::gen()?;
+//! let sk = SymmetricKey::<V4>::generate()?;
 //! let mut paserk = String::new();
 //! sk.fmt(&mut paserk).unwrap();
 //! let sk = SymmetricKey::<V4>::try_from(paserk)?;

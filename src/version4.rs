@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_local() {
-        let sk = SymmetricKey::<V4>::gen().unwrap();
+        let sk = SymmetricKey::<V4>::generate().unwrap();
         let message = b"token payload";
 
         let token = LocalToken::encrypt(&sk, message, None, None).unwrap();

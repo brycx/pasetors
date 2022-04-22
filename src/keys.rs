@@ -132,19 +132,6 @@ impl<V: Version> SymmetricKey<V> {
     pub fn as_bytes(&self) -> &[u8] {
         self.bytes.as_slice()
     }
-
-    /// Randomly generate a `SymmetricKey`.
-    pub fn gen() -> Result<Self, Error> {
-        let mut rng_bytes = vec![0u8; V::LOCAL];
-        // We add this on all-zero bytes, to "propagate" the `unimplemented!()` for `v3.local`.
-        V::validate_local(&rng_bytes)?;
-        getrandom::getrandom(&mut rng_bytes)?;
-
-        Ok(Self {
-            bytes: rng_bytes,
-            phantom: PhantomData,
-        })
-    }
 }
 
 impl<V> Drop for SymmetricKey<V> {
@@ -245,6 +232,20 @@ impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
     }
 }
 
+#[cfg(feature = "v2")]
+impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
+    fn generate() -> Result<SymmetricKey<V2>, Error> {
+        let mut rng_bytes = vec![0u8; V2::LOCAL];
+        V2::validate_local(&rng_bytes)?;
+        getrandom::getrandom(&mut rng_bytes)?;
+
+        Ok(Self {
+            bytes: rng_bytes,
+            phantom: PhantomData,
+        })
+    }
+}
+
 #[cfg(feature = "v3")]
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
@@ -280,6 +281,20 @@ impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
         let secret = AsymmetricSecretKey::<V3>::from(parsed_ec_private_key.private_key)?;
 
         Ok(Self { public, secret })
+    }
+}
+
+#[cfg(feature = "v4")]
+impl Generate<SymmetricKey<V4>, V4> for SymmetricKey<V4> {
+    fn generate() -> Result<SymmetricKey<V4>, Error> {
+        let mut rng_bytes = vec![0u8; V4::LOCAL];
+        V4::validate_local(&rng_bytes)?;
+        getrandom::getrandom(&mut rng_bytes)?;
+
+        Ok(Self {
+            bytes: rng_bytes,
+            phantom: PhantomData,
+        })
     }
 }
 
@@ -329,8 +344,8 @@ mod tests {
 
     #[test]
     fn test_symmetric_gen() {
-        let randomv2 = SymmetricKey::<V2>::gen().unwrap();
-        let randomv4 = SymmetricKey::<V4>::gen().unwrap();
+        let randomv2 = SymmetricKey::<V2>::generate().unwrap();
+        let randomv4 = SymmetricKey::<V4>::generate().unwrap();
 
         assert_ne!(randomv2.as_bytes(), &[0u8; 32]);
         assert_ne!(randomv4.as_bytes(), &[0u8; 32]);
