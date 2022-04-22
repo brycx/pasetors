@@ -13,9 +13,8 @@
 //! ## Creating and verifying public tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{AsymmetricSecretKey, AsymmetricPublicKey, V4};
+//! use pasetors::keys::{Generate, AsymmetricKeyPair, AsymmetricSecretKey, AsymmetricPublicKey, V4};
 //! use pasetors::public;
-//! use ed25519_dalek::Keypair;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
 //! // Add a custom `data` claim as well.
@@ -23,11 +22,8 @@
 //! claims.add_additional("data", "A public, signed message")?;
 //!
 //! // Generate the keys and sign the claims.
-//! let mut csprng = rand::rngs::OsRng{};
-//! let keypair: Keypair = Keypair::generate(&mut csprng);
-//! let sk = AsymmetricSecretKey::<V4>::from(&keypair.secret.to_bytes())?;
-//! let pk = AsymmetricPublicKey::<V4>::from(&keypair.public.to_bytes())?;
-//! let pub_token = public::sign(&sk, &pk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let kp = AsymmetricKeyPair::<V4>::generate()?;
+//! let pub_token = public::sign(&kp.secret, &kp.public, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
@@ -35,7 +31,7 @@
 //! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
-//! let claims_from = public::verify(&pk, &pub_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let claims_from = public::verify(&kp.public, &pub_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
 //! assert_eq!(claims, claims_from);
 //!
 //! println!("{:?}", claims.get_claim("data"));
@@ -47,7 +43,7 @@
 //! ## Creating and verifying local tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{SymmetricKey, V4};
+//! use pasetors::keys::{Generate, SymmetricKey, V4};
 //! use pasetors::local;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
@@ -56,7 +52,7 @@
 //! claims.add_additional("data", "A secret, encrypted message")?;
 //!
 //! // Generate the key and encrypt the claims.
-//! let sk = SymmetricKey::<V4>::gen()?;
+//! let sk = SymmetricKey::<V4>::generate()?;
 //! let token = local::encrypt(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
@@ -118,11 +114,11 @@
 //! ## PASERK serialization
 //! ```rust
 //! use pasetors::paserk::FormatAsPaserk;
-//! use pasetors::keys::{SymmetricKey, V4};
+//! use pasetors::keys::{Generate, SymmetricKey, V4};
 //! use core::convert::TryFrom;
 //!
 //! // Generate the key and serialize to and from PASERK.
-//! let sk = SymmetricKey::<V4>::gen()?;
+//! let sk = SymmetricKey::<V4>::generate()?;
 //! let mut paserk = String::new();
 //! sk.fmt(&mut paserk).unwrap();
 //! let sk = SymmetricKey::<V4>::try_from(paserk)?;

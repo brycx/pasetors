@@ -548,6 +548,7 @@ mod test_wycheproof_point_compression {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keys::{AsymmetricKeyPair, Generate};
 
     // 3-S-2 values
     const TEST_SK_BYTES: [u8; 48] = [
@@ -565,6 +566,15 @@ mod tests {
         "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}";
     const FOOTER: &'static str = "{\"kid\":\"dYkISylxQeecEcHELfzF88UZrwbLolNiCdpzUHGw9Uqn\"}";
     const VALID_PUBLIC_TOKEN: &'static str = "v3.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9ZWrbGZ6L0MDK72skosUaS0Dz7wJ_2bMcM6tOxFuCasO9GhwHrvvchqgXQNLQQyWzGC2wkr-VKII71AvkLpC8tJOrzJV1cap9NRwoFzbcXjzMZyxQ0wkshxZxx8ImmNWP.eyJraWQiOiJkWWtJU3lseFFlZWNFY0hFTGZ6Rjg4VVpyd2JMb2xOaUNkcHpVSEd3OVVxbiJ9";
+
+    #[test]
+    fn test_gen_keypair() {
+        let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
+
+        let token =
+            PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None, None).unwrap();
+        assert!(PublicToken::verify(&kp.public, &token, None, None).is_ok());
+    }
 
     #[test]
     fn test_roundtrip_public() {
