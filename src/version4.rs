@@ -382,7 +382,7 @@ mod tests {
     use super::*;
     use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
     use crate::token::UntrustedToken;
-    use std::convert::TryFrom;
+    use core::convert::TryFrom;
 
     // In version 2 tests, the SK used for public tokens is valid for the local as well.
     // Not the case with version 4.

@@ -318,7 +318,7 @@ mod tests {
     use super::*;
     use crate::keys::{AsymmetricKeyPair, Generate};
     use crate::token::UntrustedToken;
-    use std::convert::TryFrom;
+    use core::convert::TryFrom;
 
     const TEST_SK_BYTES: [u8; 32] = [
         180, 203, 251, 67, 223, 76, 226, 16, 114, 125, 149, 62, 74, 113, 51, 7, 250, 25, 187, 125,
