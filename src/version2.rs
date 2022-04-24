@@ -317,6 +317,8 @@ mod test_vectors {
 mod tests {
     use super::*;
     use crate::keys::{AsymmetricKeyPair, Generate};
+    use crate::token::UntrustedToken;
+    use std::convert::TryFrom;
 
     const TEST_SK_BYTES: [u8; 32] = [
         180, 203, 251, 67, 223, 76, 226, 16, 114, 125, 149, 62, 74, 113, 51, 7, 250, 25, 187, 125,
@@ -340,6 +342,35 @@ mod tests {
 
         let token = PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None).unwrap();
         assert!(PublicToken::verify(&kp.public, &token, None).is_ok());
+    }
+
+    #[test]
+    fn test_untrusted_token_usage() {
+        // Local
+        let sk = SymmetricKey::<V2>::generate().unwrap();
+        let token = LocalToken::encrypt(&sk, MESSAGE.as_bytes(), Some(FOOTER.as_bytes())).unwrap();
+
+        let untrusted_token = UntrustedToken::try_from(token.as_str()).unwrap();
+        let _ =
+            LocalToken::decrypt(&sk, &token, Some(untrusted_token.get_untrusted_footer())).unwrap();
+
+        // Public
+        let kp = AsymmetricKeyPair::<V2>::generate().unwrap();
+        let token = PublicToken::sign(
+            &kp.secret,
+            &kp.public,
+            MESSAGE.as_bytes(),
+            Some(FOOTER.as_bytes()),
+        )
+        .unwrap();
+
+        let untrusted_token = UntrustedToken::try_from(token.as_str()).unwrap();
+        assert!(PublicToken::verify(
+            &kp.public,
+            &token,
+            Some(untrusted_token.get_untrusted_footer())
+        )
+        .is_ok());
     }
 
     #[test]

@@ -381,6 +381,8 @@ mod test_vectors {
 mod tests {
     use super::*;
     use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
+    use crate::token::UntrustedToken;
+    use std::convert::TryFrom;
 
     // In version 2 tests, the SK used for public tokens is valid for the local as well.
     // Not the case with version 4.
@@ -412,6 +414,43 @@ mod tests {
         let token =
             PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None, None).unwrap();
         assert!(PublicToken::verify(&kp.public, &token, None, None).is_ok());
+    }
+
+    #[test]
+    fn test_untrusted_token_usage() {
+        // Local
+        let sk = SymmetricKey::<V4>::generate().unwrap();
+        let token =
+            LocalToken::encrypt(&sk, MESSAGE.as_bytes(), Some(FOOTER.as_bytes()), None).unwrap();
+
+        let untrusted_token = UntrustedToken::try_from(token.as_str()).unwrap();
+        let _ = LocalToken::decrypt(
+            &sk,
+            &token,
+            Some(untrusted_token.get_untrusted_footer()),
+            None,
+        )
+        .unwrap();
+
+        // Public
+        let kp = AsymmetricKeyPair::<V4>::generate().unwrap();
+        let token = PublicToken::sign(
+            &kp.secret,
+            &kp.public,
+            MESSAGE.as_bytes(),
+            Some(FOOTER.as_bytes()),
+            None,
+        )
+        .unwrap();
+
+        let untrusted_token = UntrustedToken::try_from(token.as_str()).unwrap();
+        assert!(PublicToken::verify(
+            &kp.public,
+            &token,
+            Some(untrusted_token.get_untrusted_footer()),
+            None
+        )
+        .is_ok());
     }
 
     #[test]

@@ -172,6 +172,9 @@ pub mod version3;
 /// PASETO version 4 tokens.
 pub mod version4;
 
+/// Types for handling tokens.
+pub mod token;
+
 #[cfg_attr(docsrs, doc(cfg(all(feature = "std", feature = "v4"))))]
 #[cfg(all(feature = "std", feature = "v4"))]
 /// PASETO public tokens with [`version4`], using [`claims::Claims`].

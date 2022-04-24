@@ -549,6 +549,7 @@ mod test_wycheproof_point_compression {
 mod tests {
     use super::*;
     use crate::keys::{AsymmetricKeyPair, Generate};
+    use crate::token::UntrustedToken;
 
     // 3-S-2 values
     const TEST_SK_BYTES: [u8; 48] = [
@@ -574,6 +575,29 @@ mod tests {
         let token =
             PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None, None).unwrap();
         assert!(PublicToken::verify(&kp.public, &token, None, None).is_ok());
+    }
+
+    #[test]
+    fn test_untrusted_token_usage() {
+        // Public
+        let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let token = PublicToken::sign(
+            &kp.secret,
+            &kp.public,
+            MESSAGE.as_bytes(),
+            Some(FOOTER.as_bytes()),
+            None,
+        )
+        .unwrap();
+
+        let untrusted_token = UntrustedToken::try_from(token.as_str()).unwrap();
+        assert!(PublicToken::verify(
+            &kp.public,
+            &token,
+            Some(untrusted_token.get_untrusted_footer()),
+            None
+        )
+        .is_ok());
     }
 
     #[test]
