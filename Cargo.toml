@@ -80,9 +80,13 @@ optional = true
 version = "0.2.1"
 optional = true
 
+[dependencies.regex]
+version = "1.5.5"
+optional = true
+
 [features]
 default = [ "std", "v4", "paserk" ]
-std = [ "serde_json", "time" ]
+std = [ "serde_json", "time", "regex" ]
 v2 = [ "orion", "ed25519-compact" ]
 v3 = [ "num-bigint", "num-traits", "ring", "pkcs8", "sec1" ]
 v4 = [ "orion", "ed25519-compact" ]
