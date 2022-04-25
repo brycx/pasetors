@@ -1,3 +1,5 @@
+use crate::alloc::string::ToString;
+#[cfg(feature = "std")]
 use crate::claims::Claims;
 use crate::common;
 use crate::errors::Error;
