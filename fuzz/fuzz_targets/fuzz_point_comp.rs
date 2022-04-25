@@ -8,6 +8,7 @@ use libfuzzer_sys::fuzz_target;
 use core::convert::TryFrom;
 use pasetors::keys::*;
 use pasetors::version3::UncompressedPublicKey;
+use pasetors::V3;
 use ring::signature::{
     EcdsaKeyPair, KeyPair, UnparsedPublicKey, ECDSA_P384_SHA384_FIXED,
     ECDSA_P384_SHA384_FIXED_SIGNING,
