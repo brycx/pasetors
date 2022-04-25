@@ -1,9 +1,15 @@
 use crate::errors::Error;
 use crate::version::private::Version;
-use crate::{V2, V3, V4};
+use crate::V4;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
+
+#[cfg(feature = "v2")]
+use crate::V2;
+
+#[cfg(feature = "v3")]
+use crate::V3;
 
 /// A type `T` that can be generated for a given version `V`.
 pub trait Generate<T, V: Version> {
