@@ -1,4 +1,6 @@
 use crate::errors::Error;
+use crate::token::UntrustedToken;
+use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
 use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
@@ -29,36 +31,28 @@ pub(crate) fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Error> {
 /// Validate that a token begins with a given header.purpose and does not contain more than:
 /// header.purpose.payload.footer
 /// If a footer is present, this is validated against the supplied.
-pub(crate) fn validate_format_footer<'a>(
+pub(crate) fn validate_format_untrusted_token<'a, V: Version>(
     header: &'a str,
-    token: &'a str,
-    footer: &[u8],
-) -> Result<Vec<&'a str>, Error> {
-    if !token.starts_with(header) {
+    token: &UntrustedToken<V>,
+    footer: Option<&[u8]>,
+) -> Result<(), Error> {
+    if token.untrusted_header() != header {
         return Err(Error::TokenFormat);
     }
 
-    let parts_split = token.split('.').collect::<Vec<&str>>();
-    if parts_split.len() < 3 || parts_split.len() > 4 {
-        return Err(Error::TokenFormat);
-    }
-
-    let is_footer_present = parts_split.len() == 4;
-    if !is_footer_present && !footer.is_empty() {
-        return Err(Error::TokenValidation);
-    }
-    if is_footer_present {
-        if footer.is_empty() {
+    // A known footer was supplied for comparison.
+    if let Some(known_footer) = footer {
+        if token.untrusted_footer().is_empty() {
+            // If one was supplied, one must exist in the untrusted.
             return Err(Error::TokenValidation);
         }
 
-        let token_footer = decode_b64(parts_split[3])?;
-        if !bool::from(footer.ct_eq(token_footer.as_ref())) {
+        if !bool::from(known_footer.ct_eq(token.untrusted_footer())) {
             return Err(Error::TokenValidation);
         }
     }
 
-    Ok(parts_split)
+    Ok(())
 }
 
 #[cfg(test)]

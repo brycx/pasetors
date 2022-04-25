@@ -33,6 +33,8 @@ pub enum Error {
     PublicKeyConversion,
     /// Error during key generation.
     KeyGeneration,
+    /// The payload was not valid UTF-8.
+    PayloadInvalidUtf8,
 }
 
 #[cfg(feature = "std")]
