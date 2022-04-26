@@ -25,7 +25,7 @@
 //!
 //! // Generate the keys and sign the claims.
 //! let kp = AsymmetricKeyPair::<V4>::generate()?;
-//! let pub_token = public::sign(&kp.secret, &kp.public, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let pub_token = public::sign(&kp.secret, &kp.public, &claims, None, Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
@@ -34,7 +34,7 @@
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
 //! let untrusted_token = UntrustedToken::<Public, V4>::try_from(&pub_token)?;
-//! let trusted_token = public::verify(&kp.public, &untrusted_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let trusted_token = public::verify(&kp.public, &untrusted_token, &validation_rules, None, Some(b"implicit assertion"))?;
 //! assert_eq!(&claims, trusted_token.payload_claims().unwrap());
 //!
 //! let claims = trusted_token.payload_claims().unwrap();
@@ -60,7 +60,7 @@
 //!
 //! // Generate the key and encrypt the claims.
 //! let sk = SymmetricKey::<V4>::generate()?;
-//! let token = local::encrypt(&sk, &claims, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let token = local::encrypt(&sk, &claims, None, Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
@@ -69,7 +69,7 @@
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
 //! let untrusted_token = UntrustedToken::<Local, V4>::try_from(&token)?;
-//! let trusted_token = local::decrypt(&sk, &untrusted_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! let trusted_token = local::decrypt(&sk, &untrusted_token, &validation_rules, None, Some(b"implicit assertion"))?;
 //! assert_eq!(&claims, trusted_token.payload_claims().unwrap());
 //!
 //! let claims = trusted_token.payload_claims().unwrap();
@@ -121,6 +121,42 @@
 //! # Ok::<(), pasetors::errors::Error>(())
 //! ```
 
+//! ## Footer with registered and custom claims
+//! ```rust
+//! use pasetors::paserk::{FormatAsPaserk, Id};
+//! use pasetors::claims::{Claims, ClaimsValidationRules};
+//! use pasetors::footer::Footer;
+//! use pasetors::keys::{Generate, AsymmetricKeyPair};
+//! use pasetors::{public, Public, V4};
+//! use pasetors::token::UntrustedToken;
+//! use core::convert::TryFrom;
+//!
+//! // Generate the key used to later sign a token.
+//! let kp = AsymmetricKeyPair::<V4>::generate()?;
+//! // Serialize the public key to PASERK "pid".
+//! let mut pid = Id::from(&kp.public);
+//! // Add the "pid" to the "kid" claim of a footer.
+//! let mut footer = Footer::new();
+//! footer.key_id(&pid);
+//! footer.add_additional("custom_footer_claim", "custom_value")?;
+//!
+//! let mut claims = Claims::new()?;
+//! let pub_token = public::sign(&kp.secret, &kp.public, &claims, Some(&footer), Some(b"implicit assertion"))?;
+//!
+//! // If we receive a token that needs to be verified, we can still try to parse a Footer from it
+//! // as long one was used during creation, if we don't know it beforehand.
+//! let validation_rules = ClaimsValidationRules::new();
+//! let untrusted_token = UntrustedToken::<Public, V4>::try_from(&pub_token)?;
+//! let trusted_token = public::verify(&kp.public, &untrusted_token, &validation_rules, None, Some(b"implicit assertion"))?;
+//! let trusted_footer = Footer::try_from(&trusted_token)?;
+//!
+//! let mut kid = String::new();
+//! pid.fmt(&mut kid).unwrap();
+//! assert_eq!(trusted_footer.get_claim("kid").unwrap().as_str().unwrap(), kid);
+//!
+//! # Ok::<(), pasetors::errors::Error>(())
+//! ```
+
 //! ## PASERK serialization
 //! ```rust
 //! use pasetors::paserk::FormatAsPaserk;
@@ -164,6 +200,10 @@ mod common;
 /// Claims for tokens and validation thereof.
 pub mod claims;
 
+#[cfg(feature = "std")]
+/// Footer for tokens.
+pub mod footer;
+
 /// Keys used for PASETO tokens.
 pub mod keys;
 
@@ -201,6 +241,7 @@ pub mod public {
     use super::*;
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Error;
+    use crate::footer::Footer;
     use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
     use crate::token::{TrustedToken, UntrustedToken};
 
@@ -209,16 +250,25 @@ pub mod public {
         secret_key: &AsymmetricSecretKey<V4>,
         public_key: &AsymmetricPublicKey<V4>,
         message: &Claims,
-        footer: Option<&[u8]>,
+        footer: Option<&Footer>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<String, Error> {
-        crate::version4::PublicToken::sign(
-            secret_key,
-            public_key,
-            message.to_string()?.as_bytes(),
-            footer,
-            implicit_assert,
-        )
+        match footer {
+            Some(f) => crate::version4::PublicToken::sign(
+                secret_key,
+                public_key,
+                message.to_string()?.as_bytes(),
+                Some(f.to_string()?.as_bytes()),
+                implicit_assert,
+            ),
+            None => crate::version4::PublicToken::sign(
+                secret_key,
+                public_key,
+                message.to_string()?.as_bytes(),
+                None,
+                implicit_assert,
+            ),
+        }
     }
 
     /// Verify a public token using the latest PASETO version (v4). If verification passes,
@@ -227,11 +277,18 @@ pub mod public {
         public_key: &AsymmetricPublicKey<V4>,
         token: &UntrustedToken<Public, V4>,
         validation_rules: &ClaimsValidationRules,
-        footer: Option<&[u8]>,
+        footer: Option<&Footer>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
-        let mut trusted_token =
-            crate::version4::PublicToken::verify(public_key, token, footer, implicit_assert)?;
+        let mut trusted_token = match footer {
+            Some(f) => crate::version4::PublicToken::verify(
+                public_key,
+                token,
+                Some(f.to_string()?.as_bytes()),
+                implicit_assert,
+            )?,
+            None => crate::version4::PublicToken::verify(public_key, token, None, implicit_assert)?,
+        };
 
         let claims = Claims::from_string(trusted_token.payload())?;
         validation_rules.validate_claims(&claims)?;
@@ -248,6 +305,7 @@ pub mod local {
     use super::*;
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Error;
+    use crate::footer::Footer;
     use crate::keys::SymmetricKey;
     use crate::token::{TrustedToken, UntrustedToken};
 
@@ -255,15 +313,23 @@ pub mod local {
     pub fn encrypt(
         secret_key: &SymmetricKey<V4>,
         message: &Claims,
-        footer: Option<&[u8]>,
+        footer: Option<&Footer>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<String, Error> {
-        crate::version4::LocalToken::encrypt(
-            secret_key,
-            message.to_string()?.as_bytes(),
-            footer,
-            implicit_assert,
-        )
+        match footer {
+            Some(f) => crate::version4::LocalToken::encrypt(
+                secret_key,
+                message.to_string()?.as_bytes(),
+                Some(f.to_string()?.as_bytes()),
+                implicit_assert,
+            ),
+            None => crate::version4::LocalToken::encrypt(
+                secret_key,
+                message.to_string()?.as_bytes(),
+                None,
+                implicit_assert,
+            ),
+        }
     }
 
     /// Verify a local token using the latest PASETO version (v4). If verification passes,
@@ -272,11 +338,18 @@ pub mod local {
         secret_key: &SymmetricKey<V4>,
         token: &UntrustedToken<Local, V4>,
         validation_rules: &ClaimsValidationRules,
-        footer: Option<&[u8]>,
+        footer: Option<&Footer>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
-        let mut trusted_token =
-            crate::version4::LocalToken::decrypt(secret_key, token, footer, implicit_assert)?;
+        let mut trusted_token = match footer {
+            Some(f) => crate::version4::LocalToken::decrypt(
+                secret_key,
+                token,
+                Some(f.to_string()?.as_bytes()),
+                implicit_assert,
+            )?,
+            None => crate::version4::LocalToken::decrypt(secret_key, token, None, implicit_assert)?,
+        };
 
         let claims = Claims::from_string(trusted_token.payload())?;
         validation_rules.validate_claims(&claims)?;

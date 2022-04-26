@@ -35,6 +35,8 @@ pub enum Error {
     KeyGeneration,
     /// The payload was not valid UTF-8.
     PayloadInvalidUtf8,
+    /// Error during parsing of a `Footer`.
+    FooterParsing,
 }
 
 #[cfg(feature = "std")]
