@@ -14,7 +14,7 @@
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{Generate, AsymmetricKeyPair, AsymmetricSecretKey, AsymmetricPublicKey};
-//! use pasetors::{public, V4};
+//! use pasetors::{public, Public, V4};
 //! use pasetors::token::{UntrustedToken, TrustedToken};
 //! use core::convert::TryFrom;
 //!
@@ -33,7 +33,7 @@
 //! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
-//! let untrusted_token = UntrustedToken::try_from(&pub_token)?;
+//! let untrusted_token = UntrustedToken::<Public, V4>::try_from(&pub_token)?;
 //! let trusted_token = public::verify(&kp.public, &untrusted_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
 //! assert_eq!(&claims, trusted_token.payload_claims().unwrap());
 //!
@@ -49,7 +49,7 @@
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{Generate, SymmetricKey};
-//! use pasetors::{local, V4};
+//! use pasetors::{local, Local, V4};
 //! use pasetors::token::UntrustedToken;
 //! use core::convert::TryFrom;
 //!
@@ -68,7 +68,7 @@
 //! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
-//! let untrusted_token = UntrustedToken::try_from(&token)?;
+//! let untrusted_token = UntrustedToken::<Local, V4>::try_from(&token)?;
 //! let trusted_token = local::decrypt(&sk, &untrusted_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
 //! assert_eq!(&claims, trusted_token.payload_claims().unwrap());
 //!
