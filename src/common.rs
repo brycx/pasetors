@@ -1,4 +1,5 @@
 use crate::errors::Error;
+use crate::token::private::Purpose;
 use crate::token::UntrustedToken;
 use crate::version::private::Version;
 use alloc::string::String;
@@ -31,9 +32,9 @@ pub(crate) fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Error> {
 /// Validate that a token begins with a given header.purpose and does not contain more than:
 /// header.purpose.payload.footer
 /// If a footer is present, this is validated against the supplied.
-pub(crate) fn validate_format_untrusted_token<'a, V: Version>(
+pub(crate) fn validate_format_untrusted_token<'a, T: Purpose<V>, V: Version>(
     header: &'a str,
-    token: &UntrustedToken<V>,
+    token: &UntrustedToken<T, V>,
     footer: Option<&[u8]>,
 ) -> Result<(), Error> {
     if token.untrusted_header() != header {

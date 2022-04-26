@@ -3,7 +3,7 @@
 use crate::common::{encode_b64, validate_format_untrusted_token};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
-use crate::token::{TrustedToken, UntrustedToken};
+use crate::token::{Local, Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
 use crate::{pae, V2};
 use alloc::string::String;
@@ -60,7 +60,7 @@ impl PublicToken {
     /// If `footer.is_some()`, then it will be validated AND compared to the known value.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V2>,
-        token: &UntrustedToken<V2>,
+        token: &UntrustedToken<Public, V2>,
         footer: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
         validate_format_untrusted_token(Self::HEADER, token, footer)?;
@@ -160,7 +160,7 @@ impl LocalToken {
     /// If `footer.is_some()`, then it will be validated AND compared to the known value.
     pub fn decrypt(
         secret_key: &SymmetricKey<V2>,
-        token: &UntrustedToken<V2>,
+        token: &UntrustedToken<Local, V2>,
         footer: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
         validate_format_untrusted_token(Self::HEADER, token, footer)?;
@@ -221,7 +221,7 @@ mod test_vectors {
 
         // payload is null when we expect failure
         if test.expect_fail {
-            match UntrustedToken::<V2>::try_from(&test.token) {
+            match UntrustedToken::<Local, V2>::try_from(&test.token) {
                 Ok(ut) => {
                     assert!(LocalToken::decrypt(&sk, &ut, footer).is_err());
                 }
@@ -238,7 +238,7 @@ mod test_vectors {
                 .unwrap();
         assert_eq!(actual, test.token, "Failed {:?}", test.name);
 
-        let ut = UntrustedToken::<V2>::try_from(&test.token).unwrap();
+        let ut = UntrustedToken::<Local, V2>::try_from(&test.token).unwrap();
         let trusted = LocalToken::decrypt(&sk, &ut, footer).unwrap();
         assert_eq!(trusted.payload(), message, "Failed {:?}", test.name);
         assert_eq!(trusted.footer(), test.footer.as_bytes());
@@ -278,7 +278,7 @@ mod test_vectors {
 
         // payload is null when we expect failure
         if test.expect_fail {
-            match UntrustedToken::<V2>::try_from(&test.token) {
+            match UntrustedToken::<Public, V2>::try_from(&test.token) {
                 Ok(ut) => {
                     assert!(PublicToken::verify(&pk, &ut, footer).is_err());
                 }
@@ -292,7 +292,7 @@ mod test_vectors {
 
         let actual = PublicToken::sign(&sk, &pk, message.as_bytes(), footer).unwrap();
         assert_eq!(actual, test.token, "Failed {:?}", test.name);
-        let ut = UntrustedToken::<V2>::try_from(&test.token).unwrap();
+        let ut = UntrustedToken::<Public, V2>::try_from(&test.token).unwrap();
 
         let trusted = PublicToken::verify(&pk, &ut, footer).unwrap();
         assert_eq!(trusted.payload(), message);
@@ -351,7 +351,7 @@ mod tests {
 
         let token = PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None).unwrap();
 
-        let ut = UntrustedToken::<V2>::try_from(&token).unwrap();
+        let ut = UntrustedToken::<Public, V2>::try_from(&token).unwrap();
         assert!(PublicToken::verify(&kp.public, &ut, None).is_ok());
     }
 
@@ -361,7 +361,7 @@ mod tests {
         let sk = SymmetricKey::<V2>::generate().unwrap();
         let token = LocalToken::encrypt(&sk, MESSAGE.as_bytes(), Some(FOOTER.as_bytes())).unwrap();
 
-        let untrusted_token = UntrustedToken::<V2>::try_from(token.as_str()).unwrap();
+        let untrusted_token = UntrustedToken::<Local, V2>::try_from(token.as_str()).unwrap();
         let _ = LocalToken::decrypt(
             &sk,
             &untrusted_token,
@@ -379,7 +379,7 @@ mod tests {
         )
         .unwrap();
 
-        let untrusted_token = UntrustedToken::<V2>::try_from(token.as_str()).unwrap();
+        let untrusted_token = UntrustedToken::<Public, V2>::try_from(token.as_str()).unwrap();
         assert!(PublicToken::verify(&kp.public, &untrusted_token, Some(FOOTER.as_bytes())).is_ok());
     }
 
@@ -389,7 +389,7 @@ mod tests {
         let message = "token payload";
 
         let token = LocalToken::encrypt(&sk, message.as_bytes(), None).unwrap();
-        let ut = UntrustedToken::<V2>::try_from(&token).unwrap();
+        let ut = UntrustedToken::<Local, V2>::try_from(&token).unwrap();
         let trusted_token = LocalToken::decrypt(&sk, &ut, None).unwrap();
 
         assert_eq!(trusted_token.payload(), message);
@@ -401,7 +401,7 @@ mod tests {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None).unwrap();
-        let ut = UntrustedToken::<V2>::try_from(&token).unwrap();
+        let ut = UntrustedToken::<Public, V2>::try_from(&token).unwrap();
 
         assert!(PublicToken::verify(&test_pk, &ut, None).is_ok());
     }
@@ -415,11 +415,11 @@ mod tests {
             b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
 
         // We create a token with Some(footer) and with None
-        let actual_some = UntrustedToken::<V2>::try_from(
+        let actual_some = UntrustedToken::<Public, V2>::try_from(
             &PublicToken::sign(&test_sk, &test_pk, message, Some(FOOTER.as_bytes())).unwrap(),
         )
         .unwrap();
-        let actual_none = UntrustedToken::<V2>::try_from(
+        let actual_none = UntrustedToken::<Public, V2>::try_from(
             &PublicToken::sign(&test_sk, &test_pk, message, None).unwrap(),
         )
         .unwrap();
@@ -435,11 +435,11 @@ mod tests {
         // We should NOT be able to validate with Some() if created with None
         assert!(PublicToken::verify(&test_pk, &actual_none, Some(FOOTER.as_bytes())).is_err());
 
-        let actual_some = UntrustedToken::<V2>::try_from(
+        let actual_some = UntrustedToken::<Local, V2>::try_from(
             &LocalToken::encrypt(&test_local_sk, message, Some(FOOTER.as_bytes())).unwrap(),
         )
         .unwrap();
-        let actual_none = UntrustedToken::<V2>::try_from(
+        let actual_none = UntrustedToken::<Local, V2>::try_from(
             &LocalToken::encrypt(&test_local_sk, message, None).unwrap(),
         )
         .unwrap();
@@ -470,33 +470,6 @@ mod tests {
     }
 
     #[test]
-    fn err_on_modified_purpose() {
-        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
-
-        assert_eq!(
-            PublicToken::verify(
-                &test_pk,
-                &UntrustedToken::<V2>::try_from(&VALID_PUBLIC_TOKEN.replace("public", "local"))
-                    .unwrap(),
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Error::TokenFormat
-        );
-        assert_eq!(
-            LocalToken::decrypt(
-                &test_local_sk,
-                &UntrustedToken::<V2>::try_from(&VALID_LOCAL_TOKEN.replace("local", "public"))
-                    .unwrap(),
-                Some(FOOTER.as_bytes())
-            )
-            .unwrap_err(),
-            Error::TokenFormat
-        );
-    }
-
-    #[test]
     fn err_on_modified_footer() {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
         let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
@@ -504,7 +477,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(&FOOTER.replace("kid", "mid").as_bytes())
             )
             .unwrap_err(),
@@ -513,7 +486,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
-                &UntrustedToken::<V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
                 Some(&FOOTER.replace("kid", "mid").as_bytes())
             )
             .unwrap_err(),
@@ -529,7 +502,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(b"")
             )
             .unwrap_err(),
@@ -538,7 +511,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
-                &UntrustedToken::<V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
                 Some(b"")
             )
             .unwrap_err(),
@@ -564,7 +537,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V2>::try_from(&invalid_public).unwrap(),
+                &UntrustedToken::<Public, V2>::try_from(&invalid_public).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -573,7 +546,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
-                &UntrustedToken::<V2>::try_from(&invalid_local).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(&invalid_local).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -598,7 +571,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V2>::try_from(&invalid_public).unwrap(),
+                &UntrustedToken::<Public, V2>::try_from(&invalid_public).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -624,7 +597,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
-                &UntrustedToken::<V2>::try_from(&invalid_local).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(&invalid_local).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -650,7 +623,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
-                &UntrustedToken::<V2>::try_from(&invalid_local).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(&invalid_local).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -676,7 +649,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
-                &UntrustedToken::<V2>::try_from(&invalid_local).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(&invalid_local).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -691,7 +664,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &bad_pk,
-                &UntrustedToken::<V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),
@@ -706,7 +679,7 @@ mod tests {
         assert_eq!(
             LocalToken::decrypt(
                 &bad_local_sk,
-                &UntrustedToken::<V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
+                &UntrustedToken::<Local, V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
                 Some(FOOTER.as_bytes())
             )
             .unwrap_err(),

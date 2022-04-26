@@ -17,7 +17,7 @@
 use crate::common::{encode_b64, validate_format_untrusted_token};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
-use crate::token::{TrustedToken, UntrustedToken};
+use crate::token::{Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
 use crate::{pae, V3};
 use alloc::string::String;
@@ -264,7 +264,7 @@ impl PublicToken {
     /// returned here can both mean an invalid public key and an invalid signature.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V3>,
-        token: &UntrustedToken<V3>,
+        token: &UntrustedToken<Public, V3>,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
@@ -395,7 +395,7 @@ mod test_vectors {
         let pk = AsymmetricPublicKey::<V3>::from(&raw_pk).unwrap();
         let message = "this is a signed message";
 
-        let token = UntrustedToken::<V3>::try_from(
+        let token = UntrustedToken::<Public, V3>::try_from(
             &PublicToken::sign(&sk, &pk, message.as_bytes(), Some(b"footer"), Some(b"impl"))
                 .unwrap(),
         )
@@ -422,7 +422,7 @@ mod test_vectors {
 
         // payload is null when we expect failure
         if test.expect_fail {
-            match UntrustedToken::<V3>::try_from(&test.token) {
+            match UntrustedToken::<Public, V3>::try_from(&test.token) {
                 Ok(ut) => {
                     assert!(PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).is_err());
                 }
@@ -436,7 +436,7 @@ mod test_vectors {
 
         // We do not have support for deterministic nonces, so we cannot reproduce a signature
         // because ring uses CSPRNG for k-value. Therefor, we can only validate (compared to V2/V4 tests).
-        let ut = UntrustedToken::<V3>::try_from(&test.token).unwrap();
+        let ut = UntrustedToken::<Public, V3>::try_from(&test.token).unwrap();
 
         let trusted = PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).unwrap();
         assert_eq!(trusted.payload(), message);
@@ -586,7 +586,7 @@ mod tests {
         let token =
             PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None, None).unwrap();
 
-        let ut = UntrustedToken::<V3>::try_from(&token).unwrap();
+        let ut = UntrustedToken::<Public, V3>::try_from(&token).unwrap();
         assert!(PublicToken::verify(&kp.public, &ut, None, None).is_ok());
     }
 
@@ -603,7 +603,7 @@ mod tests {
         )
         .unwrap();
 
-        let untrusted_token = UntrustedToken::<V3>::try_from(token.as_str()).unwrap();
+        let untrusted_token = UntrustedToken::<Public, V3>::try_from(token.as_str()).unwrap();
         assert!(PublicToken::verify(
             &kp.public,
             &untrusted_token,
@@ -619,7 +619,7 @@ mod tests {
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
 
         let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None, None).unwrap();
-        let ut = UntrustedToken::<V3>::try_from(&token).unwrap();
+        let ut = UntrustedToken::<Public, V3>::try_from(&token).unwrap();
 
         assert!(PublicToken::verify(&test_pk, &ut, None, None).is_ok());
     }
@@ -632,11 +632,11 @@ mod tests {
             b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
 
         // We create a token with Some(footer) and with None
-        let actual_some = UntrustedToken::<V3>::try_from(
+        let actual_some = UntrustedToken::<Public, V3>::try_from(
             &PublicToken::sign(&test_sk, &test_pk, message, Some(FOOTER.as_bytes()), None).unwrap(),
         )
         .unwrap();
-        let actual_none = UntrustedToken::<V3>::try_from(
+        let actual_none = UntrustedToken::<Public, V3>::try_from(
             &PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap(),
         )
         .unwrap();
@@ -663,11 +663,11 @@ mod tests {
             b"{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
         let implicit = b"";
 
-        let actual_some = UntrustedToken::<V3>::try_from(
+        let actual_some = UntrustedToken::<Public, V3>::try_from(
             &PublicToken::sign(&test_sk, &test_pk, message, None, Some(implicit)).unwrap(),
         )
         .unwrap();
-        let actual_none = UntrustedToken::<V3>::try_from(
+        let actual_none = UntrustedToken::<Public, V3>::try_from(
             &PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap(),
         )
         .unwrap();
@@ -689,32 +689,13 @@ mod tests {
     }
 
     #[test]
-    fn err_on_modified_purpose() {
-        // We only support public, so we can't change purpose to something else that could be valid except public.
-        /*
-        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
-
-        assert_eq!(
-            PublicToken::verify(
-                &test_pk,
-                &UntrustedToken::<V3>::try_from(&VALID_PUBLIC_TOKEN.replace("public", "local")).unwrap(),
-                Some(FOOTER.as_bytes()),
-                None
-            )
-            .unwrap_err(),
-            Error::TokenFormat
-        );
-         */
-    }
-
-    #[test]
     fn err_on_modified_footer() {
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(&FOOTER.replace("kid", "mid").as_bytes()),
                 None
             )
@@ -728,7 +709,7 @@ mod tests {
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
         assert!(PublicToken::verify(
             &test_pk,
-            &UntrustedToken::<V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+            &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
             Some(FOOTER.as_bytes()),
             None
         )
@@ -736,7 +717,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(FOOTER.as_bytes()),
                 Some(b"WRONG IMPLICIT")
             )
@@ -752,7 +733,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(b""),
                 None
             )
@@ -774,7 +755,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V3>::try_from(&invalid_public).unwrap(),
+                &UntrustedToken::<Public, V3>::try_from(&invalid_public).unwrap(),
                 Some(FOOTER.as_bytes()),
                 None
             )
@@ -800,7 +781,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
-                &UntrustedToken::<V3>::try_from(&invalid_public).unwrap(),
+                &UntrustedToken::<Public, V3>::try_from(&invalid_public).unwrap(),
                 Some(FOOTER.as_bytes()),
                 None
             )
@@ -818,7 +799,7 @@ mod tests {
         assert_eq!(
             PublicToken::verify(
                 &bad_pk,
-                &UntrustedToken::<V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
                 Some(FOOTER.as_bytes()),
                 None
             )

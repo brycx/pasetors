@@ -191,6 +191,9 @@ mod version;
 /// Versions of the PASETO spec implemented.
 pub use version::{V2, V3, V4};
 
+/// Public and local tokens.
+pub use token::{Local, Public};
+
 #[cfg_attr(docsrs, doc(cfg(all(feature = "std", feature = "v4"))))]
 #[cfg(all(feature = "std", feature = "v4"))]
 /// PASETO public tokens with [`version4`], using [`claims::Claims`].
@@ -222,7 +225,7 @@ pub mod public {
     /// validate the claims according to the `validation_rules`.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V4>,
-        token: &UntrustedToken<V4>,
+        token: &UntrustedToken<Public, V4>,
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
@@ -267,7 +270,7 @@ pub mod local {
     /// validate the claims according to the `validation_rules`.
     pub fn decrypt(
         secret_key: &SymmetricKey<V4>,
-        token: &UntrustedToken<V4>,
+        token: &UntrustedToken<Local, V4>,
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,

@@ -3,11 +3,74 @@ use crate::alloc::string::ToString;
 use crate::claims::Claims;
 use crate::common;
 use crate::errors::Error;
+use crate::token::private::Purpose;
 use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::marker::PhantomData;
+
+pub(crate) mod private {
+    use super::Error;
+    use crate::version::private::Version;
+
+    // Inside private module to prevent users from implementing this themself.
+
+    /// Purpose (`local`/`public`) of a token, given a version `V`.
+    pub trait Purpose<V: Version> {
+        /// Validate the header for a given version and purpose for some token.
+        fn validate_header(token: &str) -> Result<(), Error>;
+        /// Validate the tokens raw (decoded base64)
+        /// message length for a given version and purpose for some token.
+        fn validate_token_message_len(message: &[u8]) -> Result<(), Error>;
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+/// A public token.
+pub struct Public;
+
+#[derive(Debug, PartialEq, Clone)]
+/// A local token.
+pub struct Local;
+
+impl<V: Version> Purpose<V> for Public {
+    fn validate_header(token: &str) -> Result<(), Error> {
+        if token.is_empty() || !token.starts_with(V::PUBLIC_HEADER) {
+            return Err(Error::TokenFormat);
+        }
+
+        Ok(())
+    }
+
+    fn validate_token_message_len(message: &[u8]) -> Result<(), Error> {
+        if message.len() <= V::PUBLIC_SIG {
+            // Empty payload encrypted. Disallowed by PASETO
+            return Err(Error::TokenFormat);
+        }
+
+        Ok(())
+    }
+}
+
+impl<V: Version> Purpose<V> for Local {
+    fn validate_header(token: &str) -> Result<(), Error> {
+        if token.is_empty() || !token.starts_with(V::LOCAL_HEADER) {
+            return Err(Error::TokenFormat);
+        }
+
+        Ok(())
+    }
+
+    fn validate_token_message_len(message: &[u8]) -> Result<(), Error> {
+        if message.len() <= V::LOCAL_NONCE + V::LOCAL_TAG {
+            // Empty payload encrypted. Disallowed by PASETO
+            return Err(Error::TokenFormat);
+        }
+
+        Ok(())
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// A [`TrustedToken`] is returned by either a `verify()` or `decrypt()` operation and represents
@@ -106,24 +169,20 @@ impl TrustedToken {
 ///
 /// __WARNING__: Anything returned by this type should be treated as **UNTRUSTED** until the token
 /// has been verified.
-pub struct UntrustedToken<V> {
+pub struct UntrustedToken<T, V> {
     header: String,
     message: Vec<u8>,
     footer: Vec<u8>,
-    phantom: PhantomData<V>,
+    phantom_t: PhantomData<T>,
+    phantom_v: PhantomData<V>,
 }
 
-impl<V: Version> TryFrom<&str> for UntrustedToken<V> {
+impl<T: Purpose<V>, V: Version> TryFrom<&str> for UntrustedToken<T, V> {
     type Error = Error;
 
     /// This fails if `value` is not a PASETO token or it has invalid base64 encoding.
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.is_empty() {
-            return Err(Error::TokenFormat);
-        }
-        if !value.starts_with(V::PUBLIC_HEADER) && !value.starts_with(V::LOCAL_HEADER) {
-            return Err(Error::TokenFormat);
-        }
+        T::validate_header(value)?;
 
         let parts_split = value.split('.').collect::<Vec<&str>>();
         if parts_split.len() < 3 || parts_split.len() > 4 {
@@ -135,15 +194,7 @@ impl<V: Version> TryFrom<&str> for UntrustedToken<V> {
         }
 
         let m_raw = common::decode_b64(parts_split[2])?;
-        if value.starts_with(V::LOCAL_HEADER) && m_raw.len() <= V::LOCAL_NONCE + V::LOCAL_TAG {
-            // Empty payload encrypted. Disallowed by PASETO
-            return Err(Error::TokenFormat);
-        }
-        if value.starts_with(V::PUBLIC_HEADER) && m_raw.len() <= V::PUBLIC_SIG {
-            // Empty payload encrypted. Disallowed by PASETO
-            return Err(Error::TokenFormat);
-        }
-
+        T::validate_token_message_len(&m_raw)?;
         let is_footer_present = parts_split.len() == 4;
 
         Ok(Self {
@@ -156,12 +207,13 @@ impl<V: Version> TryFrom<&str> for UntrustedToken<V> {
                     Vec::<u8>::new()
                 }
             },
-            phantom: PhantomData,
+            phantom_t: PhantomData,
+            phantom_v: PhantomData,
         })
     }
 }
 
-impl<V: Version> TryFrom<&String> for UntrustedToken<V> {
+impl<T: Purpose<V>, V: Version> TryFrom<&String> for UntrustedToken<T, V> {
     type Error = Error;
 
     /// This fails if `value` is not a PASETO token or it has invalid base64 encoding.
@@ -170,22 +222,22 @@ impl<V: Version> TryFrom<&String> for UntrustedToken<V> {
     }
 }
 
-impl<V: Version> UntrustedToken<V> {
+impl<T: Purpose<V>, V: Version> UntrustedToken<T, V> {
     /// Return untrusted header of this [`UntrustedToken`].
     pub fn untrusted_header(&self) -> &str {
         &self.header
     }
 
     /// Return untrusted message of this [`UntrustedToken`].
-    /// If it is a local token, this is the encrypted message with nonce and tag.
-    /// If it is a public token, the signature is included.
+    /// If it is a [`Local`] token, this is the encrypted message with nonce and tag.
+    /// If it is a [`Public`] token, the signature is included.
     pub fn untrusted_message(&self) -> &[u8] {
         &self.message
     }
 
     /// Return untrusted payload only of this [`UntrustedToken`]'s message body.
-    /// If it is a local token, this is the encrypted message sans nonce and tag.
-    /// If it is a public token, the signature is not included.
+    /// If it is a [`Local`] token, this is the encrypted message sans nonce and tag.
+    /// If it is a [`Public`] token, the signature is not included.
     pub fn untrusted_payload(&self) -> &[u8] {
         let h = self.untrusted_header();
         let m = self.untrusted_message();
@@ -212,7 +264,7 @@ impl<V: Version> UntrustedToken<V> {
 #[cfg(test)]
 mod tests_untrusted {
     use crate::errors::Error;
-    use crate::token::UntrustedToken;
+    use crate::token::{Local, Public, UntrustedToken};
     use crate::version::private::Version;
     use crate::{V2, V3, V4};
     use core::convert::TryFrom;
@@ -232,21 +284,39 @@ mod tests_untrusted {
     ];
 
     fn test_untrusted_parse_fails(invalid: &str, expected_err: Error) {
-        if invalid.starts_with(V2::LOCAL_HEADER) || invalid.starts_with(V2::PUBLIC_HEADER) {
+        if invalid.starts_with(V2::LOCAL_HEADER) {
             assert_eq!(
-                UntrustedToken::<V2>::try_from(invalid).unwrap_err(),
+                UntrustedToken::<Local, V2>::try_from(invalid).unwrap_err(),
+                expected_err
+            );
+        }
+        if invalid.starts_with(V2::PUBLIC_HEADER) {
+            assert_eq!(
+                UntrustedToken::<Public, V2>::try_from(invalid).unwrap_err(),
+                expected_err
+            );
+        }
+        if invalid.starts_with(V3::LOCAL_HEADER) {
+            assert_eq!(
+                UntrustedToken::<Local, V3>::try_from(invalid).unwrap_err(),
                 expected_err
             );
         }
         if invalid.starts_with(V3::PUBLIC_HEADER) {
             assert_eq!(
-                UntrustedToken::<V3>::try_from(invalid).unwrap_err(),
+                UntrustedToken::<Public, V3>::try_from(invalid).unwrap_err(),
                 expected_err
             );
         }
-        if invalid.starts_with(V4::LOCAL_HEADER) || invalid.starts_with(V4::PUBLIC_HEADER) {
+        if invalid.starts_with(V4::LOCAL_HEADER) {
             assert_eq!(
-                UntrustedToken::<V4>::try_from(invalid).unwrap_err(),
+                UntrustedToken::<Local, V4>::try_from(invalid).unwrap_err(),
+                expected_err
+            );
+        }
+        if invalid.starts_with(V4::PUBLIC_HEADER) {
+            assert_eq!(
+                UntrustedToken::<Public, V4>::try_from(invalid).unwrap_err(),
                 expected_err
             );
         }
@@ -255,15 +325,27 @@ mod tests_untrusted {
     #[test]
     fn empty_string() {
         assert_eq!(
-            UntrustedToken::<V2>::try_from("").unwrap_err(),
+            UntrustedToken::<Local, V2>::try_from("").unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V3>::try_from("").unwrap_err(),
+            UntrustedToken::<Public, V2>::try_from("").unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V4>::try_from("").unwrap_err(),
+            UntrustedToken::<Local, V3>::try_from("").unwrap_err(),
+            Error::TokenFormat
+        );
+        assert_eq!(
+            UntrustedToken::<Public, V3>::try_from("").unwrap_err(),
+            Error::TokenFormat
+        );
+        assert_eq!(
+            UntrustedToken::<Local, V4>::try_from("").unwrap_err(),
+            Error::TokenFormat
+        );
+        assert_eq!(
+            UntrustedToken::<Public, V4>::try_from("").unwrap_err(),
             Error::TokenFormat
         );
     }
@@ -303,45 +385,53 @@ mod tests_untrusted {
     fn invalid_header() {
         // Invalid version
         assert_eq!(
-            UntrustedToken::<V2>::try_from(&V2_PUBLIC_TOKEN.replace("v2", "")).unwrap_err(),
+            UntrustedToken::<Public, V2>::try_from(&V2_PUBLIC_TOKEN.replace("v2", "v4"))
+                .unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V2>::try_from(&V2_LOCAL_TOKEN.replace("v2", "")).unwrap_err(),
+            UntrustedToken::<Local, V2>::try_from(&V2_LOCAL_TOKEN.replace("v2", "v4")).unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V3>::try_from(&V3_PUBLIC_TOKEN.replace("v3", "")).unwrap_err(),
+            UntrustedToken::<Public, V3>::try_from(&V3_PUBLIC_TOKEN.replace("v3", "v2"))
+                .unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V4>::try_from(&V4_LOCAL_TOKEN.replace("v4", "")).unwrap_err(),
+            UntrustedToken::<Local, V4>::try_from(&V4_LOCAL_TOKEN.replace("v4", "v2")).unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V4>::try_from(&V4_PUBLIC_TOKEN.replace("v4", "")).unwrap_err(),
+            UntrustedToken::<Public, V4>::try_from(&V4_PUBLIC_TOKEN.replace("v4", "v2"))
+                .unwrap_err(),
             Error::TokenFormat
         );
 
         // Invalid purpose
         assert_eq!(
-            UntrustedToken::<V2>::try_from(&V2_PUBLIC_TOKEN.replace("public", "")).unwrap_err(),
+            UntrustedToken::<Public, V2>::try_from(&V2_PUBLIC_TOKEN.replace("public", "local"))
+                .unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V2>::try_from(&V2_LOCAL_TOKEN.replace("local", "")).unwrap_err(),
+            UntrustedToken::<Local, V2>::try_from(&V2_LOCAL_TOKEN.replace("local", "public"))
+                .unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V3>::try_from(&V3_PUBLIC_TOKEN.replace("public", "")).unwrap_err(),
+            UntrustedToken::<Public, V3>::try_from(&V3_PUBLIC_TOKEN.replace("public", "local"))
+                .unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V4>::try_from(&V4_LOCAL_TOKEN.replace("local", "")).unwrap_err(),
+            UntrustedToken::<Local, V4>::try_from(&V4_LOCAL_TOKEN.replace("local", "public"))
+                .unwrap_err(),
             Error::TokenFormat
         );
         assert_eq!(
-            UntrustedToken::<V4>::try_from(&V4_PUBLIC_TOKEN.replace("public", "")).unwrap_err(),
+            UntrustedToken::<Public, V4>::try_from(&V4_PUBLIC_TOKEN.replace("public", "local"))
+                .unwrap_err(),
             Error::TokenFormat
         );
     }
@@ -367,8 +457,9 @@ mod tests_untrusted {
         // "2-E-5"
         let valid_with_footer = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
-        let untrusted_no_footer = UntrustedToken::<V2>::try_from(valid_no_footer).unwrap();
-        let untrusted_with_footer = UntrustedToken::<V2>::try_from(valid_with_footer).unwrap();
+        let untrusted_no_footer = UntrustedToken::<Local, V2>::try_from(valid_no_footer).unwrap();
+        let untrusted_with_footer =
+            UntrustedToken::<Local, V2>::try_from(valid_with_footer).unwrap();
 
         // Note: We don't test for untrusted message, since it is encrypted.
         assert_eq!(
@@ -395,8 +486,9 @@ mod tests_untrusted {
         // "2-S-2"
         let valid_with_footer = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
-        let untrusted_no_footer = UntrustedToken::<V2>::try_from(valid_no_footer).unwrap();
-        let untrusted_with_footer = UntrustedToken::<V2>::try_from(valid_with_footer).unwrap();
+        let untrusted_no_footer = UntrustedToken::<Public, V2>::try_from(valid_no_footer).unwrap();
+        let untrusted_with_footer =
+            UntrustedToken::<Public, V2>::try_from(valid_with_footer).unwrap();
 
         assert_eq!(
             untrusted_no_footer.untrusted_header(),
@@ -433,8 +525,9 @@ mod tests_untrusted {
         // "3-S-2"
         let valid_with_footer = "v3.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9ZWrbGZ6L0MDK72skosUaS0Dz7wJ_2bMcM6tOxFuCasO9GhwHrvvchqgXQNLQQyWzGC2wkr-VKII71AvkLpC8tJOrzJV1cap9NRwoFzbcXjzMZyxQ0wkshxZxx8ImmNWP.eyJraWQiOiJkWWtJU3lseFFlZWNFY0hFTGZ6Rjg4VVpyd2JMb2xOaUNkcHpVSEd3OVVxbiJ9";
 
-        let untrusted_no_footer = UntrustedToken::<V3>::try_from(valid_no_footer).unwrap();
-        let untrusted_with_footer = UntrustedToken::<V3>::try_from(valid_with_footer).unwrap();
+        let untrusted_no_footer = UntrustedToken::<Public, V3>::try_from(valid_no_footer).unwrap();
+        let untrusted_with_footer =
+            UntrustedToken::<Public, V3>::try_from(valid_with_footer).unwrap();
 
         assert_eq!(
             untrusted_no_footer.untrusted_header(),
@@ -471,8 +564,9 @@ mod tests_untrusted {
         // "4-S-2"
         let valid_with_footer = "v4.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9v3Jt8mx_TdM2ceTGoqwrh4yDFn0XsHvvV_D0DtwQxVrJEBMl0F2caAdgnpKlt4p7xBnx1HcO-SPo8FPp214HDw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
-        let untrusted_no_footer = UntrustedToken::<V4>::try_from(valid_no_footer).unwrap();
-        let untrusted_with_footer = UntrustedToken::<V4>::try_from(valid_with_footer).unwrap();
+        let untrusted_no_footer = UntrustedToken::<Public, V4>::try_from(valid_no_footer).unwrap();
+        let untrusted_with_footer =
+            UntrustedToken::<Public, V4>::try_from(valid_with_footer).unwrap();
 
         assert_eq!(
             untrusted_no_footer.untrusted_header(),
@@ -509,8 +603,9 @@ mod tests_untrusted {
         // "4-E-5"
         let valid_with_footer = "v4.local.32VIErrEkmY4JVILovbmfPXKW9wT1OdQepjMTC_MOtjA4kiqw7_tcaOM5GNEcnTxl60WkwMsYXw6FSNb_UdJPXjpzm0KW9ojM5f4O2mRvE2IcweP-PRdoHjd5-RHCiExR1IK6t4x-RMNXtQNbz7FvFZ_G-lFpk5RG3EOrwDL6CgDqcerSQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
-        let untrusted_no_footer = UntrustedToken::<V4>::try_from(valid_no_footer).unwrap();
-        let untrusted_with_footer = UntrustedToken::<V4>::try_from(valid_with_footer).unwrap();
+        let untrusted_no_footer = UntrustedToken::<Local, V4>::try_from(valid_no_footer).unwrap();
+        let untrusted_with_footer =
+            UntrustedToken::<Local, V4>::try_from(valid_with_footer).unwrap();
 
         // Note: We don't test for untrusted message, since it is encrypted.
         assert_eq!(
@@ -531,14 +626,14 @@ mod tests_untrusted {
 
     #[test]
     fn local_token_nonce_tag_no_payload_v4() {
-        assert!(UntrustedToken::<V4>::try_from(
+        assert!(UntrustedToken::<Local, V4>::try_from(
             "v4.local.444444bbbbb444444444bbb444444bbb44444444444444888888888888888cJJbbb44444444",
         )
         .is_err());
     }
     #[test]
     fn local_token_nonce_tag_no_payload_v3() {
-        assert!(UntrustedToken::<V3>::try_from(
+        assert!(UntrustedToken::<Public, V3>::try_from(
             "v3.local.oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
         ).is_err());
     }
