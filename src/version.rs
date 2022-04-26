@@ -20,6 +20,10 @@ pub(crate) mod private {
         const LOCAL_NONCE: usize;
         /// Size of the authentication tag for a local token.
         const LOCAL_TAG: usize;
+        /// Header for a public token for this version.
+        const PUBLIC_HEADER: &'static str;
+        /// Header for a local token for this version.
+        const LOCAL_HEADER: &'static str;
 
         /// Validate bytes for a `local` key of a given version.
         fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error>;
@@ -27,10 +31,6 @@ pub(crate) mod private {
         fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error>;
         /// Validate bytes for a public `local` key of a given version.
         fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error>;
-        /// Get the header of a public token for this version.
-        fn public_header() -> &'static str;
-        /// Get the header of a local token for this version.
-        fn local_header() -> &'static str;
     }
 }
 
@@ -53,6 +53,8 @@ impl Version for V2 {
     const PUBLIC_SIG: usize = 64;
     const LOCAL_NONCE: usize = 24;
     const LOCAL_TAG: usize = 16;
+    const PUBLIC_HEADER: &'static str = "v2.public.";
+    const LOCAL_HEADER: &'static str = "v2.local.";
 
     fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error> {
         if key_bytes.len() != Self::LOCAL_KEY {
@@ -69,14 +71,6 @@ impl Version for V2 {
     fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
         Self::validate_secret_key(key_bytes)
     }
-
-    fn public_header() -> &'static str {
-        "v2.public."
-    }
-
-    fn local_header() -> &'static str {
-        "v2.local."
-    }
 }
 
 impl Version for V3 {
@@ -86,6 +80,8 @@ impl Version for V3 {
     const PUBLIC_SIG: usize = 96;
     const LOCAL_NONCE: usize = 32;
     const LOCAL_TAG: usize = 48;
+    const PUBLIC_HEADER: &'static str = "v3.public.";
+    const LOCAL_HEADER: &'static str = "v3.local.";
 
     fn validate_local_key(_key_bytes: &[u8]) -> Result<(), Error> {
         unimplemented!();
@@ -109,14 +105,6 @@ impl Version for V3 {
 
         Ok(())
     }
-
-    fn public_header() -> &'static str {
-        "v3.public."
-    }
-
-    fn local_header() -> &'static str {
-        "v3.local."
-    }
 }
 
 impl Version for V4 {
@@ -126,6 +114,8 @@ impl Version for V4 {
     const PUBLIC_SIG: usize = V2::PUBLIC_SIG;
     const LOCAL_NONCE: usize = 32;
     const LOCAL_TAG: usize = 32;
+    const PUBLIC_HEADER: &'static str = "v4.public.";
+    const LOCAL_HEADER: &'static str = "v4.local.";
 
     fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error> {
         V2::validate_local_key(key_bytes)
@@ -137,13 +127,5 @@ impl Version for V4 {
 
     fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
         V2::validate_public_key(key_bytes)
-    }
-
-    fn public_header() -> &'static str {
-        "v4.public."
-    }
-
-    fn local_header() -> &'static str {
-        "v4.local."
     }
 }

@@ -121,7 +121,7 @@ impl<V: Version> TryFrom<&str> for UntrustedToken<V> {
         if value.is_empty() {
             return Err(Error::TokenFormat);
         }
-        if !value.starts_with(V::public_header()) && !value.starts_with(V::local_header()) {
+        if !value.starts_with(V::PUBLIC_HEADER) && !value.starts_with(V::LOCAL_HEADER) {
             return Err(Error::TokenFormat);
         }
 
@@ -135,11 +135,11 @@ impl<V: Version> TryFrom<&str> for UntrustedToken<V> {
         }
 
         let m_raw = common::decode_b64(parts_split[2])?;
-        if value.starts_with(V::local_header()) && m_raw.len() <= V::LOCAL_NONCE + V::LOCAL_TAG {
+        if value.starts_with(V::LOCAL_HEADER) && m_raw.len() <= V::LOCAL_NONCE + V::LOCAL_TAG {
             // Empty payload encrypted. Disallowed by PASETO
             return Err(Error::TokenFormat);
         }
-        if value.starts_with(V::public_header()) && m_raw.len() <= V::PUBLIC_SIG {
+        if value.starts_with(V::PUBLIC_HEADER) && m_raw.len() <= V::PUBLIC_SIG {
             // Empty payload encrypted. Disallowed by PASETO
             return Err(Error::TokenFormat);
         }
@@ -190,12 +190,12 @@ impl<V: Version> UntrustedToken<V> {
         let h = self.untrusted_header();
         let m = self.untrusted_message();
 
-        if h.starts_with(V::local_header()) {
+        if h.starts_with(V::LOCAL_HEADER) {
             debug_assert!(m.len() > V::LOCAL_TAG + V::LOCAL_NONCE);
             // Length have been checked in `TryFrom`
             &m[V::LOCAL_NONCE..m.len() - V::LOCAL_TAG]
         } else {
-            debug_assert!(h.starts_with(V::public_header()));
+            debug_assert!(h.starts_with(V::PUBLIC_HEADER));
             debug_assert!(m.len() > V::PUBLIC_SIG);
             // Length have been checked in `TryFrom`
             &m[..m.len() - V::PUBLIC_SIG]
@@ -232,19 +232,19 @@ mod tests_untrusted {
     ];
 
     fn test_untrusted_parse_fails(invalid: &str, expected_err: Error) {
-        if invalid.starts_with(V2::local_header()) || invalid.starts_with(V2::public_header()) {
+        if invalid.starts_with(V2::LOCAL_HEADER) || invalid.starts_with(V2::PUBLIC_HEADER) {
             assert_eq!(
                 UntrustedToken::<V2>::try_from(invalid).unwrap_err(),
                 expected_err
             );
         }
-        if invalid.starts_with(V3::public_header()) {
+        if invalid.starts_with(V3::PUBLIC_HEADER) {
             assert_eq!(
                 UntrustedToken::<V3>::try_from(invalid).unwrap_err(),
                 expected_err
             );
         }
-        if invalid.starts_with(V4::local_header()) || invalid.starts_with(V4::public_header()) {
+        if invalid.starts_with(V4::LOCAL_HEADER) || invalid.starts_with(V4::PUBLIC_HEADER) {
             assert_eq!(
                 UntrustedToken::<V4>::try_from(invalid).unwrap_err(),
                 expected_err
