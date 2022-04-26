@@ -13,8 +13,10 @@
 //! ## Creating and verifying public tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{Generate, AsymmetricKeyPair, AsymmetricSecretKey, AsymmetricPublicKey, V4};
-//! use pasetors::public;
+//! use pasetors::keys::{Generate, AsymmetricKeyPair, AsymmetricSecretKey, AsymmetricPublicKey};
+//! use pasetors::{public, Public, V4};
+//! use pasetors::token::{UntrustedToken, TrustedToken};
+//! use core::convert::TryFrom;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
 //! // Add a custom `data` claim as well.
@@ -31,8 +33,11 @@
 //! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
-//! let claims_from = public::verify(&kp.public, &pub_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
-//! assert_eq!(claims, claims_from);
+//! let untrusted_token = UntrustedToken::<Public, V4>::try_from(&pub_token)?;
+//! let trusted_token = public::verify(&kp.public, &untrusted_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! assert_eq!(&claims, trusted_token.payload_claims().unwrap());
+//!
+//! let claims = trusted_token.payload_claims().unwrap();
 //!
 //! println!("{:?}", claims.get_claim("data"));
 //! println!("{:?}", claims.get_claim("iat"));
@@ -43,8 +48,10 @@
 //! ## Creating and verifying local tokens
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
-//! use pasetors::keys::{Generate, SymmetricKey, V4};
-//! use pasetors::local;
+//! use pasetors::keys::{Generate, SymmetricKey};
+//! use pasetors::{local, Local, V4};
+//! use pasetors::token::UntrustedToken;
+//! use core::convert::TryFrom;
 //!
 //! // Setup the default claims, which include `iat` and `nbf` as the current time and `exp` of one hour.
 //! // Add a custom `data` claim as well.
@@ -61,8 +68,11 @@
 //! // NOTE: Custom claims, defined through `add_additional()`, are not validated. This must be done
 //! // manually.
 //! let validation_rules = ClaimsValidationRules::new();
-//! let claims_from = local::decrypt(&sk, &token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
-//! assert_eq!(claims, claims_from);
+//! let untrusted_token = UntrustedToken::<Local, V4>::try_from(&token)?;
+//! let trusted_token = local::decrypt(&sk, &untrusted_token, &validation_rules, Some(b"footer"), Some(b"implicit assertion"))?;
+//! assert_eq!(&claims, trusted_token.payload_claims().unwrap());
+//!
+//! let claims = trusted_token.payload_claims().unwrap();
 //!
 //! println!("{:?}", claims.get_claim("data"));
 //! println!("{:?}", claims.get_claim("iat"));
@@ -114,7 +124,8 @@
 //! ## PASERK serialization
 //! ```rust
 //! use pasetors::paserk::FormatAsPaserk;
-//! use pasetors::keys::{Generate, SymmetricKey, V4};
+//! use pasetors::keys::{Generate, SymmetricKey};
+//! use pasetors::V4;
 //! use core::convert::TryFrom;
 //!
 //! // Generate the key and serialize to and from PASERK.
@@ -172,13 +183,26 @@ pub mod version3;
 /// PASETO version 4 tokens.
 pub mod version4;
 
+/// Types for handling tokens.
+pub mod token;
+
+mod version;
+
+/// Versions of the PASETO spec implemented.
+pub use version::{V2, V3, V4};
+
+/// Public and local tokens.
+pub use token::{Local, Public};
+
 #[cfg_attr(docsrs, doc(cfg(all(feature = "std", feature = "v4"))))]
 #[cfg(all(feature = "std", feature = "v4"))]
 /// PASETO public tokens with [`version4`], using [`claims::Claims`].
 pub mod public {
+    use super::*;
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Error;
-    use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, V4};
+    use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
+    use crate::token::{TrustedToken, UntrustedToken};
 
     /// Create a public token using the latest PASETO version (v4).
     pub fn sign(
@@ -201,22 +225,19 @@ pub mod public {
     /// validate the claims according to the `validation_rules`.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V4>,
-        token: &str,
+        token: &UntrustedToken<Public, V4>,
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<Claims, Error> {
-        crate::version4::PublicToken::verify(public_key, token, footer, implicit_assert)?;
-        // The token format has been checked during `verify`, where this splitting and indexing
-        // also happens. Therefore, it's assumed safe to do the same here without additional checks.
-        let parts_split = token.split('.').collect::<Vec<&str>>();
-        let token_raw = crate::common::decode_b64(parts_split[2])?;
+    ) -> Result<TrustedToken, Error> {
+        let mut trusted_token =
+            crate::version4::PublicToken::verify(public_key, token, footer, implicit_assert)?;
 
-        let claims =
-            Claims::from_bytes(&token_raw[..token_raw.len() - ed25519_compact::Signature::BYTES])?;
+        let claims = Claims::from_string(trusted_token.payload())?;
         validation_rules.validate_claims(&claims)?;
+        trusted_token.set_payload_claims(claims);
 
-        Ok(claims)
+        Ok(trusted_token)
     }
 }
 
@@ -224,9 +245,11 @@ pub mod public {
 #[cfg(all(feature = "std", feature = "v4"))]
 /// PASETO local tokens with [`version4`], using [`claims::Claims`].
 pub mod local {
+    use super::*;
     use crate::claims::{Claims, ClaimsValidationRules};
     use crate::errors::Error;
-    use crate::keys::{SymmetricKey, V4};
+    use crate::keys::SymmetricKey;
+    use crate::token::{TrustedToken, UntrustedToken};
 
     /// Create a local token using the latest PASETO version (v4).
     pub fn encrypt(
@@ -247,16 +270,18 @@ pub mod local {
     /// validate the claims according to the `validation_rules`.
     pub fn decrypt(
         secret_key: &SymmetricKey<V4>,
-        token: &str,
+        token: &UntrustedToken<Local, V4>,
         validation_rules: &ClaimsValidationRules,
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
-    ) -> Result<Claims, Error> {
-        let raw_payload =
+    ) -> Result<TrustedToken, Error> {
+        let mut trusted_token =
             crate::version4::LocalToken::decrypt(secret_key, token, footer, implicit_assert)?;
-        let claims = Claims::from_bytes(&raw_payload)?;
-        validation_rules.validate_claims(&claims)?;
 
-        Ok(claims)
+        let claims = Claims::from_string(trusted_token.payload())?;
+        validation_rules.validate_claims(&claims)?;
+        trusted_token.set_payload_claims(claims);
+
+        Ok(trusted_token)
     }
 }
