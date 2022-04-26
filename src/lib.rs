@@ -165,7 +165,7 @@ mod common;
 pub mod claims;
 
 #[cfg(feature = "std")]
-/// Footer for tokens and validation thereof.
+/// Footer for tokens.
 pub mod footer;
 
 /// Keys used for PASETO tokens.
