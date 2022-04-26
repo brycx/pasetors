@@ -6,10 +6,16 @@ use libfuzzer_sys::fuzz_target;
 use pasetors::claims::*;
 use pasetors::token::UntrustedToken;
 use pasetors::{Local, Public, V2, V3, V4};
+use pasetors::footer::Footer;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(parsed_claims) = Claims::from_bytes(data) {
         assert!(parsed_claims.to_string().is_ok());
+    }
+
+    let mut footer = Footer::new();
+    if let Ok(()) = footer.parse_bytes(data) {
+        assert!(footer.to_string().is_ok());
     }
 
     let message: String = String::from_utf8_lossy(data).into();

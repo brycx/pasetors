@@ -3,6 +3,8 @@ use crate::alloc::string::ToString;
 use crate::claims::Claims;
 use crate::common;
 use crate::errors::Error;
+#[cfg(feature = "std")]
+use crate::footer::Footer;
 use crate::token::private::Purpose;
 use crate::version::private::Version;
 use alloc::string::String;
@@ -101,8 +103,6 @@ pub struct TrustedToken {
     #[cfg(feature = "std")]
     // If std is available, we also keep claims as JSON.
     payload_claims: Option<Claims>,
-    // TODO: See https://github.com/brycx/pasetors/pull/52
-    // TODO: Footer claims, once type is merged, should be available from here like `payload_claims`
     footer: Vec<u8>,
     implicit_assert: Vec<u8>,
 }
@@ -169,6 +169,22 @@ impl TrustedToken {
     /// If token was created using `V2`, then it will always be empty.
     pub fn implicit_assert(&self) -> &[u8] {
         &self.implicit_assert
+    }
+}
+
+#[cfg(feature = "std")]
+impl TryFrom<&TrustedToken> for Footer {
+    type Error = Error;
+
+    fn try_from(value: &TrustedToken) -> Result<Self, Self::Error> {
+        if value.footer.is_empty() {
+            return Err(Error::FooterParsing);
+        }
+
+        let mut footer = Footer::new();
+        footer.parse_bytes(value.footer())?;
+
+        Ok(footer)
     }
 }
 

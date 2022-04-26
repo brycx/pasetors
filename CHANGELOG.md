@@ -13,6 +13,7 @@ __Changelog:__
 - Add new types `token::UntrustedToken` and `token::TrustedToken` which are now used by `verify()`/`decrypt()` operations. 
 These allow extracting parts of tokens before and after verification ([#47](https://github.com/brycx/pasetors/issues/47)) 
 - Version structs previously available in `keys::` have been moved to a new `version::` module
+- Add `Footer` type that makes it easier to create JSON-encoded footers ([#52](https://github.com/brycx/pasetors/pull/52))
 
 ### 0.4.2
 
