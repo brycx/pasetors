@@ -12,7 +12,7 @@ use pasetors::claims::*;
 use pasetors::keys::*;
 use pasetors::token::UntrustedToken;
 use pasetors::{version2, version3, version4};
-use pasetors::{V2, V3, V4};
+use pasetors::{Local, Public, V2, V3, V4};
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 
@@ -32,13 +32,13 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 
     // Public
-    if let Ok(untrusted) = UntrustedToken::<V2>::try_from(&message) {
+    if let Ok(untrusted) = UntrustedToken::<Public, V2>::try_from(&message) {
         if version2::PublicToken::verify(&pk, &untrusted, None).is_ok() {
             panic!("Invalid token was verified with version 2");
         }
     }
 
-    let public_token = UntrustedToken::<V2>::try_from(
+    let public_token = UntrustedToken::<Public, V2>::try_from(
         &version2::PublicToken::sign(&sk, &pk, message.as_bytes(), None).unwrap(),
     )
     .unwrap();
@@ -52,13 +52,13 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
     };
 
     // Local
-    if let Ok(untrusted) = UntrustedToken::<V2>::try_from(&message) {
+    if let Ok(untrusted) = UntrustedToken::<Local, V2>::try_from(&message) {
         if version2::LocalToken::decrypt(&sk_local, &untrusted, None).is_ok() {
             panic!("Invalid token was verified with version 2");
         }
     }
 
-    let local_token = UntrustedToken::<V2>::try_from(
+    let local_token = UntrustedToken::<Local, V2>::try_from(
         &version2::LocalToken::encrypt(&sk_local, message.as_bytes(), None).unwrap(),
     )
     .unwrap();
@@ -81,13 +81,13 @@ fn fuzztest_v3(data: &[u8]) {
     }
 
     // Public
-    if let Ok(untrusted) = UntrustedToken::<V3>::try_from(&message) {
+    if let Ok(untrusted) = UntrustedToken::<Public, V3>::try_from(&message) {
         if version3::PublicToken::verify(&kp.public, &untrusted, None, None).is_ok() {
             panic!("Invalid token was verified with version 3");
         }
     }
 
-    let public_token = UntrustedToken::<V3>::try_from(
+    let public_token = UntrustedToken::<Public, V3>::try_from(
         &version3::PublicToken::sign(&kp.secret, &kp.public, message.as_bytes(), None, None)
             .unwrap(),
     )
@@ -118,13 +118,13 @@ fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 
     // Public
-    if let Ok(untrusted) = UntrustedToken::<V4>::try_from(&message) {
+    if let Ok(untrusted) = UntrustedToken::<Public, V4>::try_from(&message) {
         if version4::PublicToken::verify(&pk, &untrusted, None, None).is_ok() {
             panic!("Invalid token was verified with version 4");
         }
     }
 
-    let public_token = UntrustedToken::<V4>::try_from(
+    let public_token = UntrustedToken::<Public, V4>::try_from(
         &version4::PublicToken::sign(&sk, &pk, message.as_bytes(), None, None).unwrap(),
     )
     .unwrap();
@@ -137,13 +137,13 @@ fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
         Err(_) => panic!("Valid token was NOT verified with version 4"),
     };
     // Local
-    if let Ok(untrusted) = UntrustedToken::<V4>::try_from(&message) {
+    if let Ok(untrusted) = UntrustedToken::<Local, V4>::try_from(&message) {
         if version4::LocalToken::decrypt(&sk_local, &untrusted, None, None).is_ok() {
             panic!("Invalid token was verified with version 4");
         }
     }
 
-    let local_token = UntrustedToken::<V4>::try_from(
+    let local_token = UntrustedToken::<Local, V4>::try_from(
         &version4::LocalToken::encrypt(&sk_local, message.as_bytes(), None, None).unwrap(),
     )
     .unwrap();
@@ -177,7 +177,7 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
     claims.subject("test").unwrap();
     let validation_rules = ClaimsValidationRules::new();
 
-    let public_token = UntrustedToken::<V4>::try_from(
+    let public_token = UntrustedToken::<Public, V4>::try_from(
         &pasetors::public::sign(&sk, &pk, &claims, None, None).unwrap(),
     )
     .unwrap();
@@ -189,7 +189,7 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
         panic!("(high-level API): Valid token was NOT verified with version 4");
     }
 
-    let local_token = UntrustedToken::<V4>::try_from(
+    let local_token = UntrustedToken::<Local, V4>::try_from(
         &pasetors::local::encrypt(&sk_local, &claims, None, None).unwrap(),
     )
     .unwrap();
