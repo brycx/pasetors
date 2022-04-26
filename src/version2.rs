@@ -1,6 +1,6 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "v2")))]
 
-use crate::common::{encode_b64, validate_format_untrusted_token};
+use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
 use crate::token::{Local, Public, TrustedToken, UntrustedToken};
@@ -63,7 +63,7 @@ impl PublicToken {
         token: &UntrustedToken<Public, V2>,
         footer: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
-        validate_format_untrusted_token(Self::HEADER, token, footer)?;
+        validate_footer_untrusted_token(token, footer)?;
 
         let f = token.untrusted_footer();
         let sm = token.untrusted_message();
@@ -163,7 +163,7 @@ impl LocalToken {
         token: &UntrustedToken<Local, V2>,
         footer: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
-        validate_format_untrusted_token(Self::HEADER, token, footer)?;
+        validate_footer_untrusted_token(token, footer)?;
 
         let f = token.untrusted_footer();
         let nc = token.untrusted_message();

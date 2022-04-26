@@ -14,7 +14,7 @@
 //! [AsymmetricPublicKey<V3>]: crate::keys::AsymmetricPublicKey
 //! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
 
-use crate::common::{encode_b64, validate_format_untrusted_token};
+use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
 use crate::token::{Public, TrustedToken, UntrustedToken};
@@ -268,7 +268,7 @@ impl PublicToken {
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
-        validate_format_untrusted_token(Self::HEADER, token, footer)?;
+        validate_footer_untrusted_token(token, footer)?;
 
         let f = token.untrusted_footer();
         let i = implicit_assert.unwrap_or(&[]);

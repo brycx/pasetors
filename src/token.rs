@@ -23,6 +23,9 @@ pub(crate) mod private {
         /// Validate the tokens raw (decoded base64)
         /// message length for a given version and purpose for some token.
         fn validate_token_message_len(message: &[u8]) -> Result<(), Error>;
+        /// Parse the raw payload of a token. Either the ciphertext or the message that was signed.
+        /// The length **MUST** have been verified beforehand.
+        fn parse_raw_payload(message: &[u8]) -> &[u8];
     }
 }
 
@@ -51,6 +54,11 @@ impl<V: Version> Purpose<V> for Public {
 
         Ok(())
     }
+
+    fn parse_raw_payload(message: &[u8]) -> &[u8] {
+        debug_assert!(message.len() > V::PUBLIC_SIG);
+        &message[..message.len() - V::PUBLIC_SIG]
+    }
 }
 
 impl<V: Version> Purpose<V> for Local {
@@ -69,6 +77,11 @@ impl<V: Version> Purpose<V> for Local {
         }
 
         Ok(())
+    }
+
+    fn parse_raw_payload(message: &[u8]) -> &[u8] {
+        debug_assert!(message.len() > V::LOCAL_TAG + V::LOCAL_NONCE);
+        &message[V::LOCAL_NONCE..message.len() - V::LOCAL_TAG]
     }
 }
 
@@ -170,7 +183,6 @@ impl TrustedToken {
 /// __WARNING__: Anything returned by this type should be treated as **UNTRUSTED** until the token
 /// has been verified.
 pub struct UntrustedToken<T, V> {
-    header: String,
     message: Vec<u8>,
     footer: Vec<u8>,
     phantom_t: PhantomData<T>,
@@ -198,7 +210,6 @@ impl<T: Purpose<V>, V: Version> TryFrom<&str> for UntrustedToken<T, V> {
         let is_footer_present = parts_split.len() == 4;
 
         Ok(Self {
-            header: format!("{}.{}.", parts_split[0], parts_split[1]),
             message: m_raw,
             footer: {
                 if is_footer_present {
@@ -223,11 +234,6 @@ impl<T: Purpose<V>, V: Version> TryFrom<&String> for UntrustedToken<T, V> {
 }
 
 impl<T: Purpose<V>, V: Version> UntrustedToken<T, V> {
-    /// Return untrusted header of this [`UntrustedToken`].
-    pub fn untrusted_header(&self) -> &str {
-        &self.header
-    }
-
     /// Return untrusted message of this [`UntrustedToken`].
     /// If it is a [`Local`] token, this is the encrypted message with nonce and tag.
     /// If it is a [`Public`] token, the signature is included.
@@ -239,19 +245,7 @@ impl<T: Purpose<V>, V: Version> UntrustedToken<T, V> {
     /// If it is a [`Local`] token, this is the encrypted message sans nonce and tag.
     /// If it is a [`Public`] token, the signature is not included.
     pub fn untrusted_payload(&self) -> &[u8] {
-        let h = self.untrusted_header();
-        let m = self.untrusted_message();
-
-        if h.starts_with(V::LOCAL_HEADER) {
-            debug_assert!(m.len() > V::LOCAL_TAG + V::LOCAL_NONCE);
-            // Length have been checked in `TryFrom`
-            &m[V::LOCAL_NONCE..m.len() - V::LOCAL_TAG]
-        } else {
-            debug_assert!(h.starts_with(V::PUBLIC_HEADER));
-            debug_assert!(m.len() > V::PUBLIC_SIG);
-            // Length have been checked in `TryFrom`
-            &m[..m.len() - V::PUBLIC_SIG]
-        }
+        T::parse_raw_payload(self.untrusted_message())
     }
 
     /// Return untrusted footer of this [`UntrustedToken`].
@@ -462,16 +456,7 @@ mod tests_untrusted {
             UntrustedToken::<Local, V2>::try_from(valid_with_footer).unwrap();
 
         // Note: We don't test for untrusted message, since it is encrypted.
-        assert_eq!(
-            untrusted_no_footer.untrusted_header(),
-            crate::version2::LocalToken::HEADER
-        );
         assert_eq!(untrusted_no_footer.untrusted_footer(), &[0u8; 0]);
-
-        assert_eq!(
-            untrusted_with_footer.untrusted_header(),
-            crate::version2::LocalToken::HEADER
-        );
         assert_eq!(
             untrusted_with_footer.untrusted_footer(),
             "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}".as_bytes()
@@ -491,21 +476,12 @@ mod tests_untrusted {
             UntrustedToken::<Public, V2>::try_from(valid_with_footer).unwrap();
 
         assert_eq!(
-            untrusted_no_footer.untrusted_header(),
-            crate::version2::PublicToken::HEADER
-        );
-
-        assert_eq!(
             untrusted_no_footer.untrusted_payload(),
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}"
                 .as_bytes()
         );
         assert_eq!(untrusted_no_footer.untrusted_footer(), &[0u8; 0]);
 
-        assert_eq!(
-            untrusted_with_footer.untrusted_header(),
-            crate::version2::PublicToken::HEADER
-        );
         assert_eq!(
             untrusted_with_footer.untrusted_payload(),
             "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}"
@@ -530,21 +506,12 @@ mod tests_untrusted {
             UntrustedToken::<Public, V3>::try_from(valid_with_footer).unwrap();
 
         assert_eq!(
-            untrusted_no_footer.untrusted_header(),
-            crate::version3::PublicToken::HEADER
-        );
-
-        assert_eq!(
             untrusted_no_footer.untrusted_payload(),
             "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}"
                 .as_bytes()
         );
         assert_eq!(untrusted_no_footer.untrusted_footer(), &[0u8; 0]);
 
-        assert_eq!(
-            untrusted_with_footer.untrusted_header(),
-            crate::version3::PublicToken::HEADER
-        );
         assert_eq!(
             untrusted_with_footer.untrusted_payload(),
             "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}"
@@ -569,21 +536,12 @@ mod tests_untrusted {
             UntrustedToken::<Public, V4>::try_from(valid_with_footer).unwrap();
 
         assert_eq!(
-            untrusted_no_footer.untrusted_header(),
-            crate::version4::PublicToken::HEADER
-        );
-
-        assert_eq!(
             untrusted_no_footer.untrusted_payload(),
             "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}"
                 .as_bytes()
         );
         assert_eq!(untrusted_no_footer.untrusted_footer(), &[0u8; 0]);
 
-        assert_eq!(
-            untrusted_with_footer.untrusted_header(),
-            crate::version4::PublicToken::HEADER
-        );
         assert_eq!(
             untrusted_with_footer.untrusted_payload(),
             "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}"
@@ -608,16 +566,7 @@ mod tests_untrusted {
             UntrustedToken::<Local, V4>::try_from(valid_with_footer).unwrap();
 
         // Note: We don't test for untrusted message, since it is encrypted.
-        assert_eq!(
-            untrusted_no_footer.untrusted_header(),
-            crate::version4::LocalToken::HEADER
-        );
         assert_eq!(untrusted_no_footer.untrusted_footer(), &[0u8; 0]);
-
-        assert_eq!(
-            untrusted_with_footer.untrusted_header(),
-            crate::version4::LocalToken::HEADER
-        );
         assert_eq!(
             untrusted_with_footer.untrusted_footer(),
             "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}".as_bytes()

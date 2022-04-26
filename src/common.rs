@@ -29,18 +29,11 @@ pub(crate) fn decode_b64<T: AsRef<[u8]>>(encoded: T) -> Result<Vec<u8>, Error> {
     Ok(ret)
 }
 
-/// Validate that a token begins with a given header.purpose and does not contain more than:
-/// header.purpose.payload.footer
 /// If a footer is present, this is validated against the supplied.
-pub(crate) fn validate_format_untrusted_token<'a, T: Purpose<V>, V: Version>(
-    header: &'a str,
+pub(crate) fn validate_footer_untrusted_token<T: Purpose<V>, V: Version>(
     token: &UntrustedToken<T, V>,
     footer: Option<&[u8]>,
 ) -> Result<(), Error> {
-    if token.untrusted_header() != header {
-        return Err(Error::TokenFormat);
-    }
-
     // A known footer was supplied for comparison.
     if let Some(known_footer) = footer {
         if token.untrusted_footer().is_empty() {
