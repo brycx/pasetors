@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "std")))]
+
 use crate::errors::Error;
 use crate::paserk::{FormatAsPaserk, Id};
 use regex::Regex;
@@ -169,10 +171,17 @@ impl Footer {
     }
 }
 
-#[test]
-fn test_count_keys() {
-    // https://www.rustescaper.com/
-    let string = r#""name": "3-S-2",
+#[cfg(test)]
+mod tests {
+    use crate::footer::Footer;
+    use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
+    use crate::{V2, V3, V4};
+    use regex::Regex;
+
+    #[test]
+    fn test_count_keys() {
+        // https://www.rustescaper.com/
+        let string = r#""name": "3-S-2",
       "expect-fail": false,
       "public-key": "02fbcb7c69ee1c60579be7a334134878d9c5c5bf35d552dab63c0140397ed14cef637d7720925c44699ea30e72874c72fb",
       "secret-key": "20347609607477aca8fbfbc5e6218455f3199669792ef8b466faa87bdc67798144c848dd03661eed5ac62461340cea96",
@@ -183,8 +192,196 @@ fn test_count_keys() {
       "footer": "{"kid":"dYkISylxQeecEcHELfzF88UZrwbLolNiCdpzUHGw9Uqn"}",
       "implicit-assertion": """#;
 
-    assert_eq!(
-        Regex::new(r#"[^\\]":"#).unwrap().find_iter(string).count(),
-        13
-    );
+        assert_eq!(
+            Regex::new(r#"[^\\]":"#).unwrap().find_iter(string).count(),
+            13
+        );
+    }
+
+    #[test]
+    fn err_on_max_keys() {
+        let mut footer = Footer::new();
+        for n in 1..=11 {
+            footer
+                .add_additional(format!("{}", n).as_str(), "test")
+                .unwrap();
+        }
+
+        let mut footer_parse = Footer::new();
+        footer_parse.max_keys(10);
+        assert!(footer_parse
+            .parse_bytes(footer.to_string().unwrap().as_bytes())
+            .is_err());
+    }
+
+    #[test]
+    fn err_on_max_len() {
+        let mut footer = Footer::new();
+        for n in 1..=11 {
+            footer
+                .add_additional(format!("{}", n).as_str(), "test")
+                .unwrap();
+        }
+        let ser_footer = footer.to_string().unwrap();
+
+        let mut footer_parse = Footer::new();
+        footer_parse.max_len(ser_footer.len() - 1);
+        assert!(footer_parse.parse_bytes(ser_footer.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn err_on_custom_with_registered() {
+        let mut footer = Footer::new();
+
+        assert!(footer.add_additional("wpk", "test").is_err());
+        assert!(footer.add_additional("kid", "test").is_err());
+        assert!(footer.add_additional("custom", "test").is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "paserk")]
+    fn err_on_disallowed_in_footer() {
+        use crate::paserk::FormatAsPaserk;
+
+        let mut footer = Footer::new();
+
+        let kpv2 = AsymmetricKeyPair::<V2>::generate().unwrap();
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let kpv4 = AsymmetricKeyPair::<V4>::generate().unwrap();
+        let skv2 = SymmetricKey::<V2>::generate().unwrap();
+        let skv4 = SymmetricKey::<V4>::generate().unwrap();
+
+        let mut buf = String::new();
+        kpv2.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        kpv2.public.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        kpv3.secret.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        kpv3.public.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        kpv4.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        kpv4.public.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        skv2.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+
+        let mut buf = String::new();
+        skv4.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("wpk", &buf).is_err());
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "paserk")]
+    fn kid_in_footer() {
+        use crate::paserk::{FormatAsPaserk, Id};
+        let mut footer = Footer::new();
+
+        let kpv2 = AsymmetricKeyPair::<V2>::generate().unwrap();
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let kpv4 = AsymmetricKeyPair::<V4>::generate().unwrap();
+        let skv2 = SymmetricKey::<V2>::generate().unwrap();
+        let skv4 = SymmetricKey::<V4>::generate().unwrap();
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&kpv2);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&kpv2.public);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&kpv3.secret);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&kpv3.public);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&kpv4);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&kpv4.public);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&skv2);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+
+        let mut buf = String::new();
+        let paserk_id = Id::from(&skv4);
+        paserk_id.fmt(&mut buf).unwrap();
+        assert!(footer.add_additional("kid", &buf).is_err());
+        assert!(footer.add_additional("custom", &buf).is_ok());
+        footer.key_id(&paserk_id);
+        assert!(footer.contains_claim("kid"));
+        assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
+    }
 }
