@@ -34,3 +34,15 @@ name = "fuzz_point_comp"
 path = "fuzz_targets/fuzz_point_comp.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_types"
+path = "fuzz_targets/fuzz_types.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_paserk"
+path = "fuzz_targets/fuzz_paserk.rs"
+test = false
+doc = false

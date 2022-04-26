@@ -6,10 +6,13 @@ extern crate rand_core;
 
 use libfuzzer_sys::fuzz_target;
 
+use core::convert::TryFrom;
 use ed25519_compact::{KeyPair, Seed};
 use pasetors::claims::*;
 use pasetors::keys::*;
+use pasetors::token::UntrustedToken;
 use pasetors::{version2, version3, version4};
+use pasetors::{Local, Public, V2, V3, V4};
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 
@@ -29,22 +32,44 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 
     // Public
-    if version2::PublicToken::verify(&pk, &message, None).is_ok() {
-        panic!("Invalid token was verified with version 2");
-    }
-    let public_token = version2::PublicToken::sign(&sk, &pk, message.as_bytes(), None).unwrap();
-    if version2::PublicToken::verify(&pk, &public_token, None).is_err() {
-        panic!("Valid token was NOT verified with version 2");
-    }
-    // Local
-    if version2::LocalToken::decrypt(&sk_local, &message, None).is_ok() {
-        panic!("Invalid token was verified with version 2");
+    if let Ok(untrusted) = UntrustedToken::<Public, V2>::try_from(&message) {
+        if version2::PublicToken::verify(&pk, &untrusted, None).is_ok() {
+            panic!("Invalid token was verified with version 2");
+        }
     }
 
-    let local_token = version2::LocalToken::encrypt(&sk_local, message.as_bytes(), None).unwrap();
-    if version2::LocalToken::decrypt(&sk_local, &local_token, None).is_err() {
-        panic!("Valid token was NOT verified with version 2");
+    let public_token = UntrustedToken::<Public, V2>::try_from(
+        &version2::PublicToken::sign(&sk, &pk, message.as_bytes(), None).unwrap(),
+    )
+    .unwrap();
+    match version2::PublicToken::verify(&pk, &public_token, None) {
+        Ok(trusted) => {
+            assert_eq!(trusted.payload(), message);
+            assert!(trusted.footer().is_empty());
+            assert!(trusted.implicit_assert().is_empty());
+        }
+        Err(_) => panic!("Valid token was NOT verified with version 2"),
+    };
+
+    // Local
+    if let Ok(untrusted) = UntrustedToken::<Local, V2>::try_from(&message) {
+        if version2::LocalToken::decrypt(&sk_local, &untrusted, None).is_ok() {
+            panic!("Invalid token was verified with version 2");
+        }
     }
+
+    let local_token = UntrustedToken::<Local, V2>::try_from(
+        &version2::LocalToken::encrypt(&sk_local, message.as_bytes(), None).unwrap(),
+    )
+    .unwrap();
+    match version2::LocalToken::decrypt(&sk_local, &local_token, None) {
+        Ok(trusted) => {
+            assert_eq!(trusted.payload(), message);
+            assert!(trusted.footer().is_empty());
+            assert!(trusted.implicit_assert().is_empty());
+        }
+        Err(_) => panic!("Valid token was NOT verified with version 2"),
+    };
 }
 
 fn fuzztest_v3(data: &[u8]) {
@@ -56,15 +81,25 @@ fn fuzztest_v3(data: &[u8]) {
     }
 
     // Public
-    if version3::PublicToken::verify(&kp.public, &message, None, None).is_ok() {
-        panic!("Invalid token was verified with version 3");
+    if let Ok(untrusted) = UntrustedToken::<Public, V3>::try_from(&message) {
+        if version3::PublicToken::verify(&kp.public, &untrusted, None, None).is_ok() {
+            panic!("Invalid token was verified with version 3");
+        }
     }
-    let public_token =
-        version3::PublicToken::sign(&kp.secret, &kp.public, message.as_bytes(), None, None)
-            .unwrap();
-    if version3::PublicToken::verify(&kp.public, &public_token, None, None).is_err() {
-        panic!("Valid token was NOT verified with version 3");
-    }
+
+    let public_token = UntrustedToken::<Public, V3>::try_from(
+        &version3::PublicToken::sign(&kp.secret, &kp.public, message.as_bytes(), None, None)
+            .unwrap(),
+    )
+    .unwrap();
+    match version3::PublicToken::verify(&kp.public, &public_token, None, None) {
+        Ok(trusted) => {
+            assert_eq!(trusted.payload(), message);
+            assert!(trusted.footer().is_empty());
+            assert!(trusted.implicit_assert().is_empty());
+        }
+        Err(_) => panic!("Valid token was NOT verified with version 3"),
+    };
 }
 
 fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
@@ -83,24 +118,43 @@ fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 
     // Public
-    if version4::PublicToken::verify(&pk, &message, None, None).is_ok() {
-        panic!("Invalid token was verified with version 4");
-    }
-    let public_token =
-        version4::PublicToken::sign(&sk, &pk, message.as_bytes(), None, None).unwrap();
-    if version4::PublicToken::verify(&pk, &public_token, None, None).is_err() {
-        panic!("Valid token was NOT verified with version 4");
-    }
-    // Local
-    if version4::LocalToken::decrypt(&sk_local, &message, None, None).is_ok() {
-        panic!("Invalid token was verified with version 4");
+    if let Ok(untrusted) = UntrustedToken::<Public, V4>::try_from(&message) {
+        if version4::PublicToken::verify(&pk, &untrusted, None, None).is_ok() {
+            panic!("Invalid token was verified with version 4");
+        }
     }
 
-    let local_token =
-        version4::LocalToken::encrypt(&sk_local, message.as_bytes(), None, None).unwrap();
-    if version4::LocalToken::decrypt(&sk_local, &local_token, None, None).is_err() {
-        panic!("Valid token was NOT verified with version 4");
+    let public_token = UntrustedToken::<Public, V4>::try_from(
+        &version4::PublicToken::sign(&sk, &pk, message.as_bytes(), None, None).unwrap(),
+    )
+    .unwrap();
+    match version4::PublicToken::verify(&pk, &public_token, None, None) {
+        Ok(trusted) => {
+            assert_eq!(trusted.payload(), message);
+            assert!(trusted.footer().is_empty());
+            assert!(trusted.implicit_assert().is_empty());
+        }
+        Err(_) => panic!("Valid token was NOT verified with version 4"),
+    };
+    // Local
+    if let Ok(untrusted) = UntrustedToken::<Local, V4>::try_from(&message) {
+        if version4::LocalToken::decrypt(&sk_local, &untrusted, None, None).is_ok() {
+            panic!("Invalid token was verified with version 4");
+        }
     }
+
+    let local_token = UntrustedToken::<Local, V4>::try_from(
+        &version4::LocalToken::encrypt(&sk_local, message.as_bytes(), None, None).unwrap(),
+    )
+    .unwrap();
+    match version4::LocalToken::decrypt(&sk_local, &local_token, None, None) {
+        Ok(trusted) => {
+            assert_eq!(trusted.payload(), message);
+            assert!(trusted.footer().is_empty());
+            assert!(trusted.implicit_assert().is_empty());
+        }
+        Err(_) => panic!("Valid token was NOT verified with version 4"),
+    };
 }
 
 fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
@@ -123,80 +177,28 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
     claims.subject("test").unwrap();
     let validation_rules = ClaimsValidationRules::new();
 
-    let public_token = pasetors::public::sign(&sk, &pk, &claims, None, None).unwrap();
-    if let Ok(claims_from) =
+    let public_token = UntrustedToken::<Public, V4>::try_from(
+        &pasetors::public::sign(&sk, &pk, &claims, None, None).unwrap(),
+    )
+    .unwrap();
+    if let Ok(trusted_token) =
         pasetors::public::verify(&pk, &public_token, &validation_rules, None, None)
     {
-        assert_eq!(claims, claims_from);
+        assert_eq!(&claims, trusted_token.payload_claims().unwrap());
     } else {
         panic!("(high-level API): Valid token was NOT verified with version 4");
     }
 
-    let local_token = pasetors::local::encrypt(&sk_local, &claims, None, None).unwrap();
-    if let Ok(claims_from) =
+    let local_token = UntrustedToken::<Local, V4>::try_from(
+        &pasetors::local::encrypt(&sk_local, &claims, None, None).unwrap(),
+    )
+    .unwrap();
+    if let Ok(trusted_token) =
         pasetors::local::decrypt(&sk_local, &local_token, &validation_rules, None, None)
     {
-        assert_eq!(claims, claims_from);
+        assert_eq!(&claims, trusted_token.payload_claims().unwrap());
     } else {
         panic!("(high-level API): Valid token was NOT verified with version 4");
-    }
-}
-
-fn fuzz_paserk(data: &[u8]) {
-    use core::convert::TryFrom;
-    use pasetors::paserk::{FormatAsPaserk, Id};
-
-    let data: String = String::from_utf8_lossy(data).into();
-
-    if let Ok(valid_paserk) = AsymmetricKeyPair::<V2>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-    if let Ok(valid_paserk) = AsymmetricSecretKey::<V3>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-    if let Ok(valid_paserk) = AsymmetricKeyPair::<V4>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-
-    if let Ok(valid_paserk) = AsymmetricPublicKey::<V2>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-    if let Ok(valid_paserk) = AsymmetricPublicKey::<V3>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-    if let Ok(valid_paserk) = AsymmetricPublicKey::<V4>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-
-    if let Ok(valid_paserk) = SymmetricKey::<V2>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
-    }
-    if let Ok(valid_paserk) = SymmetricKey::<V4>::try_from(data.clone()) {
-        let mut buf = String::new();
-        valid_paserk.fmt(&mut buf).unwrap();
-        assert_eq!(&data, &buf);
-        let _ = Id::from(&valid_paserk);
     }
 }
 
@@ -207,9 +209,4 @@ fuzz_target!(|data: &[u8]| {
     fuzztest_v3(data);
     fuzztest_v4(data, &mut csprng);
     fuzz_highlevel(data, &mut csprng);
-    fuzz_paserk(data);
-
-    if let Ok(parsed_claims) = Claims::from_bytes(data) {
-        assert!(parsed_claims.to_string().is_ok());
-    }
 });
