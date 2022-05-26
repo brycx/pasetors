@@ -2,6 +2,8 @@ use crate::errors::Error;
 use crate::version::private::Version;
 use crate::V4;
 use alloc::vec::Vec;
+#[cfg(feature = "v3")]
+use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
@@ -122,6 +124,19 @@ pub struct AsymmetricKeyPair<V> {
     pub secret: AsymmetricSecretKey<V>,
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "v3")))]
+#[cfg(feature = "v3")]
+impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
+    type Error = Error;
+
+    fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
+        use p384_rs::ecdsa::SigningKey;
+
+        let sk = SigningKey::from_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
+        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
+    }
+}
+
 #[cfg_attr(docsrs, doc(cfg(feature = "v2")))]
 #[cfg(feature = "v2")]
 impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
@@ -158,36 +173,15 @@ impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
 #[cfg(feature = "v3")]
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
-        use crate::version3::UncompressedPublicKey;
-        use core::convert::TryFrom;
-        use pkcs8::{DecodePrivateKey, PrivateKeyDocument, PrivateKeyInfo};
-        use ring::{rand, signature};
-        use sec1::der::Decodable;
+        use p384_rs::ecdsa::{SigningKey, VerifyingKey};
+        use rand_core::OsRng;
 
-        let rng = rand::SystemRandom::new();
-        let pkcs8 = signature::EcdsaKeyPair::generate_pkcs8(
-            &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
-            &rng,
-        )
-        .map_err(|_| Error::KeyGeneration)?;
+        let key = SigningKey::random(&mut OsRng);
 
-        let private_key_doc =
-            PrivateKeyDocument::from_pkcs8_der(pkcs8.as_ref()).map_err(|_| Error::KeyGeneration)?;
-        let private_key_info =
-            PrivateKeyInfo::try_from(private_key_doc.as_ref()).map_err(|_| Error::KeyGeneration)?;
-
-        // *ring* includes the public key in the PKCS8 doc, so we error if it for some reason isn't available.
-        // src: https://briansmith.org/rustdoc/ring/signature/struct.EcdsaKeyPair.html#method.generate_pkcs8
-        let parsed_ec_private_key = sec1::EcPrivateKey::from_der(private_key_info.private_key)
-            .map_err(|_| Error::KeyGeneration)?;
-
-        let public_uc = match parsed_ec_private_key.public_key {
-            Some(pk) => pk,
-            None => return Err(Error::KeyGeneration),
-        };
-        let uncompressed_pk = UncompressedPublicKey::try_from(public_uc)?;
-        let public = AsymmetricPublicKey::<V3>::try_from(&uncompressed_pk)?;
-        let secret = AsymmetricSecretKey::<V3>::from(parsed_ec_private_key.private_key)?;
+        let public = AsymmetricPublicKey::<V3>::from(
+            VerifyingKey::from(&key).to_encoded_point(true).as_ref(),
+        )?;
+        let secret = AsymmetricSecretKey::<V3>::from(key.to_bytes().as_slice())?;
 
         Ok(Self { public, secret })
     }
@@ -310,5 +304,13 @@ mod tests {
         assert!(SymmetricKey::<V4>::from(&[0u8; 31]).is_err());
         assert!(SymmetricKey::<V4>::from(&[0u8; 32]).is_ok());
         assert!(SymmetricKey::<V4>::from(&[0u8; 33]).is_err());
+    }
+
+    #[cfg(feature = "v3")]
+    #[test]
+    fn try_from_secret_to_public_v3() {
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
+        assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
     }
 }
