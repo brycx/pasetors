@@ -53,12 +53,12 @@ impl FormatAsPaserk for SymmetricKey<V2> {
     }
 }
 
-impl TryFrom<String> for SymmetricKey<V2> {
+impl TryFrom<&str> for SymmetricKey<V2> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k2", "local", V2::LOCAL_KEY)?,
+            bytes: validate_paserk_string(value, "k2", "local", V2::LOCAL_KEY)?,
             phantom: PhantomData,
         })
     }
@@ -71,12 +71,12 @@ impl FormatAsPaserk for SymmetricKey<V4> {
     }
 }
 
-impl TryFrom<String> for SymmetricKey<V4> {
+impl TryFrom<&str> for SymmetricKey<V4> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k4", "local", V4::LOCAL_KEY)?,
+            bytes: validate_paserk_string(value, "k4", "local", V4::LOCAL_KEY)?,
             phantom: PhantomData,
         })
     }
@@ -99,16 +99,12 @@ impl FormatAsPaserk for AsymmetricKeyPair<V2> {
     }
 }
 
-impl TryFrom<String> for AsymmetricKeyPair<V2> {
+impl TryFrom<&str> for AsymmetricKeyPair<V2> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let mut buf = validate_paserk_string(
-            value.as_str(),
-            "k2",
-            "secret",
-            V2::SECRET_KEY + V2::PUBLIC_KEY,
-        )?;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut buf =
+            validate_paserk_string(value, "k2", "secret", V2::SECRET_KEY + V2::PUBLIC_KEY)?;
         let ret = Self {
             secret: AsymmetricSecretKey::from(&buf[..V2::SECRET_KEY])?,
             public: AsymmetricPublicKey::from(&buf[V2::SECRET_KEY..])?,
@@ -126,11 +122,11 @@ impl FormatAsPaserk for AsymmetricSecretKey<V3> {
     }
 }
 
-impl TryFrom<String> for AsymmetricSecretKey<V3> {
+impl TryFrom<&str> for AsymmetricSecretKey<V3> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let buf = validate_paserk_string(value.as_str(), "k3", "secret", V3::SECRET_KEY)?;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let buf = validate_paserk_string(value, "k3", "secret", V3::SECRET_KEY)?;
         let ret = Self {
             bytes: buf,
             phantom: PhantomData,
@@ -154,16 +150,12 @@ impl FormatAsPaserk for AsymmetricKeyPair<V4> {
     }
 }
 
-impl TryFrom<String> for AsymmetricKeyPair<V4> {
+impl TryFrom<&str> for AsymmetricKeyPair<V4> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let mut buf = validate_paserk_string(
-            value.as_str(),
-            "k4",
-            "secret",
-            V4::SECRET_KEY + V4::PUBLIC_KEY,
-        )?;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut buf =
+            validate_paserk_string(value, "k4", "secret", V4::SECRET_KEY + V4::PUBLIC_KEY)?;
         let ret = Self {
             secret: AsymmetricSecretKey::from(&buf[..V4::SECRET_KEY])?,
             public: AsymmetricPublicKey::from(&buf[V4::SECRET_KEY..])?,
@@ -181,12 +173,12 @@ impl FormatAsPaserk for AsymmetricPublicKey<V2> {
     }
 }
 
-impl TryFrom<String> for AsymmetricPublicKey<V2> {
+impl TryFrom<&str> for AsymmetricPublicKey<V2> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k2", "public", V2::PUBLIC_KEY)?,
+            bytes: validate_paserk_string(value, "k2", "public", V2::PUBLIC_KEY)?,
             phantom: PhantomData,
         })
     }
@@ -199,12 +191,12 @@ impl FormatAsPaserk for AsymmetricPublicKey<V3> {
     }
 }
 
-impl TryFrom<String> for AsymmetricPublicKey<V3> {
+impl TryFrom<&str> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k3", "public", V3::PUBLIC_KEY)?,
+            bytes: validate_paserk_string(value, "k3", "public", V3::PUBLIC_KEY)?,
             phantom: PhantomData,
         })
     }
@@ -217,12 +209,12 @@ impl FormatAsPaserk for AsymmetricPublicKey<V4> {
     }
 }
 
-impl TryFrom<String> for AsymmetricPublicKey<V4> {
+impl TryFrom<&str> for AsymmetricPublicKey<V4> {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: validate_paserk_string(value.as_str(), "k4", "public", V4::PUBLIC_KEY)?,
+            bytes: validate_paserk_string(value, "k4", "public", V4::PUBLIC_KEY)?,
             phantom: PhantomData,
         })
     }
@@ -496,7 +488,7 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
-                    let deser = $key::<$version>::try_from(test_paserk.paserk.clone()).unwrap();
+                    let deser = $key::<$version>::try_from(test_paserk.paserk.as_str()).unwrap();
                     let key =
                         $key::<$version>::from(&hex::decode(&test_paserk.key).unwrap()).unwrap();
                     assert_eq!(deser.as_bytes(), key.as_bytes());
@@ -560,121 +552,113 @@ mod tests {
     #[test]
     fn test_wrong_version_or_purpose() {
         assert!(SymmetricKey::<V2>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_ok());
         assert!(SymmetricKey::<V2>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(SymmetricKey::<V2>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(SymmetricKey::<V2>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
 
         assert!(SymmetricKey::<V4>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_ok());
         assert!(SymmetricKey::<V4>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(SymmetricKey::<V4>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(SymmetricKey::<V4>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
 
         assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_ok());
         assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V3>::try_from(
             "k3.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                .to_string()
         )
         .is_ok());
         assert!(AsymmetricPublicKey::<V3>::try_from(
             "k4.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                .to_string()
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V3>::try_from(
             "k3.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                .to_string()
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V3>::try_from(
             "k4.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                .to_string()
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_ok());
         assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
         assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string()
+            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         )
         .is_err());
 
-        assert!(AsymmetricKeyPair::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_ok());
-        assert!(AsymmetricKeyPair::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
-        assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
-        assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
 
         assert!(AsymmetricSecretKey::<V3>::try_from(
             "k3.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-                .to_string()
         )
         .is_ok());
         assert!(AsymmetricSecretKey::<V3>::try_from(
             "k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-                .to_string()
         )
         .is_err());
         assert!(AsymmetricSecretKey::<V3>::try_from(
             "k3.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-                .to_string()
         )
         .is_err());
         assert!(AsymmetricSecretKey::<V3>::try_from(
             "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-                .to_string()
         )
         .is_err());
 
-        assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_ok());
-        assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
-        assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
-        assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ".to_string()).is_err());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
     }
 }
