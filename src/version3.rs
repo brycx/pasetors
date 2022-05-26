@@ -22,49 +22,14 @@ use crate::version::private::Version;
 use crate::{pae, V3};
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
 use core::marker::PhantomData;
-use num_bigint::BigUint;
-use num_traits::{One, Zero};
-use ring::rand;
-use ring::signature::{
-    self, EcdsaKeyPair, ECDSA_P384_SHA384_FIXED, ECDSA_P384_SHA384_FIXED_SIGNING,
+use p384_rs::ecdsa::{
+    signature::{Signer, Verifier},
+    Signature, SigningKey, VerifyingKey,
 };
-
-/// P384 prime in big-endian: 2^384 - 2^128 - 2^96 + 2^32 - 1.
-const P: [u8; 48] = [
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 255, 255, 255, 255, 0, 0, 0,
-    0, 0, 0, 0, 0, 255, 255, 255, 255,
-];
-
-/// (P+1)/4 in big-endian.
-const P_PLUS_ONE_DIV_FOUR: [u8; 48] = [
-    63, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 191, 255, 255, 255, 192, 0, 0,
-    0, 0, 0, 0, 0, 64, 0, 0, 0,
-];
-
-/// (P-1)/2 in big-endian.
-const P_MINUS_ONE_DIV_TWO: [u8; 48] = [
-    127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127, 255, 255, 255, 128, 0, 0,
-    0, 0, 0, 0, 0, 127, 255, 255, 255,
-];
-
-/// P384 constant B.
-const B: [u8; 48] = [
-    179, 49, 47, 167, 226, 62, 231, 228, 152, 142, 5, 107, 227, 248, 45, 25, 24, 29, 156, 110, 254,
-    129, 65, 18, 3, 20, 8, 143, 80, 19, 135, 90, 198, 86, 57, 141, 138, 46, 209, 157, 42, 133, 200,
-    237, 211, 236, 42, 239,
-];
-
-/// The constant A (-3) mod P, equivalent to P-3.
-const A_MOD_P: [u8; 48] = [
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 255, 255, 255, 255, 0, 0, 0,
-    0, 0, 0, 0, 0, 255, 255, 255, 252,
-];
+use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
+use p384_rs::{PublicKey, SecretKey};
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
@@ -73,38 +38,21 @@ const A_MOD_P: [u8; 48] = [
 ///
 /// This is provided to be able to convert uncompressed keys to compressed ones, as compressed is
 /// required by PASETO and what an `AsymmetricPublicKey<V3>` represents.
-pub struct UncompressedPublicKey(pub [u8; 97]);
+pub struct UncompressedPublicKey(PublicKey);
 
 impl TryFrom<&[u8]> for UncompressedPublicKey {
     type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let pk: [u8; 97] = value.try_into().map_err(|_| Error::Key)?;
-        if pk[0] != 4 {
+        // PublicKey::from_sec1_bytes accepts both uncompressed and compressed points
+        // but we need to make the distiction here.
+        if value.len() != 97 && value[0] != 4 {
             return Err(Error::Key);
         }
 
+        let pk = PublicKey::from_sec1_bytes(value).map_err(|_| Error::Key)?;
+
         Ok(Self(pk))
-    }
-}
-
-/// Compute the Legendre symbol for `a`, given prime [`P`].
-///
-/// Ref: <https://en.wikipedia.org/wiki/Legendre_symbol>
-fn legendre_symbol(a: &BigUint) -> i32 {
-    let p = BigUint::from_bytes_be(&P);
-    debug_assert_eq!(&p % BigUint::from(2u32), BigUint::one()); // Ensure odd prime
-
-    let one = BigUint::one();
-    let zero = BigUint::zero();
-    let r = a.modpow(&BigUint::from_bytes_be(&P_MINUS_ONE_DIV_TWO), &p);
-
-    if r == one {
-        1
-    } else if r == zero {
-        0
-    } else {
-        -1
     }
 }
 
@@ -112,63 +60,15 @@ impl TryFrom<&AsymmetricPublicKey<V3>> for UncompressedPublicKey {
     type Error = Error;
 
     fn try_from(value: &AsymmetricPublicKey<V3>) -> Result<Self, Self::Error> {
-        debug_assert_eq!(value.bytes.len(), 49);
-        debug_assert_eq!(
-            BigUint::from_bytes_be(&P) % BigUint::from(4u32),
-            BigUint::from(3u32)
-        );
-
-        let prime = BigUint::from_bytes_be(&P);
-        let p_ident = BigUint::from_bytes_be(&P_PLUS_ONE_DIV_FOUR);
-        let a = BigUint::from_bytes_be(&A_MOD_P);
-        let b = BigUint::from_bytes_be(&B);
-        let sign_y = BigUint::from(&value.bytes[0] - 2);
-        let x = BigUint::from_bytes_be(&value.bytes[1..]);
-        if x >= prime {
-            return Err(Error::PublicKeyConversion);
+        // PublicKey::from_sec1_bytes accepts both uncompressed and compressed points
+        // but we need to make the distiction here.
+        if value.as_bytes()[0] != 2 && value.as_bytes()[0] != 3 {
+            return Err(Error::Key);
         }
 
-        // Pre-computed -3 so no sub op.
-        let y2 = x.pow(3u32) + (&a * &x) + b;
-        if legendre_symbol(&y2) != 1 {
-            return Err(Error::PublicKeyConversion);
-        }
+        let pk = PublicKey::from_sec1_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
 
-        // Because P mod 4 === 3, we can get the square root by taking (y^{2})^{(P+1)/4}.
-        let mut y = y2.modpow(&p_ident, &prime);
-
-        if &y % 2u32 != sign_y {
-            y = prime - y;
-        }
-
-        let mut ret = [0u8; 97];
-        ret[0] = 0x04;
-
-        let mut x_start: usize = 1; // 0-indexed
-        let mut y_start: usize = 49; // 0-indexed
-        let xbytes = x.to_bytes_be();
-        let ybytes = y.to_bytes_be();
-
-        // Leading zeroes can have been dropped in some cases, so we check here if we should
-        // keep any, based on the BE repr of the integer.
-        if xbytes.len() != 48 {
-            debug_assert!(xbytes.len() < 48);
-            let diff = 48 - xbytes.len();
-            x_start += diff as usize;
-        }
-        if ybytes.len() != 48 {
-            debug_assert!(ybytes.len() < 48);
-            let diff = 48 - ybytes.len();
-            y_start += diff as usize;
-        }
-
-        debug_assert!((1..=49).contains(&x_start));
-        debug_assert!((49..=97).contains(&y_start));
-
-        ret[x_start..xbytes.len() + x_start].copy_from_slice(&xbytes);
-        ret[y_start..ybytes.len() + y_start].copy_from_slice(&ybytes);
-
-        Ok(UncompressedPublicKey(ret))
+        Ok(UncompressedPublicKey(pk))
     }
 }
 
@@ -176,16 +76,8 @@ impl TryFrom<&UncompressedPublicKey> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
     fn try_from(value: &UncompressedPublicKey) -> Result<Self, Self::Error> {
-        let mut compressed = [0u8; 49];
-        compressed[0] = 0x02;
-        let tmp: i8 = (BigUint::from_bytes_be(&value.0[49..]) % 2u32)
-            .try_into()
-            .unwrap();
-        compressed[0] += tmp as u8; // 2 if even, 3 if odd
-        compressed[1..].copy_from_slice(&value.0[1..49]);
-
         Ok(Self {
-            bytes: compressed.to_vec(),
+            bytes: value.0.to_encoded_point(true).as_ref().to_vec(),
             phantom: PhantomData,
         })
     }
@@ -216,15 +108,7 @@ impl PublicToken {
             return Err(Error::EmptyPayload);
         }
 
-        let uc_pk = UncompressedPublicKey::try_from(public_key)?;
-        let kp = EcdsaKeyPair::from_private_key_and_public_key(
-            &ECDSA_P384_SHA384_FIXED_SIGNING,
-            secret_key.as_bytes(),
-            &uc_pk.0,
-        )
-        .map_err(|_| Error::Key)?;
-
-        let csprng = rand::SystemRandom::new();
+        let signing_key = SigningKey::from_bytes(secret_key.as_bytes()).map_err(|_| Error::Key)?;
 
         let f = footer.unwrap_or(&[]);
         let i = implicit_assert.unwrap_or(&[]);
@@ -236,7 +120,7 @@ impl PublicToken {
             i,
         ])?;
 
-        let sig = kp.sign(&csprng, m2.as_ref()).map_err(|_| Error::Signing)?;
+        let sig = signing_key.sign(m2.as_ref());
         debug_assert_eq!(sig.as_ref().len(), V3::PUBLIC_SIG);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
@@ -274,18 +158,15 @@ impl PublicToken {
         let i = implicit_assert.unwrap_or(&[]);
         let sm = token.untrusted_message();
         let m = token.untrusted_payload();
-        let s = sm[m.len()..m.len() + V3::PUBLIC_SIG].as_ref();
+        let s = Signature::try_from(sm[m.len()..m.len() + V3::PUBLIC_SIG].as_ref())
+            .map_err(|_| Error::TokenValidation)?;
 
         let m2 = pae::pae(&[public_key.as_bytes(), Self::HEADER.as_bytes(), m, f, i])?;
 
-        let uc_pk = UncompressedPublicKey::try_from(public_key)?;
-        // NOTE: `unparsed_pk` is only validated once we verify the signature.
-        let unparsed_pk = signature::UnparsedPublicKey::new(&ECDSA_P384_SHA384_FIXED, &uc_pk.0);
-
-        debug_assert!(s.len() == V3::PUBLIC_SIG);
-        // If the below fails, it is an invalid signature or invalid public key.
-        unparsed_pk
-            .verify(m2.as_ref(), s)
+        let verifying_key =
+            VerifyingKey::from_sec1_bytes(public_key.as_bytes()).map_err(|_| Error::Key)?;
+        verifying_key
+            .verify(m2.as_ref(), &s)
             .map_err(|_| Error::TokenValidation)?;
 
         TrustedToken::_new(Self::HEADER, m, f, i)
@@ -297,6 +178,7 @@ mod test_regression {
     use crate::keys::AsymmetricPublicKey;
     use crate::version3::UncompressedPublicKey;
     use crate::V3;
+    use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
     use std::convert::TryFrom;
 
     #[test]
@@ -311,13 +193,13 @@ mod test_regression {
         ];
 
         let uc_pk = UncompressedPublicKey::try_from(pk_bytes.as_ref()).unwrap();
-        assert_eq!(&pk_bytes, &uc_pk.0);
+        assert_eq!(&pk_bytes, &uc_pk.0.to_encoded_point(false).as_ref());
         let c_pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
         assert_eq!(&c_pk.as_bytes()[1..], &pk_bytes[1..49]);
 
         let round = UncompressedPublicKey::try_from(&c_pk).unwrap();
 
-        assert_eq!(round.0, pk_bytes);
+        assert_eq!(round.0.to_encoded_point(false).as_ref(), pk_bytes);
     }
 
     #[test]
@@ -469,6 +351,7 @@ mod test_wycheproof_point_compression {
     use crate::V3;
     use alloc::string::String;
     use alloc::vec::Vec;
+    use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
     use serde::{Deserialize, Serialize};
     use std::convert::TryFrom;
     use std::fs::File;
@@ -538,7 +421,13 @@ mod test_wycheproof_point_compression {
 
             let pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
             assert_eq!(
-                hex::encode(UncompressedPublicKey::try_from(&pk).unwrap().0),
+                hex::encode(
+                    UncompressedPublicKey::try_from(&pk)
+                        .unwrap()
+                        .0
+                        .to_encoded_point(false)
+                        .as_ref()
+                ),
                 test_group.key.uncompressed,
                 "Failed {:?}",
                 &test_group.key.uncompressed
