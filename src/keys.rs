@@ -333,5 +333,6 @@ mod tests {
         let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
         let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
         assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
+        assert_eq!(pubv3, kpv3.public);
     }
 }
