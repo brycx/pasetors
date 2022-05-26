@@ -56,23 +56,12 @@ optional = true
 version = "2.4.1"
 default-features = false
 
-[dependencies.pkcs8]
-version = "0.8.0"
-features = ["alloc"]
-optional = true
-
-[dependencies.sec1]
-version = "0.2.1"
-optional = true
-
 [dependencies.regex]
 version = "1.5.5"
 optional = true
 
 [dependencies.p384_rs]
-version = "0.1.7"
-git = "https://github.com/brycx/rust-p384"
-branch = "is_odd-on-sec1"
+version = "0.1.9"
 features = ["ecdsa"]
 optional = true
 
