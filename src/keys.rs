@@ -4,6 +4,8 @@ use crate::V4;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
+#[cfg(feature = "v3")]
+use core::convert::TryFrom;
 
 #[cfg(feature = "v2")]
 use crate::V2;
@@ -120,6 +122,19 @@ pub struct AsymmetricKeyPair<V> {
     pub public: AsymmetricPublicKey<V>,
     /// The [`AsymmetricPublicKey`].
     pub secret: AsymmetricSecretKey<V>,
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "v3")))]
+#[cfg(feature = "v3")]
+impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
+    type Error = Error;
+
+    fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
+        use p384_rs::ecdsa::SigningKey;
+
+        let sk = SigningKey::from_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
+        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
+    }
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "v2")))]
@@ -289,5 +304,13 @@ mod tests {
         assert!(SymmetricKey::<V4>::from(&[0u8; 31]).is_err());
         assert!(SymmetricKey::<V4>::from(&[0u8; 32]).is_ok());
         assert!(SymmetricKey::<V4>::from(&[0u8; 33]).is_err());
+    }
+
+    #[cfg(feature = "v3")]
+    #[test]
+    fn try_from_secret_to_public_v3() {
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
+        assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
     }
 }
