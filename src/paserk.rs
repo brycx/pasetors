@@ -228,6 +228,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V4> {
     }
 }
 
+#[derive(Debug, Clone)]
 /// PASERK IDs.
 ///
 /// This operation calculates the unique ID for a given PASERK.
@@ -236,6 +237,18 @@ impl TryFrom<String> for AsymmetricPublicKey<V4> {
 pub struct Id {
     header: String,
     identifier: String,
+}
+
+impl PartialEq<Id> for Id {
+    fn eq(&self, other: &Id) -> bool {
+        use subtle::ConstantTimeEq;
+        (self.header.as_bytes().ct_eq(other.header.as_bytes())
+            & self
+                .identifier
+                .as_bytes()
+                .ct_eq(other.identifier.as_bytes()))
+        .into()
+    }
 }
 
 impl From<&AsymmetricSecretKey<V3>> for Id {
