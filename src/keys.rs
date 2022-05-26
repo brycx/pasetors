@@ -55,6 +55,13 @@ impl<V> Debug for SymmetricKey<V> {
     }
 }
 
+impl<V: Version> PartialEq<SymmetricKey<V>> for SymmetricKey<V> {
+    fn eq(&self, other: &SymmetricKey<V>) -> bool {
+        use subtle::ConstantTimeEq;
+        self.as_bytes().ct_eq(other.as_bytes()).into()
+    }
+}
+
 /// An asymmetric secret key used for `.public` tokens, given a version `V`.
 pub struct AsymmetricSecretKey<V> {
     pub(crate) bytes: Vec<u8>,
@@ -91,7 +98,14 @@ impl<V> Debug for AsymmetricSecretKey<V> {
     }
 }
 
-#[derive(Debug)]
+impl<V: Version> PartialEq<AsymmetricSecretKey<V>> for AsymmetricSecretKey<V> {
+    fn eq(&self, other: &AsymmetricSecretKey<V>) -> bool {
+        use subtle::ConstantTimeEq;
+        self.as_bytes().ct_eq(other.as_bytes()).into()
+    }
+}
+
+#[derive(Debug, Clone)]
 /// An asymmetric public key used for `.public` tokens, given a version `V`.
 pub struct AsymmetricPublicKey<V> {
     pub(crate) bytes: Vec<u8>,
@@ -112,6 +126,13 @@ impl<V: Version> AsymmetricPublicKey<V> {
     /// Return this as a byte-slice.
     pub fn as_bytes(&self) -> &[u8] {
         self.bytes.as_slice()
+    }
+}
+
+impl<V: Version> PartialEq<AsymmetricPublicKey<V>> for AsymmetricPublicKey<V> {
+    fn eq(&self, other: &AsymmetricPublicKey<V>) -> bool {
+        use subtle::ConstantTimeEq;
+        self.as_bytes().ct_eq(other.as_bytes()).into()
     }
 }
 
@@ -312,5 +333,6 @@ mod tests {
         let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
         let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
         assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
+        assert_eq!(pubv3, kpv3.public);
     }
 }
