@@ -228,6 +228,7 @@ impl TryFrom<String> for AsymmetricPublicKey<V4> {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 /// PASERK IDs.
 ///
 /// This operation calculates the unique ID for a given PASERK.
