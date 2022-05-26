@@ -91,7 +91,7 @@ impl<V> Debug for AsymmetricSecretKey<V> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// An asymmetric public key used for `.public` tokens, given a version `V`.
 pub struct AsymmetricPublicKey<V> {
     pub(crate) bytes: Vec<u8>,
