@@ -29,7 +29,7 @@ use p384_rs::ecdsa::{
     Signature, SigningKey, VerifyingKey,
 };
 use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
-use p384_rs::{PublicKey, SecretKey};
+use p384_rs::PublicKey;
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.

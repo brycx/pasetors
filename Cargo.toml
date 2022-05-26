@@ -56,21 +56,6 @@ optional = true
 version = "2.4.1"
 default-features = false
 
-[dependencies.num-bigint]
-version = "0.4.3"
-default-features = false
-optional = true
-
-[dependencies.num-traits]
-version = "0.2.14"
-default-features = false
-optional = true
-
-[dependencies.ring]
-version = "0.16.20"
-default-features = false
-optional = true
-
 [dependencies.pkcs8]
 version = "0.8.0"
 features = ["alloc"]
@@ -84,10 +69,21 @@ optional = true
 version = "1.5.5"
 optional = true
 
+[dependencies.p384_rs]
+version = "0.1.7"
+features = ["ecdsa"]
+optional = true
+
+[dependencies.rand_core]
+version = "0.6.3"
+default-features = false
+features = ["getrandom"]
+optional = true
+
 [features]
 default = [ "std", "v4", "paserk" ]
 std = [ "serde_json", "time", "regex" ]
 v2 = [ "orion", "ed25519-compact" ]
-v3 = [ "num-bigint", "num-traits", "ring", "pkcs8", "sec1" ]
+v3 = [ "rand_core", "p384_rs" ]
 v4 = [ "orion", "ed25519-compact" ]
 paserk = [ "orion" ]
