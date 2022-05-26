@@ -158,13 +158,14 @@ impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
 #[cfg(feature = "v3")]
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
-        use p384_rs::ecdsa::{VerifyingKey, SigningKey};
+        use p384_rs::ecdsa::{SigningKey, VerifyingKey};
         use rand_core::OsRng;
 
         let key = SigningKey::random(&mut OsRng);
 
-        let public =
-            AsymmetricPublicKey::<V3>::from(VerifyingKey::from(&key).to_encoded_point(true).as_ref())?;
+        let public = AsymmetricPublicKey::<V3>::from(
+            VerifyingKey::from(&key).to_encoded_point(true).as_ref(),
+        )?;
         let secret = AsymmetricSecretKey::<V3>::from(key.to_bytes().as_slice())?;
 
         Ok(Self { public, secret })
