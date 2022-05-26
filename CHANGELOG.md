@@ -14,6 +14,7 @@ __Changelog:__
 These allow extracting parts of tokens before and after verification ([#47](https://github.com/brycx/pasetors/issues/47)) 
 - Version structs previously available in `keys::` have been moved to a new `version::` module
 - Add `Footer` type that makes it easier to create JSON-encoded footers ([#52](https://github.com/brycx/pasetors/pull/52))
+- PASERK deserialization of keys now takes `&str` instead of `String` ([#53](https://github.com/brycx/pasetors/issues/53))
 
 ### 0.4.2
 
