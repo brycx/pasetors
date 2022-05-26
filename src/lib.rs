@@ -168,7 +168,7 @@
 //! let sk = SymmetricKey::<V4>::generate()?;
 //! let mut paserk = String::new();
 //! sk.fmt(&mut paserk).unwrap();
-//! let sk = SymmetricKey::<V4>::try_from(paserk)?;
+//! let sk = SymmetricKey::<V4>::try_from(paserk.as_str())?;
 //!
 //! # Ok::<(), pasetors::errors::Error>(())
 //! ```
