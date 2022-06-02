@@ -151,7 +151,7 @@ impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
     fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
-        use p384_rs::ecdsa::SigningKey;
+        use p384::ecdsa::SigningKey;
 
         let sk = SigningKey::from_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
         AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
@@ -194,7 +194,7 @@ impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
 #[cfg(feature = "v3")]
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
-        use p384_rs::ecdsa::{SigningKey, VerifyingKey};
+        use p384::ecdsa::{SigningKey, VerifyingKey};
         use rand_core::OsRng;
 
         let key = SigningKey::random(&mut OsRng);

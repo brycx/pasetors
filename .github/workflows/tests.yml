@@ -64,3 +64,27 @@ jobs:
         with:
           command: check
           args: --no-default-features --features v2,v3,v4 --target ${{ matrix.arch }}
+
+  cross_compilation:
+    name: Linux/ARM/Big-Endian/32-Bit - Release tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch:
+          - i686-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf
+          - mips64-unknown-linux-gnuabi64
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.arch }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --release --all-features --target ${{ matrix.arch }}
