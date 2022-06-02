@@ -401,8 +401,10 @@ mod tests {
     #[derive(Serialize, Deserialize, Debug)]
     pub(crate) struct PaserkTest {
         pub(crate) name: String,
-        pub(crate) key: String,
-        pub(crate) paserk: String,
+        #[serde(rename(deserialize = "expect-fail"))]
+        pub(crate) expect_fail: bool,
+        pub(crate) key: Option<String>,
+        pub(crate) paserk: Option<String>,
         #[serde(rename(deserialize = "public-key"))]
         pub(crate) public_key: Option<String>,
         #[serde(rename(deserialize = "secret-key-seed"))]
@@ -418,13 +420,30 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
-                    let key =
-                        $key::<$version>::from(&hex::decode(&test_paserk.key).unwrap()).unwrap();
+                    match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
+                        (true, Some(_paserk), Some(_key)) => {
+                            unreachable!("This test vectors shouldn't exist")
+                        }
+                        (true, Some(_paserk), None) => {
+                            unreachable!("This test vectors shouldn't exist")
+                        }
+                        (true, None, Some(key)) => {
+                            if hex::decode(&key).is_err() {
+                                continue; // The case where RSA keys are put in v2
+                            }
+                            assert!($key::<$version>::from(&hex::decode(&key).unwrap()).is_err());
+                            continue;
+                        }
+                        (false, Some(paserk), Some(key)) => {
+                            let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
 
-                    let paserk_id = Id::from(&key);
-                    let mut buf = String::new();
-                    paserk_id.fmt(&mut buf).unwrap();
-                    assert_eq!(test_paserk.paserk, buf);
+                            let paserk_id = Id::from(&key);
+                            let mut buf = String::new();
+                            paserk_id.fmt(&mut buf).unwrap();
+                            assert_eq!(paserk, buf);
+                        }
+                        _ => unreachable!("This test vectors shouldn't exist"),
+                    }
                 }
             }
         };
@@ -488,13 +507,31 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
-                    let deser = $key::<$version>::try_from(test_paserk.paserk.as_str()).unwrap();
-                    let key =
-                        $key::<$version>::from(&hex::decode(&test_paserk.key).unwrap()).unwrap();
-                    assert_eq!(deser.as_bytes(), key.as_bytes());
-                    let mut buf = String::new();
-                    key.fmt(&mut buf).unwrap();
-                    assert_eq!(test_paserk.paserk, buf);
+                    match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
+                        (true, Some(_paserk), Some(_key)) => {
+                            unreachable!("This test vectors shouldn't exist")
+                        }
+                        (true, Some(paserk), None) => {
+                            assert!($key::<$version>::try_from(paserk.as_str()).is_err());
+                            continue;
+                        }
+                        (true, None, Some(key)) => {
+                            if hex::decode(&key).is_err() {
+                                continue; // The case where RSA keys are put in v2
+                            }
+                            assert!($key::<$version>::from(&hex::decode(&key).unwrap()).is_err());
+                            continue;
+                        }
+                        (false, Some(paserk), Some(key)) => {
+                            let deser = $key::<$version>::try_from(paserk.as_str()).unwrap();
+                            let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
+                            assert_eq!(deser.as_bytes(), key.as_bytes());
+                            let mut buf = String::new();
+                            key.fmt(&mut buf).unwrap();
+                            assert_eq!(paserk, buf);
+                        }
+                        _ => unreachable!("This test vectors shouldn't exist"),
+                    }
                 }
             }
         };
