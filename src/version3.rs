@@ -24,12 +24,12 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::marker::PhantomData;
-use p384_rs::ecdsa::{
+use p384::ecdsa::{
     signature::{Signer, Verifier},
     Signature, SigningKey, VerifyingKey,
 };
-use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
-use p384_rs::PublicKey;
+use p384::elliptic_curve::sec1::ToEncodedPoint;
+use p384::PublicKey;
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
@@ -178,7 +178,7 @@ mod test_regression {
     use crate::keys::AsymmetricPublicKey;
     use crate::version3::UncompressedPublicKey;
     use crate::V3;
-    use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
+    use p384::elliptic_curve::sec1::ToEncodedPoint;
     use std::convert::TryFrom;
 
     #[test]
@@ -351,7 +351,7 @@ mod test_wycheproof_point_compression {
     use crate::V3;
     use alloc::string::String;
     use alloc::vec::Vec;
-    use p384_rs::elliptic_curve::sec1::ToEncodedPoint;
+    use p384::elliptic_curve::sec1::ToEncodedPoint;
     use serde::{Deserialize, Serialize};
     use std::convert::TryFrom;
     use std::fs::File;
