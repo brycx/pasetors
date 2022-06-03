@@ -3,8 +3,8 @@
 pub enum Error {
     /// Error for a token with an invalid format.
     TokenFormat,
-    /// Error for a failed Base64 (URL-safe without padding) decoding.
-    Base64Decoding,
+    /// Error for a failed Base64 (URL-safe without padding) encoding/decoding.
+    Base64,
     /// Error for a failed token validation.
     TokenValidation,
     /// Error for an invalid key.
@@ -51,7 +51,7 @@ impl std::fmt::Display for Error {
 
 impl From<ct_codecs::Error> for Error {
     fn from(_: ct_codecs::Error) -> Self {
-        Error::Base64Decoding
+        Error::Base64
     }
 }
 

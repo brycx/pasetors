@@ -452,10 +452,10 @@ mod tests_untrusted {
             let split = token.split('.').collect::<Vec<&str>>();
 
             let invalid: String = format!("{}.{}.{}!.{}", split[0], split[1], split[2], split[3]);
-            test_untrusted_parse_fails(&invalid, Error::Base64Decoding);
+            test_untrusted_parse_fails(&invalid, Error::Base64);
 
             let invalid: String = format!("{}.{}.{}.{}!", split[0], split[1], split[2], split[3]);
-            test_untrusted_parse_fails(&invalid, Error::Base64Decoding);
+            test_untrusted_parse_fails(&invalid, Error::Base64);
         }
     }
 
