@@ -14,7 +14,7 @@
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{Generate, AsymmetricKeyPair, AsymmetricSecretKey, AsymmetricPublicKey};
-//! use pasetors::{public, Public, V4};
+//! use pasetors::{public, Public, version4::V4};
 //! use pasetors::token::{UntrustedToken, TrustedToken};
 //! use core::convert::TryFrom;
 //!
@@ -49,7 +49,7 @@
 //! ```rust
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::keys::{Generate, SymmetricKey};
-//! use pasetors::{local, Local, V4};
+//! use pasetors::{local, Local, version4::V4};
 //! use pasetors::token::UntrustedToken;
 //! use core::convert::TryFrom;
 //!
@@ -127,7 +127,7 @@
 //! use pasetors::claims::{Claims, ClaimsValidationRules};
 //! use pasetors::footer::Footer;
 //! use pasetors::keys::{Generate, AsymmetricKeyPair};
-//! use pasetors::{public, Public, V4};
+//! use pasetors::{public, Public, version4::V4};
 //! use pasetors::token::UntrustedToken;
 //! use core::convert::TryFrom;
 //!
@@ -161,7 +161,7 @@
 //! ```rust
 //! use pasetors::paserk::FormatAsPaserk;
 //! use pasetors::keys::{Generate, SymmetricKey};
-//! use pasetors::V4;
+//! use pasetors::version4::V4;
 //! use core::convert::TryFrom;
 //!
 //! // Generate the key and serialize to and from PASERK.
@@ -228,9 +228,6 @@ pub mod token;
 
 mod version;
 
-/// Versions of the PASETO spec implemented.
-pub use version::{V2, V3, V4};
-
 /// Public and local tokens.
 pub use token::{Local, Public};
 
@@ -244,6 +241,7 @@ pub mod public {
     use crate::footer::Footer;
     use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
     use crate::token::{TrustedToken, UntrustedToken};
+    use crate::version4::V4;
 
     /// Create a public token using the latest PASETO version (v4).
     pub fn sign(
@@ -308,6 +306,7 @@ pub mod local {
     use crate::footer::Footer;
     use crate::keys::SymmetricKey;
     use crate::token::{TrustedToken, UntrustedToken};
+    use crate::version4::V4;
 
     /// Create a local token using the latest PASETO version (v4).
     pub fn encrypt(

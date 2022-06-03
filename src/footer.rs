@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "std")))]
 
 use crate::errors::Error;
+#[cfg(feature = "paserk")]
 use crate::paserk::{FormatAsPaserk, Id};
 use regex::Regex;
 use serde_json::Value;
@@ -113,6 +114,7 @@ impl Footer {
         self.list_of.get(claim)
     }
 
+    #[cfg(feature = "paserk")]
     /// Set the `kid` claim. If it already exists, replace it with the new.
     pub fn key_id(&mut self, id: &Id) {
         let mut paserk_kid = String::new();
@@ -174,8 +176,6 @@ impl Footer {
 #[cfg(test)]
 mod tests {
     use crate::footer::Footer;
-    use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
-    use crate::{V2, V3, V4};
     use regex::Regex;
 
     #[test]
@@ -239,9 +239,13 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "paserk")]
+    #[cfg(all(feature = "paserk", feature = "v2", feature = "v3", feature = "v4"))]
     fn err_on_disallowed_in_footer() {
+        use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
         use crate::paserk::FormatAsPaserk;
+        use crate::version2::V2;
+        use crate::version3::V3;
+        use crate::version4::V4;
 
         let mut footer = Footer::new();
 
@@ -301,9 +305,14 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "paserk")]
+    #[cfg(all(feature = "paserk", feature = "v2", feature = "v3", feature = "v4"))]
     fn kid_in_footer() {
+        use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
         use crate::paserk::{FormatAsPaserk, Id};
+        use crate::version2::V2;
+        use crate::version3::V3;
+        use crate::version4::V4;
+
         let mut footer = Footer::new();
 
         let kpv2 = AsymmetricKeyPair::<V2>::generate().unwrap();

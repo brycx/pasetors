@@ -1,6 +1,6 @@
 [package]
 name = "pasetors"
-version = "0.5.0-alpha.6" # Update html_root_url in lib.rs along with this.
+version = "0.5.0-alpha.7" # Update html_root_url in lib.rs along with this.
 authors = ["brycx <brycx@protonmail.com>"]
 edition = "2018"
 description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
@@ -73,10 +73,14 @@ default-features = false
 features = ["getrandom"]
 optional = true
 
+[dependencies.sha2]
+version = "0.10.2"
+optional = true
+
 [features]
 default = [ "std", "v4", "paserk" ]
 std = [ "serde_json", "time", "regex" ]
 v2 = [ "orion", "ed25519-compact" ]
-v3 = [ "rand_core", "p384" ]
+v3 = [ "rand_core", "p384", "sha2" ]
 v4 = [ "orion", "ed25519-compact" ]
 paserk = [ "orion" ]

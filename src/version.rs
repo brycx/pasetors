@@ -1,5 +1,4 @@
 use crate::errors::Error;
-use private::Version;
 
 pub(crate) mod private {
     use super::Error;
@@ -31,101 +30,5 @@ pub(crate) mod private {
         fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error>;
         /// Validate bytes for a public `local` key of a given version.
         fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error>;
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-/// Version 2 of the PASETO spec.
-pub struct V2;
-
-#[derive(Debug, PartialEq, Clone)]
-/// Version 3 of the PASETO spec.
-pub struct V3;
-
-#[derive(Debug, PartialEq, Clone)]
-/// Version 4 of the PASETO spec.
-pub struct V4;
-
-impl Version for V2 {
-    const LOCAL_KEY: usize = 32;
-    const SECRET_KEY: usize = 32;
-    const PUBLIC_KEY: usize = 32;
-    const PUBLIC_SIG: usize = 64;
-    const LOCAL_NONCE: usize = 24;
-    const LOCAL_TAG: usize = 16;
-    const PUBLIC_HEADER: &'static str = "v2.public.";
-    const LOCAL_HEADER: &'static str = "v2.local.";
-
-    fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error> {
-        if key_bytes.len() != Self::LOCAL_KEY {
-            return Err(Error::Key);
-        }
-
-        Ok(())
-    }
-
-    fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
-        Self::validate_local_key(key_bytes)
-    }
-
-    fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
-        Self::validate_secret_key(key_bytes)
-    }
-}
-
-impl Version for V3 {
-    const LOCAL_KEY: usize = 32;
-    const SECRET_KEY: usize = 48;
-    const PUBLIC_KEY: usize = 49;
-    const PUBLIC_SIG: usize = 96;
-    const LOCAL_NONCE: usize = 32;
-    const LOCAL_TAG: usize = 48;
-    const PUBLIC_HEADER: &'static str = "v3.public.";
-    const LOCAL_HEADER: &'static str = "v3.local.";
-
-    fn validate_local_key(_key_bytes: &[u8]) -> Result<(), Error> {
-        unimplemented!();
-    }
-
-    fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
-        if key_bytes.len() != Self::SECRET_KEY {
-            return Err(Error::Key);
-        }
-
-        Ok(())
-    }
-
-    fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
-        if key_bytes.len() != Self::PUBLIC_KEY {
-            return Err(Error::Key);
-        }
-        if key_bytes[0] != 0x02 && key_bytes[0] != 0x03 {
-            return Err(Error::Key);
-        }
-
-        Ok(())
-    }
-}
-
-impl Version for V4 {
-    const LOCAL_KEY: usize = V2::LOCAL_KEY;
-    const SECRET_KEY: usize = V2::SECRET_KEY;
-    const PUBLIC_KEY: usize = V2::PUBLIC_KEY;
-    const PUBLIC_SIG: usize = V2::PUBLIC_SIG;
-    const LOCAL_NONCE: usize = 32;
-    const LOCAL_TAG: usize = 32;
-    const PUBLIC_HEADER: &'static str = "v4.public.";
-    const LOCAL_HEADER: &'static str = "v4.local.";
-
-    fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error> {
-        V2::validate_local_key(key_bytes)
-    }
-
-    fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
-        V2::validate_secret_key(key_bytes)
-    }
-
-    fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
-        V2::validate_public_key(key_bytes)
     }
 }
