@@ -14,22 +14,84 @@
 //! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
 //! [RFC 6979]: https://tools.ietf.org/html/rfc6979
 
+use core::marker::PhantomData;
+
 use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
-use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
+use crate::keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, Generate};
+use crate::pae;
 use crate::token::{Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
-use crate::{pae, V3};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
-use core::marker::PhantomData;
 use p384::ecdsa::{
     signature::DigestSigner, signature::DigestVerifier, Signature, SigningKey, VerifyingKey,
 };
 use p384::elliptic_curve::sec1::ToEncodedPoint;
 use p384::PublicKey;
+use rand_core::OsRng;
 use sha2::Digest;
+
+#[derive(Debug, PartialEq, Clone)]
+/// Version 3 of the PASETO spec.
+pub struct V3;
+
+impl Version for V3 {
+    const LOCAL_KEY: usize = 32;
+    const SECRET_KEY: usize = 48;
+    const PUBLIC_KEY: usize = 49;
+    const PUBLIC_SIG: usize = 96;
+    const LOCAL_NONCE: usize = 32;
+    const LOCAL_TAG: usize = 48;
+    const PUBLIC_HEADER: &'static str = "v3.public.";
+    const LOCAL_HEADER: &'static str = "v3.local.";
+
+    fn validate_local_key(_key_bytes: &[u8]) -> Result<(), Error> {
+        unimplemented!();
+    }
+
+    fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
+        if key_bytes.len() != Self::SECRET_KEY {
+            return Err(Error::Key);
+        }
+
+        Ok(())
+    }
+
+    fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
+        if key_bytes.len() != Self::PUBLIC_KEY {
+            return Err(Error::Key);
+        }
+        if key_bytes[0] != 0x02 && key_bytes[0] != 0x03 {
+            return Err(Error::Key);
+        }
+
+        Ok(())
+    }
+}
+
+impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
+    type Error = Error;
+
+    fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
+        let sk = SigningKey::from_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
+        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
+    }
+}
+
+impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
+    fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
+        let key = SigningKey::random(&mut OsRng);
+
+        let public = AsymmetricPublicKey::<V3>::from(
+            VerifyingKey::from(&key).to_encoded_point(true).as_ref(),
+        )?;
+        let secret = AsymmetricSecretKey::<V3>::from(key.to_bytes().as_slice())?;
+
+        Ok(Self { public, secret })
+    }
+}
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
@@ -444,7 +506,7 @@ mod test_wycheproof_point_compression {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_tokens {
     use super::*;
     use crate::common::decode_b64;
     use crate::keys::{AsymmetricKeyPair, Generate};
@@ -694,5 +756,41 @@ mod tests {
             .unwrap_err(),
             Error::TokenValidation
         );
+    }
+}
+
+#[cfg(test)]
+mod test_keys {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn test_v3_local_not_implemented() {
+        assert!(SymmetricKey::<V3>::from(&[0u8; 32]).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_sizes() {
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 47]).is_err());
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 48]).is_ok());
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 49]).is_err());
+
+        let mut pk2 = [0u8; 49];
+        pk2[0] = 0x02;
+        let mut pk3 = [0u8; 49];
+        pk3[0] = 0x03;
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 48]).is_err());
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 49]).is_err());
+        assert!(AsymmetricPublicKey::<V3>::from(&pk2).is_ok());
+        assert!(AsymmetricPublicKey::<V3>::from(&pk3).is_ok());
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 50]).is_err());
+    }
+
+    #[test]
+    fn try_from_secret_to_public_v3() {
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
+        assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
+        assert_eq!(pubv3, kpv3.public);
     }
 }

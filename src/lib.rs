@@ -228,9 +228,6 @@ pub mod token;
 
 mod version;
 
-/// Versions of the PASETO spec implemented.
-pub use version::{V2, V3, V4};
-
 /// Public and local tokens.
 pub use token::{Local, Public};
 
@@ -244,6 +241,7 @@ pub mod public {
     use crate::footer::Footer;
     use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
     use crate::token::{TrustedToken, UntrustedToken};
+    use crate::version4::V4;
 
     /// Create a public token using the latest PASETO version (v4).
     pub fn sign(
@@ -308,6 +306,7 @@ pub mod local {
     use crate::footer::Footer;
     use crate::keys::SymmetricKey;
     use crate::token::{TrustedToken, UntrustedToken};
+    use crate::version4::V4;
 
     /// Create a local token using the latest PASETO version (v4).
     pub fn encrypt(

@@ -4,7 +4,7 @@ use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
 use crate::keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
 use crate::version::private::Version;
-use crate::{V2, V3, V4};
+use crate::{version2::V2, version3::V3, version4::V4};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
