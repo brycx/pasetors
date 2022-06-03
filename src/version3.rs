@@ -325,8 +325,6 @@ mod test_vectors {
     }
 
     #[test]
-    /// These are not covered during test-vector runs, because of the use of CSPRNG for k-value generation
-    /// within *ring*.
     fn sign_verify_roundtrip() {
         // Values taken from 3-S-1
         let raw_sk = hex::decode("20347609607477aca8fbfbc5e6218455f3199669792ef8b466faa87bdc67798144c848dd03661eed5ac62461340cea96").unwrap();
@@ -347,6 +345,11 @@ mod test_vectors {
     fn test_public(test: &PasetoTest) {
         debug_assert!(test.public_key.is_some());
         debug_assert!(test.secret_key.is_some());
+
+        let sk = AsymmetricSecretKey::<V3>::from(
+            &hex::decode(test.secret_key.as_ref().unwrap()).unwrap(),
+        )
+        .unwrap();
         let pk = AsymmetricPublicKey::<V3>::from(
             &hex::decode(test.public_key.as_ref().unwrap()).unwrap(),
         )
@@ -374,9 +377,9 @@ mod test_vectors {
         }
 
         let message = test.payload.as_ref().unwrap().as_str().unwrap();
-
-        // We do not have support for deterministic nonces, so we cannot reproduce a signature
-        // because ring uses CSPRNG for k-value. Therefor, we can only validate (compared to V2/V4 tests).
+        let actual =
+            PublicToken::sign(&sk, &pk, message.as_bytes(), footer, Some(implicit_assert)).unwrap();
+        assert_eq!(actual, test.token, "Failed {:?}", test.name);
         let ut = UntrustedToken::<Public, V3>::try_from(&test.token).unwrap();
 
         let trusted = PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).unwrap();
