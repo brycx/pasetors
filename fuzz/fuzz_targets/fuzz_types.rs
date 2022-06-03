@@ -4,9 +4,9 @@ extern crate pasetors;
 use core::convert::TryFrom;
 use libfuzzer_sys::fuzz_target;
 use pasetors::claims::*;
-use pasetors::token::UntrustedToken;
-use pasetors::{Local, Public, V2, V3, V4};
 use pasetors::footer::Footer;
+use pasetors::token::UntrustedToken;
+use pasetors::{version2::V2, version3::V3, version4::V4, Local, Public};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(parsed_claims) = Claims::from_bytes(data) {

@@ -1,11 +1,15 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "v4")))]
 
+use core::marker::PhantomData;
+
 use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
-use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
+use crate::keys::{
+    AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, Generate, SymmetricKey,
+};
+use crate::pae;
 use crate::token::{Local, Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
-use crate::{pae, V4};
 use alloc::string::String;
 use alloc::vec::Vec;
 use blake2b::SecretKey as AuthKey;
@@ -16,6 +20,65 @@ use orion::hazardous::stream::xchacha20;
 use xchacha20::Nonce as EncNonce;
 use xchacha20::SecretKey as EncKey;
 use zeroize::Zeroizing;
+
+#[derive(Debug, PartialEq, Clone)]
+/// Version 4 of the PASETO spec.
+pub struct V4;
+
+impl Version for V4 {
+    const LOCAL_KEY: usize = 32;
+    const SECRET_KEY: usize = 32;
+    const PUBLIC_KEY: usize = 32;
+    const PUBLIC_SIG: usize = 64;
+    const LOCAL_NONCE: usize = 32;
+    const LOCAL_TAG: usize = 32;
+    const PUBLIC_HEADER: &'static str = "v4.public.";
+    const LOCAL_HEADER: &'static str = "v4.local.";
+
+    fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error> {
+        if key_bytes.len() != Self::LOCAL_KEY {
+            return Err(Error::Key);
+        }
+
+        Ok(())
+    }
+
+    fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
+        debug_assert_eq!(Self::LOCAL_KEY, Self::SECRET_KEY);
+        Self::validate_local_key(key_bytes)
+    }
+
+    fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
+        debug_assert_eq!(Self::LOCAL_KEY, Self::PUBLIC_KEY);
+        Self::validate_local_key(key_bytes)
+    }
+}
+
+impl Generate<AsymmetricKeyPair<V4>, V4> for AsymmetricKeyPair<V4> {
+    fn generate() -> Result<AsymmetricKeyPair<V4>, Error> {
+        let key_pair = KeyPair::generate();
+
+        let secret = AsymmetricSecretKey::<V4>::from(&key_pair.sk[..32])
+            .map_err(|_| Error::KeyGeneration)?;
+        let public = AsymmetricPublicKey::<V4>::from(key_pair.pk.as_ref())
+            .map_err(|_| Error::KeyGeneration)?;
+
+        Ok(Self { public, secret })
+    }
+}
+
+impl Generate<SymmetricKey<V4>, V4> for SymmetricKey<V4> {
+    fn generate() -> Result<SymmetricKey<V4>, Error> {
+        let mut rng_bytes = vec![0u8; V4::LOCAL_KEY];
+        V4::validate_local_key(&rng_bytes)?;
+        getrandom::getrandom(&mut rng_bytes)?;
+
+        Ok(Self {
+            bytes: rng_bytes,
+            phantom: PhantomData,
+        })
+    }
+}
 
 /// PASETO v4 public tokens.
 pub struct PublicToken;
@@ -371,7 +434,7 @@ mod test_vectors {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_tokens {
     use super::*;
     use crate::common::decode_b64;
     use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
@@ -842,5 +905,55 @@ mod tests {
             .unwrap_err(),
             Error::TokenValidation
         );
+    }
+}
+
+#[cfg(test)]
+mod test_keys {
+    use super::*;
+
+    #[test]
+    fn test_symmetric_gen() {
+        let randomv = SymmetricKey::<V4>::generate().unwrap();
+        assert_ne!(randomv.as_bytes(), &[0u8; 32]);
+    }
+
+    #[test]
+    fn test_invalid_sizes() {
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 31]).is_err());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 32]).is_ok());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 33]).is_err());
+
+        assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 31]).is_err());
+        assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 32]).is_ok());
+        assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 33]).is_err());
+
+        assert!(SymmetricKey::<V4>::from(&[0u8; 31]).is_err());
+        assert!(SymmetricKey::<V4>::from(&[0u8; 32]).is_ok());
+        assert!(SymmetricKey::<V4>::from(&[0u8; 33]).is_err());
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+// NOTE: Only intended for V2/V4 testing purposes.
+impl AsymmetricKeyPair<V4> {
+    pub(crate) fn from(bytes: &[u8]) -> Result<Self, Error> {
+        if bytes.len() != V4::SECRET_KEY + V4::PUBLIC_KEY {
+            return Err(Error::PaserkParsing);
+        }
+
+        Ok(Self {
+            secret: AsymmetricSecretKey::from(&bytes[..V4::SECRET_KEY])?,
+            public: AsymmetricPublicKey::from(&bytes[V4::SECRET_KEY..])?,
+        })
+    }
+
+    pub(crate) fn as_bytes<'a>(&self) -> [u8; 64] {
+        let mut buf = [0u8; V4::SECRET_KEY + V4::PUBLIC_KEY];
+        buf[..V4::SECRET_KEY].copy_from_slice(self.secret.as_bytes());
+        buf[V4::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
+
+        buf
     }
 }

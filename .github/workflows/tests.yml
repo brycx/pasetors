@@ -43,6 +43,24 @@ jobs:
           command: build
           args: --no-default-features --features v2,v3,v4
 
+      - name: Test only v2-full
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --no-default-features --tests --features v2,std,paserk
+      
+      - name: Test only v3-full
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --no-default-features --tests --features v3,std,paserk
+
+      - name: Test only v4-full
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --no-default-features --tests --features v4,std,paserk
+
   # https://rustwasm.github.io/docs/book/reference/add-wasm-support-to-crate.html#maintaining-ongoing-support-for-webassembly
   web_assembly:
     name: WebAssembly - Release build

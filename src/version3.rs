@@ -7,37 +7,99 @@
 //! - PASETO requires the use of compressed public keys. If these are not readily supported in a given
 //! setting, [UncompressedPublicKey] and [AsymmetricPublicKey<V3>] conversions can be used to obtain
 //! the compressed form.
-//! - PASETO recommends use of deterministic nonces (RFC-6979), but this is not supported by the P-384
-//! implementation provided by [*ring*](https://crates.io/crates/ring). This may change in the future.
+//! - PASETO recommends use of deterministic nonces ([RFC 6979]) which this library also uses.
 //! - Hedged signatures, according to the PASETO spec, are not used.
 //!
 //! [AsymmetricPublicKey<V3>]: crate::keys::AsymmetricPublicKey
 //! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
+//! [RFC 6979]: https://tools.ietf.org/html/rfc6979
+
+use core::marker::PhantomData;
 
 use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
-use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
+use crate::keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, Generate};
+use crate::pae;
 use crate::token::{Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
-use crate::{pae, V3};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
-use core::marker::PhantomData;
 use p384::ecdsa::{
-    signature::{Signer, Verifier},
-    Signature, SigningKey, VerifyingKey,
+    signature::DigestSigner, signature::DigestVerifier, Signature, SigningKey, VerifyingKey,
 };
 use p384::elliptic_curve::sec1::ToEncodedPoint;
 use p384::PublicKey;
+use rand_core::OsRng;
+use sha2::Digest;
+
+#[derive(Debug, PartialEq, Clone)]
+/// Version 3 of the PASETO spec.
+pub struct V3;
+
+impl Version for V3 {
+    const LOCAL_KEY: usize = 32;
+    const SECRET_KEY: usize = 48;
+    const PUBLIC_KEY: usize = 49;
+    const PUBLIC_SIG: usize = 96;
+    const LOCAL_NONCE: usize = 32;
+    const LOCAL_TAG: usize = 48;
+    const PUBLIC_HEADER: &'static str = "v3.public.";
+    const LOCAL_HEADER: &'static str = "v3.local.";
+
+    fn validate_local_key(_key_bytes: &[u8]) -> Result<(), Error> {
+        unimplemented!();
+    }
+
+    fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
+        if key_bytes.len() != Self::SECRET_KEY {
+            return Err(Error::Key);
+        }
+
+        Ok(())
+    }
+
+    fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
+        if key_bytes.len() != Self::PUBLIC_KEY {
+            return Err(Error::Key);
+        }
+        if key_bytes[0] != 0x02 && key_bytes[0] != 0x03 {
+            return Err(Error::Key);
+        }
+
+        Ok(())
+    }
+}
+
+impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
+    type Error = Error;
+
+    fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
+        let sk = SigningKey::from_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
+        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
+    }
+}
+
+impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
+    fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
+        let key = SigningKey::random(&mut OsRng);
+
+        let public = AsymmetricPublicKey::<V3>::from(
+            VerifyingKey::from(&key).to_encoded_point(true).as_ref(),
+        )?;
+        let secret = AsymmetricSecretKey::<V3>::from(key.to_bytes().as_slice())?;
+
+        Ok(Self { public, secret })
+    }
+}
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
 ///
-/// Format: [0x04, x, y]
+/// Format: `[0x04 || x || y]`
 ///
 /// This is provided to be able to convert uncompressed keys to compressed ones, as compressed is
-/// required by PASETO and what an `AsymmetricPublicKey<V3>` represents.
+/// required by PASETO and what an [AsymmetricPublicKey<V3>] represents.
 pub struct UncompressedPublicKey(PublicKey);
 
 impl TryFrom<&[u8]> for UncompressedPublicKey {
@@ -93,10 +155,6 @@ impl PublicToken {
     /// Create a public token.
     ///
     /// The `secret_key` and `public_key` **must** be in big-endian.
-    ///
-    /// ### Error:
-    /// - *ring* calls `generate()` internally, when creating the signature. Thus, it is possible
-    /// for [`Error::Signing`] to represent a failed call to the CSPRNG.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V3>,
         public_key: &AsymmetricPublicKey<V3>,
@@ -120,7 +178,12 @@ impl PublicToken {
             i,
         ])?;
 
-        let sig = signing_key.sign(m2.as_ref());
+        let mut msg_digest = sha2::Sha384::new();
+        msg_digest.update(m2);
+
+        let sig = signing_key
+            .try_sign_digest(msg_digest)
+            .map_err(|_| Error::Signing)?;
         debug_assert_eq!(sig.as_ref().len(), V3::PUBLIC_SIG);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
@@ -141,11 +204,6 @@ impl PublicToken {
     ///
     /// If `footer.is_none()`, then it will be validated but not compared to a known value.
     /// If `footer.is_some()`, then it will be validated AND compared to the known value.
-    ///
-    /// ### Security:
-    /// - `public_key` is not verified by constructing `AsymmetricPublicKey<V3>`, but first
-    /// when the signature of the token is verified as well. Therefor, [`Error::TokenValidation`]
-    /// returned here can both mean an invalid public key and an invalid signature.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V3>,
         token: &UntrustedToken<Public, V3>,
@@ -165,8 +223,11 @@ impl PublicToken {
 
         let verifying_key =
             VerifyingKey::from_sec1_bytes(public_key.as_bytes()).map_err(|_| Error::Key)?;
+
+        let mut msg_digest = sha2::Sha384::new();
+        msg_digest.update(m2);
         verifying_key
-            .verify(m2.as_ref(), &s)
+            .verify_digest(msg_digest, &s)
             .map_err(|_| Error::TokenValidation)?;
 
         TrustedToken::_new(Self::HEADER, m, f, i)
@@ -175,11 +236,10 @@ impl PublicToken {
 
 #[cfg(test)]
 mod test_regression {
+    use super::*;
     use crate::keys::AsymmetricPublicKey;
-    use crate::version3::UncompressedPublicKey;
-    use crate::V3;
+    use core::convert::TryFrom;
     use p384::elliptic_curve::sec1::ToEncodedPoint;
-    use std::convert::TryFrom;
 
     #[test]
     fn fuzzer_regression_1() {
@@ -246,9 +306,8 @@ mod test_regression {
 #[cfg(feature = "std")]
 mod test_vectors {
 
-    use hex;
-
     use super::*;
+    use hex;
     use std::fs::File;
     use std::io::BufReader;
 
@@ -266,8 +325,6 @@ mod test_vectors {
     }
 
     #[test]
-    /// These are not covered during test-vector runs, because of the use of CSPRNG for k-value generation
-    /// within *ring*.
     fn sign_verify_roundtrip() {
         // Values taken from 3-S-1
         let raw_sk = hex::decode("20347609607477aca8fbfbc5e6218455f3199669792ef8b466faa87bdc67798144c848dd03661eed5ac62461340cea96").unwrap();
@@ -288,6 +345,11 @@ mod test_vectors {
     fn test_public(test: &PasetoTest) {
         debug_assert!(test.public_key.is_some());
         debug_assert!(test.secret_key.is_some());
+
+        let sk = AsymmetricSecretKey::<V3>::from(
+            &hex::decode(test.secret_key.as_ref().unwrap()).unwrap(),
+        )
+        .unwrap();
         let pk = AsymmetricPublicKey::<V3>::from(
             &hex::decode(test.public_key.as_ref().unwrap()).unwrap(),
         )
@@ -315,9 +377,9 @@ mod test_vectors {
         }
 
         let message = test.payload.as_ref().unwrap().as_str().unwrap();
-
-        // We do not have support for deterministic nonces, so we cannot reproduce a signature
-        // because ring uses CSPRNG for k-value. Therefor, we can only validate (compared to V2/V4 tests).
+        let actual =
+            PublicToken::sign(&sk, &pk, message.as_bytes(), footer, Some(implicit_assert)).unwrap();
+        assert_eq!(actual, test.token, "Failed {:?}", test.name);
         let ut = UntrustedToken::<Public, V3>::try_from(&test.token).unwrap();
 
         let trusted = PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).unwrap();
@@ -346,9 +408,8 @@ mod test_vectors {
 #[cfg(test)]
 #[cfg(feature = "std")]
 mod test_wycheproof_point_compression {
+    use super::*;
     use crate::keys::AsymmetricPublicKey;
-    use crate::version3::UncompressedPublicKey;
-    use crate::V3;
     use alloc::string::String;
     use alloc::vec::Vec;
     use p384::elliptic_curve::sec1::ToEncodedPoint;
@@ -445,7 +506,7 @@ mod test_wycheproof_point_compression {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_tokens {
     use super::*;
     use crate::common::decode_b64;
     use crate::keys::{AsymmetricKeyPair, Generate};
@@ -695,5 +756,42 @@ mod tests {
             .unwrap_err(),
             Error::TokenValidation
         );
+    }
+}
+
+#[cfg(test)]
+mod test_keys {
+    use super::*;
+    use crate::keys::SymmetricKey;
+
+    #[test]
+    #[should_panic]
+    fn test_v3_local_not_implemented() {
+        assert!(SymmetricKey::<V3>::from(&[0u8; 32]).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_sizes() {
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 47]).is_err());
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 48]).is_ok());
+        assert!(AsymmetricSecretKey::<V3>::from(&[0u8; 49]).is_err());
+
+        let mut pk2 = [0u8; 49];
+        pk2[0] = 0x02;
+        let mut pk3 = [0u8; 49];
+        pk3[0] = 0x03;
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 48]).is_err());
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 49]).is_err());
+        assert!(AsymmetricPublicKey::<V3>::from(&pk2).is_ok());
+        assert!(AsymmetricPublicKey::<V3>::from(&pk3).is_ok());
+        assert!(AsymmetricPublicKey::<V3>::from(&[0u8; 50]).is_err());
+    }
+
+    #[test]
+    fn try_from_secret_to_public_v3() {
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
+        assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
+        assert_eq!(pubv3, kpv3.public);
     }
 }

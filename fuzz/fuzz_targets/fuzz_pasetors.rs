@@ -12,7 +12,7 @@ use pasetors::claims::*;
 use pasetors::keys::*;
 use pasetors::token::UntrustedToken;
 use pasetors::{version2, version3, version4};
-use pasetors::{Local, Public, V2, V3, V4};
+use pasetors::{version2::V2, version3::V3, version4::V4, Local, Public};
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 
@@ -73,7 +73,6 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
 }
 
 fn fuzztest_v3(data: &[u8]) {
-    // *ring* keypair must be randomly generated. No way to seed it from their API.
     let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
     let message: String = String::from_utf8_lossy(data).into();
     if message.is_empty() {
