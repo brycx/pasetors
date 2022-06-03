@@ -236,9 +236,8 @@ impl PublicToken {
 
 #[cfg(test)]
 mod test_regression {
+    use super::*;
     use crate::keys::AsymmetricPublicKey;
-    use crate::version3::UncompressedPublicKey;
-    use crate::V3;
     use p384::elliptic_curve::sec1::ToEncodedPoint;
     use std::convert::TryFrom;
 
@@ -307,9 +306,8 @@ mod test_regression {
 #[cfg(feature = "std")]
 mod test_vectors {
 
-    use hex;
-
     use super::*;
+    use hex;
     use std::fs::File;
     use std::io::BufReader;
 
@@ -407,9 +405,8 @@ mod test_vectors {
 #[cfg(test)]
 #[cfg(feature = "std")]
 mod test_wycheproof_point_compression {
+    use super::*;
     use crate::keys::AsymmetricPublicKey;
-    use crate::version3::UncompressedPublicKey;
-    use crate::V3;
     use alloc::string::String;
     use alloc::vec::Vec;
     use p384::elliptic_curve::sec1::ToEncodedPoint;
@@ -762,6 +759,7 @@ mod test_tokens {
 #[cfg(test)]
 mod test_keys {
     use super::*;
+    use crate::keys::SymmetricKey;
 
     #[test]
     #[should_panic]

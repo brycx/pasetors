@@ -175,7 +175,7 @@ impl Footer {
 mod tests {
     use crate::footer::Footer;
     use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
-    use crate::{V2, V3, V4};
+    use crate::{version2::V2, version3::V3, version4::V4};
     use regex::Regex;
 
     #[test]
