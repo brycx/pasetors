@@ -274,11 +274,10 @@ impl<T: Purpose<V>, V: Version> UntrustedToken<T, V> {
 #[cfg(test)]
 #[cfg(all(feature = "v2", feature = "v3", feature = "v4"))]
 mod tests_untrusted {
+    use super::*;
     use crate::errors::Error;
-    use crate::token::{Local, Public, UntrustedToken};
     use crate::version::private::Version;
     use crate::{version2::V2, version3::V3, version4::V4};
-    use core::convert::TryFrom;
 
     const V2_PUBLIC_TOKEN: &'static str = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
     const V2_LOCAL_TOKEN: &'static str = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";

@@ -238,8 +238,8 @@ impl PublicToken {
 mod test_regression {
     use super::*;
     use crate::keys::AsymmetricPublicKey;
+    use core::convert::TryFrom;
     use p384::elliptic_curve::sec1::ToEncodedPoint;
-    use std::convert::TryFrom;
 
     #[test]
     fn fuzzer_regression_1() {

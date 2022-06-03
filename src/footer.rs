@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "std")))]
 
 use crate::errors::Error;
+#[cfg(feature = "paserk")]
 use crate::paserk::{FormatAsPaserk, Id};
 use regex::Regex;
 use serde_json::Value;
@@ -113,6 +114,7 @@ impl Footer {
         self.list_of.get(claim)
     }
 
+    #[cfg(feature = "paserk")]
     /// Set the `kid` claim. If it already exists, replace it with the new.
     pub fn key_id(&mut self, id: &Id) {
         let mut paserk_kid = String::new();
