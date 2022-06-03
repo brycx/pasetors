@@ -73,10 +73,14 @@ default-features = false
 features = ["getrandom"]
 optional = true
 
+[dependencies.sha2]
+version = "0.10.2"
+optional = true
+
 [features]
 default = [ "std", "v4", "paserk" ]
 std = [ "serde_json", "time", "regex" ]
 v2 = [ "orion", "ed25519-compact" ]
-v3 = [ "rand_core", "p384" ]
+v3 = [ "rand_core", "p384", "sha2" ]
 v4 = [ "orion", "ed25519-compact" ]
 paserk = [ "orion" ]

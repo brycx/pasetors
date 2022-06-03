@@ -25,11 +25,11 @@ use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::marker::PhantomData;
 use p384::ecdsa::{
-    signature::{Signer, Verifier},
-    Signature, SigningKey, VerifyingKey,
+    signature::DigestSigner, signature::DigestVerifier, Signature, SigningKey, VerifyingKey,
 };
 use p384::elliptic_curve::sec1::ToEncodedPoint;
 use p384::PublicKey;
+use sha2::Digest;
 
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
@@ -120,7 +120,12 @@ impl PublicToken {
             i,
         ])?;
 
-        let sig = signing_key.sign(m2.as_ref());
+        let mut msg_digest = sha2::Sha384::new();
+        msg_digest.update(m2);
+
+        let sig = signing_key
+            .try_sign_digest(msg_digest)
+            .map_err(|_| Error::Signing)?;
         debug_assert_eq!(sig.as_ref().len(), V3::PUBLIC_SIG);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
@@ -165,8 +170,11 @@ impl PublicToken {
 
         let verifying_key =
             VerifyingKey::from_sec1_bytes(public_key.as_bytes()).map_err(|_| Error::Key)?;
+
+        let mut msg_digest = sha2::Sha384::new();
+        msg_digest.update(m2);
         verifying_key
-            .verify(m2.as_ref(), &s)
+            .verify_digest(msg_digest, &s)
             .map_err(|_| Error::TokenValidation)?;
 
         TrustedToken::_new(Self::HEADER, m, f, i)
