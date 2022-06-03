@@ -174,8 +174,6 @@ impl Footer {
 #[cfg(test)]
 mod tests {
     use crate::footer::Footer;
-    use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
-    use crate::{version2::V2, version3::V3, version4::V4};
     use regex::Regex;
 
     #[test]
@@ -239,9 +237,13 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "paserk")]
+    #[cfg(all(feature = "paserk", feature = "v2", feature = "v3", feature = "v4"))]
     fn err_on_disallowed_in_footer() {
+        use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
         use crate::paserk::FormatAsPaserk;
+        use crate::version2::V2;
+        use crate::version3::V3;
+        use crate::version4::V4;
 
         let mut footer = Footer::new();
 
@@ -301,9 +303,14 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "paserk")]
+    #[cfg(all(feature = "paserk", feature = "v2", feature = "v3", feature = "v4"))]
     fn kid_in_footer() {
+        use crate::keys::{AsymmetricKeyPair, Generate, SymmetricKey};
         use crate::paserk::{FormatAsPaserk, Id};
+        use crate::version2::V2;
+        use crate::version3::V3;
+        use crate::version4::V4;
+
         let mut footer = Footer::new();
 
         let kpv2 = AsymmetricKeyPair::<V2>::generate().unwrap();
