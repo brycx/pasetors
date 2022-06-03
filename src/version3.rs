@@ -7,12 +7,12 @@
 //! - PASETO requires the use of compressed public keys. If these are not readily supported in a given
 //! setting, [UncompressedPublicKey] and [AsymmetricPublicKey<V3>] conversions can be used to obtain
 //! the compressed form.
-//! - PASETO recommends use of deterministic nonces (RFC-6979), but this is not supported by the P-384
-//! implementation provided by [*ring*](https://crates.io/crates/ring). This may change in the future.
+//! - PASETO recommends use of deterministic nonces ([RFC 6979]) which this library also uses.
 //! - Hedged signatures, according to the PASETO spec, are not used.
 //!
 //! [AsymmetricPublicKey<V3>]: crate::keys::AsymmetricPublicKey
 //! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
+//! [RFC 6979]: https://tools.ietf.org/html/rfc6979
 
 use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
@@ -34,10 +34,10 @@ use sha2::Digest;
 /// This struct represents a uncompressed public key for P384, encoded in big-endian using:
 /// Octet-String-to-Elliptic-Curve-Point algorithm in SEC 1: Elliptic Curve Cryptography, Version 2.0.
 ///
-/// Format: [0x04, x, y]
+/// Format: `[0x04 || x || y]`
 ///
 /// This is provided to be able to convert uncompressed keys to compressed ones, as compressed is
-/// required by PASETO and what an `AsymmetricPublicKey<V3>` represents.
+/// required by PASETO and what an [AsymmetricPublicKey<V3>] represents.
 pub struct UncompressedPublicKey(PublicKey);
 
 impl TryFrom<&[u8]> for UncompressedPublicKey {
@@ -93,10 +93,6 @@ impl PublicToken {
     /// Create a public token.
     ///
     /// The `secret_key` and `public_key` **must** be in big-endian.
-    ///
-    /// ### Error:
-    /// - *ring* calls `generate()` internally, when creating the signature. Thus, it is possible
-    /// for [`Error::Signing`] to represent a failed call to the CSPRNG.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V3>,
         public_key: &AsymmetricPublicKey<V3>,
@@ -146,11 +142,6 @@ impl PublicToken {
     ///
     /// If `footer.is_none()`, then it will be validated but not compared to a known value.
     /// If `footer.is_some()`, then it will be validated AND compared to the known value.
-    ///
-    /// ### Security:
-    /// - `public_key` is not verified by constructing `AsymmetricPublicKey<V3>`, but first
-    /// when the signature of the token is verified as well. Therefor, [`Error::TokenValidation`]
-    /// returned here can both mean an invalid public key and an invalid signature.
     pub fn verify(
         public_key: &AsymmetricPublicKey<V3>,
         token: &UntrustedToken<Public, V3>,
