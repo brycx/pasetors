@@ -272,6 +272,7 @@ impl<T: Purpose<V>, V: Version> UntrustedToken<T, V> {
 }
 
 #[cfg(test)]
+#[cfg(all(feature = "v2", feature = "v3", feature = "v4"))]
 mod tests_untrusted {
     use crate::errors::Error;
     use crate::token::{Local, Public, UntrustedToken};
