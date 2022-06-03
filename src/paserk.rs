@@ -4,15 +4,24 @@ use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
 use crate::keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
 use crate::version::private::Version;
-use crate::{version2::V2, version3::V3, version4::V4};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Write;
 use core::marker::PhantomData;
 use orion::hazardous::hash::blake2::blake2b;
-use orion::hazardous::hash::sha2::sha384;
 use zeroize::Zeroize;
+
+#[cfg(feature = "v2")]
+use crate::version2::V2;
+
+#[cfg(feature = "v3")]
+use crate::version3::V3;
+#[cfg(feature = "v3")]
+use orion::hazardous::hash::sha2::sha384;
+
+#[cfg(feature = "v4")]
+use crate::version4::V4;
 
 /// Validate an input string to check if it is a well-formatted PASERK.
 ///
@@ -46,6 +55,7 @@ pub trait FormatAsPaserk {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result;
 }
 
+#[cfg(feature = "v2")]
 impl FormatAsPaserk for SymmetricKey<V2> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k2.local.")?;
@@ -53,6 +63,7 @@ impl FormatAsPaserk for SymmetricKey<V2> {
     }
 }
 
+#[cfg(feature = "v2")]
 impl TryFrom<&str> for SymmetricKey<V2> {
     type Error = Error;
 
@@ -64,6 +75,7 @@ impl TryFrom<&str> for SymmetricKey<V2> {
     }
 }
 
+#[cfg(feature = "v4")]
 impl FormatAsPaserk for SymmetricKey<V4> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k4.local.")?;
@@ -71,6 +83,7 @@ impl FormatAsPaserk for SymmetricKey<V4> {
     }
 }
 
+#[cfg(feature = "v4")]
 impl TryFrom<&str> for SymmetricKey<V4> {
     type Error = Error;
 
@@ -82,6 +95,7 @@ impl TryFrom<&str> for SymmetricKey<V4> {
     }
 }
 
+#[cfg(feature = "v2")]
 impl FormatAsPaserk for AsymmetricKeyPair<V2> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k2.secret.")?;
@@ -99,6 +113,7 @@ impl FormatAsPaserk for AsymmetricKeyPair<V2> {
     }
 }
 
+#[cfg(feature = "v2")]
 impl TryFrom<&str> for AsymmetricKeyPair<V2> {
     type Error = Error;
 
@@ -115,6 +130,7 @@ impl TryFrom<&str> for AsymmetricKeyPair<V2> {
     }
 }
 
+#[cfg(feature = "v3")]
 impl FormatAsPaserk for AsymmetricSecretKey<V3> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k3.secret.")?;
@@ -122,6 +138,7 @@ impl FormatAsPaserk for AsymmetricSecretKey<V3> {
     }
 }
 
+#[cfg(feature = "v3")]
 impl TryFrom<&str> for AsymmetricSecretKey<V3> {
     type Error = Error;
 
@@ -136,6 +153,7 @@ impl TryFrom<&str> for AsymmetricSecretKey<V3> {
     }
 }
 
+#[cfg(feature = "v4")]
 impl FormatAsPaserk for AsymmetricKeyPair<V4> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k4.secret.")?;
@@ -150,6 +168,7 @@ impl FormatAsPaserk for AsymmetricKeyPair<V4> {
     }
 }
 
+#[cfg(feature = "v4")]
 impl TryFrom<&str> for AsymmetricKeyPair<V4> {
     type Error = Error;
 
@@ -166,6 +185,7 @@ impl TryFrom<&str> for AsymmetricKeyPair<V4> {
     }
 }
 
+#[cfg(feature = "v2")]
 impl FormatAsPaserk for AsymmetricPublicKey<V2> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k2.public.")?;
@@ -173,6 +193,7 @@ impl FormatAsPaserk for AsymmetricPublicKey<V2> {
     }
 }
 
+#[cfg(feature = "v2")]
 impl TryFrom<&str> for AsymmetricPublicKey<V2> {
     type Error = Error;
 
@@ -184,6 +205,7 @@ impl TryFrom<&str> for AsymmetricPublicKey<V2> {
     }
 }
 
+#[cfg(feature = "v3")]
 impl FormatAsPaserk for AsymmetricPublicKey<V3> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k3.public.")?;
@@ -191,6 +213,7 @@ impl FormatAsPaserk for AsymmetricPublicKey<V3> {
     }
 }
 
+#[cfg(feature = "v3")]
 impl TryFrom<&str> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
@@ -202,6 +225,7 @@ impl TryFrom<&str> for AsymmetricPublicKey<V3> {
     }
 }
 
+#[cfg(feature = "v4")]
 impl FormatAsPaserk for AsymmetricPublicKey<V4> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k4.public.")?;
@@ -209,6 +233,7 @@ impl FormatAsPaserk for AsymmetricPublicKey<V4> {
     }
 }
 
+#[cfg(feature = "v4")]
 impl TryFrom<&str> for AsymmetricPublicKey<V4> {
     type Error = Error;
 
@@ -243,6 +268,7 @@ impl PartialEq<Id> for Id {
     }
 }
 
+#[cfg(feature = "v3")]
 impl From<&AsymmetricSecretKey<V3>> for Id {
     fn from(key: &AsymmetricSecretKey<V3>) -> Self {
         let header = String::from("k3.sid.");
@@ -259,6 +285,7 @@ impl From<&AsymmetricSecretKey<V3>> for Id {
     }
 }
 
+#[cfg(feature = "v3")]
 impl From<&AsymmetricPublicKey<V3>> for Id {
     fn from(key: &AsymmetricPublicKey<V3>) -> Self {
         let header = String::from("k3.pid.");
@@ -275,6 +302,7 @@ impl From<&AsymmetricPublicKey<V3>> for Id {
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<&SymmetricKey<V2>> for Id {
     fn from(key: &SymmetricKey<V2>) -> Self {
         let header = String::from("k2.lid.");
@@ -291,6 +319,7 @@ impl From<&SymmetricKey<V2>> for Id {
     }
 }
 
+#[cfg(feature = "v4")]
 impl From<&SymmetricKey<V4>> for Id {
     fn from(key: &SymmetricKey<V4>) -> Self {
         let header = String::from("k4.lid.");
@@ -307,6 +336,7 @@ impl From<&SymmetricKey<V4>> for Id {
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<&AsymmetricKeyPair<V2>> for Id {
     fn from(key: &AsymmetricKeyPair<V2>) -> Self {
         let header = String::from("k2.sid.");
@@ -323,6 +353,7 @@ impl From<&AsymmetricKeyPair<V2>> for Id {
     }
 }
 
+#[cfg(feature = "v4")]
 impl From<&AsymmetricKeyPair<V4>> for Id {
     fn from(key: &AsymmetricKeyPair<V4>) -> Self {
         let header = String::from("k4.sid.");
@@ -339,6 +370,7 @@ impl From<&AsymmetricKeyPair<V4>> for Id {
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<&AsymmetricPublicKey<V2>> for Id {
     fn from(key: &AsymmetricPublicKey<V2>) -> Self {
         let header = String::from("k2.pid.");
@@ -355,6 +387,7 @@ impl From<&AsymmetricPublicKey<V2>> for Id {
     }
 }
 
+#[cfg(feature = "v4")]
 impl From<&AsymmetricPublicKey<V4>> for Id {
     fn from(key: &AsymmetricPublicKey<V4>) -> Self {
         let header = String::from("k4.pid.");
@@ -411,93 +444,6 @@ mod tests {
         pub(crate) secret_key_seed: Option<String>,
     }
 
-    macro_rules! test_id_type {
-        ($test_func_name:ident, $key:ident, $version:ident, $path:expr) => {
-            #[test]
-            pub fn $test_func_name() {
-                let file = File::open($path).unwrap();
-                let reader = BufReader::new(file);
-                let tests: TestFile = serde_json::from_reader(reader).unwrap();
-
-                for test_paserk in tests.tests {
-                    match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
-                        (true, Some(_paserk), Some(_key)) => {
-                            unreachable!("This test vectors shouldn't exist")
-                        }
-                        (true, Some(_paserk), None) => {
-                            unreachable!("This test vectors shouldn't exist")
-                        }
-                        (true, None, Some(key)) => {
-                            if hex::decode(&key).is_err() {
-                                continue; // The case where RSA keys are put in v2
-                            }
-                            assert!($key::<$version>::from(&hex::decode(&key).unwrap()).is_err());
-                            continue;
-                        }
-                        (false, Some(paserk), Some(key)) => {
-                            let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
-
-                            let paserk_id = Id::from(&key);
-                            let mut buf = String::new();
-                            paserk_id.fmt(&mut buf).unwrap();
-                            assert_eq!(paserk, buf);
-                        }
-                        _ => unreachable!("This test vectors shouldn't exist"),
-                    }
-                }
-            }
-        };
-    }
-
-    test_id_type!(
-        test_local_k2_id,
-        SymmetricKey,
-        V2,
-        "./test_vectors/PASERK/k2.lid.json"
-    );
-    test_id_type!(
-        test_local_k4_id,
-        SymmetricKey,
-        V4,
-        "./test_vectors/PASERK/k4.lid.json"
-    );
-    test_id_type!(
-        test_secret_k2_id,
-        AsymmetricKeyPair,
-        V2,
-        "./test_vectors/PASERK/k2.sid.json"
-    );
-    test_id_type!(
-        test_secret_k3_id,
-        AsymmetricSecretKey,
-        V3,
-        "./test_vectors/PASERK/k3.sid.json"
-    );
-    test_id_type!(
-        test_secret_k4_id,
-        AsymmetricKeyPair,
-        V4,
-        "./test_vectors/PASERK/k4.sid.json"
-    );
-    test_id_type!(
-        test_public_k2_id,
-        AsymmetricPublicKey,
-        V2,
-        "./test_vectors/PASERK/k2.pid.json"
-    );
-    test_id_type!(
-        test_public_k3_id,
-        AsymmetricPublicKey,
-        V3,
-        "./test_vectors/PASERK/k3.pid.json"
-    );
-    test_id_type!(
-        test_public_k4_id,
-        AsymmetricPublicKey,
-        V4,
-        "./test_vectors/PASERK/k4.pid.json"
-    );
-
     macro_rules! test_paserk_type {
         ($test_func_name:ident, $key:ident, $version:ident, $path:expr) => {
             #[test]
@@ -537,165 +483,292 @@ mod tests {
         };
     }
 
-    test_paserk_type!(
-        test_local_k2,
-        SymmetricKey,
-        V2,
-        "./test_vectors/PASERK/k2.local.json"
-    );
-    test_paserk_type!(
-        test_local_k4,
-        SymmetricKey,
-        V4,
-        "./test_vectors/PASERK/k4.local.json"
-    );
-    test_paserk_type!(
-        test_public_k2,
-        AsymmetricPublicKey,
-        V2,
-        "./test_vectors/PASERK/k2.public.json"
-    );
-    test_paserk_type!(
-        test_public_k3,
-        AsymmetricPublicKey,
-        V3,
-        "./test_vectors/PASERK/k3.public.json"
-    );
-    test_paserk_type!(
-        test_public_k4,
-        AsymmetricPublicKey,
-        V4,
-        "./test_vectors/PASERK/k4.public.json"
-    );
-    test_paserk_type!(
-        test_secret_k2,
-        AsymmetricKeyPair,
-        V2,
-        "./test_vectors/PASERK/k2.secret.json"
-    );
-    test_paserk_type!(
-        test_secret_k3,
-        AsymmetricSecretKey,
-        V3,
-        "./test_vectors/PASERK/k3.secret.json"
-    );
-    test_paserk_type!(
-        test_secret_k4,
-        AsymmetricKeyPair,
-        V4,
-        "./test_vectors/PASERK/k4.secret.json"
-    );
+    macro_rules! test_id_type {
+        ($test_func_name:ident, $key:ident, $version:ident, $path:expr) => {
+            #[test]
+            pub fn $test_func_name() {
+                let file = File::open($path).unwrap();
+                let reader = BufReader::new(file);
+                let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
-    #[test]
-    fn test_wrong_version_or_purpose() {
-        assert!(SymmetricKey::<V2>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_ok());
-        assert!(SymmetricKey::<V2>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(SymmetricKey::<V2>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(SymmetricKey::<V2>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
+                for test_paserk in tests.tests {
+                    match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
+                        (true, Some(_paserk), Some(_key)) => {
+                            unreachable!("This test vectors shouldn't exist")
+                        }
+                        (true, Some(_paserk), None) => {
+                            unreachable!("This test vectors shouldn't exist")
+                        }
+                        (true, None, Some(key)) => {
+                            if hex::decode(&key).is_err() {
+                                continue; // The case where RSA keys are put in v2
+                            }
+                            assert!($key::<$version>::from(&hex::decode(&key).unwrap()).is_err());
+                            continue;
+                        }
+                        (false, Some(paserk), Some(key)) => {
+                            let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
 
-        assert!(SymmetricKey::<V4>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_ok());
-        assert!(SymmetricKey::<V4>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(SymmetricKey::<V4>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(SymmetricKey::<V4>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
+                            let paserk_id = Id::from(&key);
+                            let mut buf = String::new();
+                            paserk_id.fmt(&mut buf).unwrap();
+                            assert_eq!(paserk, buf);
+                        }
+                        _ => unreachable!("This test vectors shouldn't exist"),
+                    }
+                }
+            }
+        };
+    }
 
-        assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_ok());
-        assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V2>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V3>::try_from(
-            "k3.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_ok());
-        assert!(AsymmetricPublicKey::<V3>::try_from(
-            "k4.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V3>::try_from(
-            "k3.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V3>::try_from(
-            "k4.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_ok());
-        assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
-        assert!(AsymmetricPublicKey::<V4>::try_from(
-            "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        )
-        .is_err());
+    #[cfg(test)]
+    #[cfg(feature = "v2")]
+    mod v2 {
+        use super::*;
 
-        assert!(AsymmetricKeyPair::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
-        assert!(AsymmetricKeyPair::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-        assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-        assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        test_id_type!(
+            test_local_k2_id,
+            SymmetricKey,
+            V2,
+            "./test_vectors/PASERK/k2.lid.json"
+        );
 
-        assert!(AsymmetricSecretKey::<V3>::try_from(
-            "k3.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-        )
-        .is_ok());
-        assert!(AsymmetricSecretKey::<V3>::try_from(
-            "k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-        )
-        .is_err());
-        assert!(AsymmetricSecretKey::<V3>::try_from(
-            "k3.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-        )
-        .is_err());
-        assert!(AsymmetricSecretKey::<V3>::try_from(
-            "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
-        )
-        .is_err());
+        test_id_type!(
+            test_secret_k2_id,
+            AsymmetricKeyPair,
+            V2,
+            "./test_vectors/PASERK/k2.sid.json"
+        );
 
-        assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
-        assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-        assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-        assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        test_id_type!(
+            test_public_k2_id,
+            AsymmetricPublicKey,
+            V2,
+            "./test_vectors/PASERK/k2.pid.json"
+        );
+
+        test_paserk_type!(
+            test_local_k2,
+            SymmetricKey,
+            V2,
+            "./test_vectors/PASERK/k2.local.json"
+        );
+
+        test_paserk_type!(
+            test_public_k2,
+            AsymmetricPublicKey,
+            V2,
+            "./test_vectors/PASERK/k2.public.json"
+        );
+
+        test_paserk_type!(
+            test_secret_k2,
+            AsymmetricKeyPair,
+            V2,
+            "./test_vectors/PASERK/k2.secret.json"
+        );
+
+        #[test]
+        fn test_wrong_version_or_purpose() {
+            assert!(SymmetricKey::<V2>::try_from(
+                "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_ok());
+            assert!(SymmetricKey::<V2>::try_from(
+                "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(SymmetricKey::<V2>::try_from(
+                "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(SymmetricKey::<V2>::try_from(
+                "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+
+            assert!(AsymmetricPublicKey::<V2>::try_from(
+                "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_ok());
+            assert!(AsymmetricPublicKey::<V2>::try_from(
+                "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(AsymmetricPublicKey::<V2>::try_from(
+                "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(AsymmetricPublicKey::<V2>::try_from(
+                "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+
+            assert!(AsymmetricKeyPair::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
+            assert!(AsymmetricKeyPair::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        }
+    }
+
+    #[cfg(test)]
+    #[cfg(feature = "v3")]
+    mod v3 {
+        use super::*;
+
+        test_id_type!(
+            test_secret_k3_id,
+            AsymmetricSecretKey,
+            V3,
+            "./test_vectors/PASERK/k3.sid.json"
+        );
+
+        test_id_type!(
+            test_public_k3_id,
+            AsymmetricPublicKey,
+            V3,
+            "./test_vectors/PASERK/k3.pid.json"
+        );
+
+        test_paserk_type!(
+            test_public_k3,
+            AsymmetricPublicKey,
+            V3,
+            "./test_vectors/PASERK/k3.public.json"
+        );
+
+        test_paserk_type!(
+            test_secret_k3,
+            AsymmetricSecretKey,
+            V3,
+            "./test_vectors/PASERK/k3.secret.json"
+        );
+
+        #[test]
+        fn test_wrong_version_or_purpose() {
+            assert!(AsymmetricPublicKey::<V3>::try_from(
+                "k3.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_ok());
+            assert!(AsymmetricPublicKey::<V3>::try_from(
+                "k4.public.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(AsymmetricPublicKey::<V3>::try_from(
+                "k3.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(AsymmetricPublicKey::<V3>::try_from(
+                "k4.local.AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+
+            assert!(AsymmetricSecretKey::<V3>::try_from(
+                "k3.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+            )
+            .is_ok());
+            assert!(AsymmetricSecretKey::<V3>::try_from(
+                "k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+            )
+            .is_err());
+            assert!(AsymmetricSecretKey::<V3>::try_from(
+                "k3.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+            )
+            .is_err());
+            assert!(AsymmetricSecretKey::<V3>::try_from(
+                "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
+            )
+            .is_err());
+        }
+    }
+
+    #[cfg(test)]
+    #[cfg(feature = "v4")]
+    mod v4 {
+        use super::*;
+
+        test_id_type!(
+            test_local_k4_id,
+            SymmetricKey,
+            V4,
+            "./test_vectors/PASERK/k4.lid.json"
+        );
+
+        test_id_type!(
+            test_secret_k4_id,
+            AsymmetricKeyPair,
+            V4,
+            "./test_vectors/PASERK/k4.sid.json"
+        );
+
+        test_id_type!(
+            test_public_k4_id,
+            AsymmetricPublicKey,
+            V4,
+            "./test_vectors/PASERK/k4.pid.json"
+        );
+
+        test_paserk_type!(
+            test_local_k4,
+            SymmetricKey,
+            V4,
+            "./test_vectors/PASERK/k4.local.json"
+        );
+
+        test_paserk_type!(
+            test_public_k4,
+            AsymmetricPublicKey,
+            V4,
+            "./test_vectors/PASERK/k4.public.json"
+        );
+
+        test_paserk_type!(
+            test_secret_k4,
+            AsymmetricKeyPair,
+            V4,
+            "./test_vectors/PASERK/k4.secret.json"
+        );
+
+        #[test]
+        fn test_wrong_version_or_purpose() {
+            assert!(SymmetricKey::<V4>::try_from(
+                "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_ok());
+            assert!(SymmetricKey::<V4>::try_from(
+                "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(SymmetricKey::<V4>::try_from(
+                "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(SymmetricKey::<V4>::try_from(
+                "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+
+            assert!(AsymmetricPublicKey::<V4>::try_from(
+                "k4.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_ok());
+            assert!(AsymmetricPublicKey::<V4>::try_from(
+                "k2.public.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(AsymmetricPublicKey::<V4>::try_from(
+                "k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+            assert!(AsymmetricPublicKey::<V4>::try_from(
+                "k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+            .is_err());
+
+            assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
+            assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+        }
     }
 }
