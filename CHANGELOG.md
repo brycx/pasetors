@@ -1,6 +1,6 @@
-### 0.5.0 (pre-release)
+### 0.5.0
 
-__Date:__ TBD
+__Date:__ June 4, 2022.
 
 __Changelog:__
 - Bump MSRV to `1.57.0`
