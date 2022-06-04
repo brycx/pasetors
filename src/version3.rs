@@ -794,4 +794,28 @@ mod test_keys {
         assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());
         assert_eq!(pubv3, kpv3.public);
     }
+
+    #[test]
+    fn test_trait_impls() {
+        let debug = format!("{:?}", AsymmetricKeyPair::<V3>::generate().unwrap().secret);
+        assert_eq!(debug, "AsymmetricSecretKey {***OMITTED***}");
+
+        let randomv = AsymmetricKeyPair::<V3>::generate().unwrap();
+        let randomv2 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        assert_ne!(randomv.secret, randomv2.secret);
+    }
+
+    #[test]
+    fn test_invalid_pk() {
+        let uc_badlen = [0u8; 96];
+        let mut uc_badtag = [0u8; 97];
+        uc_badtag[0] = 0x02;
+
+        assert!(UncompressedPublicKey::try_from(uc_badlen.as_ref()).is_err());
+        assert!(UncompressedPublicKey::try_from(uc_badtag.as_ref()).is_err());
+
+        let mut kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        kpv3.public.bytes[0] = 0x04;
+        assert!(UncompressedPublicKey::try_from(&kpv3.public).is_err());
+    }
 }
