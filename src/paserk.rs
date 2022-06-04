@@ -783,4 +783,19 @@ mod tests {
         let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
         assert_ne!(Id::from(&kpv4), Id::from(&kpv3.secret));
     }
+
+    #[test]
+    #[cfg(feature = "v4")]
+    fn test_validate_paserk_string() {
+        assert!(validate_paserk_string("k4.public", "k4", "public", V4::PUBLIC_KEY).is_err());
+        assert!(
+            validate_paserk_string("k4.public.public.public", "k4", "public", V4::PUBLIC_KEY)
+                .is_err()
+        );
+        let too_long = format!(
+            "k4.public.{}",
+            encode_b64(&[0u8; V4::PUBLIC_KEY * 2]).unwrap()
+        );
+        assert!(validate_paserk_string(&too_long, "k4", "public", V4::PUBLIC_KEY).is_err());
+    }
 }
