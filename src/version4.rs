@@ -932,6 +932,23 @@ mod test_keys {
         assert!(SymmetricKey::<V4>::from(&[0u8; 32]).is_ok());
         assert!(SymmetricKey::<V4>::from(&[0u8; 33]).is_err());
     }
+
+    #[test]
+    fn test_trait_impls() {
+        let debug = format!("{:?}", SymmetricKey::<V4>::generate().unwrap());
+        assert_eq!(debug, "SymmetricKey {***OMITTED***}");
+
+        let randomv = SymmetricKey::<V4>::generate().unwrap();
+        let zero = SymmetricKey::<V4>::from(&[0u8; V4::LOCAL_KEY]).unwrap();
+        assert_ne!(randomv, zero);
+
+        let debug = format!("{:?}", AsymmetricKeyPair::<V4>::generate().unwrap().secret);
+        assert_eq!(debug, "AsymmetricSecretKey {***OMITTED***}");
+
+        let randomv = AsymmetricKeyPair::<V4>::generate().unwrap();
+        let zero = AsymmetricKeyPair::<V4>::from(&[0u8; V4::SECRET_KEY + V4::PUBLIC_KEY]).unwrap();
+        assert_ne!(randomv.secret, zero.secret);
+    }
 }
 
 #[cfg(test)]

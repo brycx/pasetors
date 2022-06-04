@@ -771,4 +771,16 @@ mod tests {
             assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
         }
     }
+
+    #[test]
+    #[cfg(all(feature = "v4", feature = "v3"))]
+    fn test_partial_eq_id() {
+        use crate::keys::Generate;
+
+        let kpv4 = AsymmetricKeyPair::<V4>::generate().unwrap();
+        assert_eq!(Id::from(&kpv4), Id::from(&kpv4));
+        assert_ne!(Id::from(&kpv4), Id::from(&kpv4.public));
+        let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
+        assert_ne!(Id::from(&kpv4), Id::from(&kpv3.secret));
+    }
 }
