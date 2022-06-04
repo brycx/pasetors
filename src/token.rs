@@ -275,6 +275,7 @@ impl<T: Purpose<V>, V: Version> UntrustedToken<T, V> {
 #[cfg(all(feature = "v2", feature = "v3", feature = "v4"))]
 mod tests_untrusted {
     use super::*;
+    use crate::common::encode_b64;
     use crate::errors::Error;
     use crate::version::private::Version;
     use crate::{version2::V2, version3::V3, version4::V4};
@@ -376,6 +377,22 @@ mod tests_untrusted {
         for token in TOKEN_LIST {
             let split = token.split('.').collect::<Vec<&str>>();
             let invalid: String = format!("{}.{}..{}", split[0], split[1], split[3]);
+
+            test_untrusted_parse_fails(&invalid, Error::TokenFormat);
+        }
+    }
+
+    #[test]
+    fn payload_too_short() {
+        for token in TOKEN_LIST {
+            let split = token.split('.').collect::<Vec<&str>>();
+            let invalid: String = format!(
+                "{}.{}.{}.{}",
+                split[0],
+                split[1],
+                encode_b64(split[0].as_bytes()).unwrap(),
+                split[3]
+            );
 
             test_untrusted_parse_fails(&invalid, Error::TokenFormat);
         }
@@ -596,10 +613,44 @@ mod tests_untrusted {
         )
         .is_err());
     }
+
     #[test]
     fn local_token_nonce_tag_no_payload_v3() {
         assert!(UntrustedToken::<Public, V3>::try_from(
             "v3.local.oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
         ).is_err());
+    }
+
+    #[test]
+    fn test_get_footer_from_trusted() {
+        let mut footer = Footer::default();
+        footer.add_additional("t", "v").unwrap();
+        let mut tt = TrustedToken::_new(
+            "v3.local.",
+            b"test msg",
+            footer.to_string().unwrap().as_bytes(),
+            b"",
+        )
+        .unwrap();
+        assert!(Footer::try_from(&tt).is_ok());
+        tt.footer = Vec::<u8>::new();
+        assert!(Footer::try_from(&tt).is_err());
+    }
+
+    #[test]
+    fn test_trusted_claims() {
+        let mut footer = Footer::default();
+        footer.add_additional("t", "v").unwrap();
+        let mut tt = TrustedToken::_new(
+            "v3.local.",
+            b"test msg",
+            footer.to_string().unwrap().as_bytes(),
+            b"",
+        )
+        .unwrap();
+        let claims = Claims::new().unwrap();
+        tt.set_payload_claims(claims.clone());
+
+        assert_eq!(tt.payload_claims.unwrap(), claims);
     }
 }

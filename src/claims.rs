@@ -431,6 +431,18 @@ mod test {
         assert!(claims
             .issued_at("this is not a ISO 8601 DateTime string")
             .is_err());
+
+        claims.list_of.insert(
+            "iat".to_string(),
+            "this is not a ISO 8601 DateTime string".into(),
+        );
+        claims.list_of.insert(
+            "nbf".to_string(),
+            "this is not a ISO 8601 DateTime string".into(),
+        );
+
+        let validation_rules = ClaimsValidationRules::default();
+        assert!(validation_rules.validate_claims(&claims).is_err());
     }
 
     #[test]
@@ -700,5 +712,23 @@ mod test {
         assert!(claims_validation.validate_claims(&claims).is_err());
         claims_validation.allow_non_expiring();
         assert!(claims_validation.validate_claims(&claims).is_ok());
+    }
+
+    #[test]
+    fn test_token_missing_iat_nbf_exp() {
+        let claims_validation = ClaimsValidationRules::new();
+
+        // Default validation rules validate these times but error if they're missing
+        let mut claims = Claims::new().unwrap();
+        claims.list_of.remove("iat".into());
+        assert!(claims_validation.validate_claims(&claims).is_err());
+
+        let mut claims = Claims::new().unwrap();
+        claims.list_of.remove("nbf".into());
+        assert!(claims_validation.validate_claims(&claims).is_err());
+
+        let mut claims = Claims::new().unwrap();
+        claims.list_of.remove("exp".into());
+        assert!(claims_validation.validate_claims(&claims).is_err());
     }
 }

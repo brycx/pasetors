@@ -200,14 +200,14 @@ mod tests {
 
     #[test]
     fn err_on_max_keys() {
-        let mut footer = Footer::new();
+        let mut footer = Footer::default();
         for n in 1..=11 {
             footer
                 .add_additional(format!("{}", n).as_str(), "test")
                 .unwrap();
         }
 
-        let mut footer_parse = Footer::new();
+        let mut footer_parse = Footer::default();
         footer_parse.max_keys(10);
         assert!(footer_parse
             .parse_bytes(footer.to_string().unwrap().as_bytes())
