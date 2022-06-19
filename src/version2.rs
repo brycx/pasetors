@@ -753,6 +753,7 @@ mod test_tokens {
 
 #[cfg(test)]
 mod test_keys {
+    use crate::common::decode_b64;
     use super::*;
 
     #[test]
@@ -791,6 +792,26 @@ mod test_keys {
         let randomv = AsymmetricKeyPair::<V2>::generate().unwrap();
         let zero = AsymmetricKeyPair::<V2>::from(&[0u8; V2::SECRET_KEY + V2::PUBLIC_KEY]).unwrap();
         assert_ne!(randomv.secret, zero.secret);
+    }
+
+    #[test]
+    fn double_pubkey_attack() {
+        let kp1 = AsymmetricKeyPair::<V2>::generate().unwrap();
+        let kp2 = AsymmetricKeyPair::<V2>::generate().unwrap();
+
+        let tok1 = PublicToken::sign(&kp1.secret, &kp1.public, "Hello World".as_bytes(), None).unwrap();
+        let tok2 = PublicToken::sign(&kp1.secret, &kp2.public, "Hello World".as_bytes(), None).unwrap();
+
+        // Token format: HEADER + MSG + SIG
+        let mlen = "Hello World".as_bytes().len();
+
+        let mut sig1 = decode_b64(&tok1.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
+        sig1 = sig1[mlen..mlen+32].to_vec();
+
+        let mut sig2 = decode_b64(&tok2.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
+        sig2 = sig2[mlen..mlen+32].to_vec();
+
+        assert_ne!(sig1, sig2);
     }
 }
 
