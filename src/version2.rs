@@ -12,12 +12,11 @@ use crate::token::{Local, Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
-use ed25519_compact::{KeyPair, PublicKey, Signature};
+use ed25519_compact::{KeyPair, PublicKey, SecretKey as SigningKey, Signature};
 use orion::hazardous::aead::xchacha20poly1305::*;
 use orion::hazardous::mac::blake2b;
 use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
 use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
-use zeroize::Zeroizing;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Version 2 of the PASETO spec.
@@ -25,7 +24,7 @@ pub struct V2;
 
 impl Version for V2 {
     const LOCAL_KEY: usize = 32;
-    const SECRET_KEY: usize = 32;
+    const SECRET_KEY: usize = 64; // Secretkey + Seed
     const PUBLIC_KEY: usize = 32;
     const PUBLIC_SIG: usize = 64;
     const LOCAL_NONCE: usize = 24;
@@ -42,13 +41,19 @@ impl Version for V2 {
     }
 
     fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
-        debug_assert_eq!(Self::LOCAL_KEY, Self::SECRET_KEY);
-        Self::validate_local_key(key_bytes)
+        if key_bytes.len() != Self::SECRET_KEY {
+            return Err(Error::Key);
+        }
+
+        Ok(())
     }
 
     fn validate_public_key(key_bytes: &[u8]) -> Result<(), Error> {
-        debug_assert_eq!(Self::LOCAL_KEY, Self::PUBLIC_KEY);
-        Self::validate_secret_key(key_bytes)
+        if key_bytes.len() != Self::PUBLIC_KEY {
+            return Err(Error::Key);
+        }
+
+        Ok(())
     }
 }
 
@@ -56,7 +61,7 @@ impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
     fn generate() -> Result<AsymmetricKeyPair<V2>, Error> {
         let key_pair = KeyPair::generate();
 
-        let secret = AsymmetricSecretKey::<V2>::from(&key_pair.sk[..32])
+        let secret = AsymmetricSecretKey::<V2>::from(&key_pair.sk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
         let public = AsymmetricPublicKey::<V2>::from(key_pair.pk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
@@ -88,7 +93,6 @@ impl PublicToken {
     /// Create a public token.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V2>,
-        public_key: &AsymmetricPublicKey<V2>,
         message: &[u8],
         footer: Option<&[u8]>,
     ) -> Result<String, Error> {
@@ -96,14 +100,10 @@ impl PublicToken {
             return Err(Error::EmptyPayload);
         }
 
-        let mut raw_key = Zeroizing::new([0u8; 64]);
-        raw_key.as_mut()[..32].copy_from_slice(secret_key.as_bytes());
-        raw_key.as_mut()[32..].copy_from_slice(public_key.as_bytes());
-        let kp = KeyPair::from_slice(raw_key.as_ref()).map_err(|_| Error::Key)?;
-
+        let sk = SigningKey::from_slice(secret_key.as_bytes()).map_err(|_| Error::Key)?;
         let f = footer.unwrap_or(&[]);
         let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f])?;
-        let sig = kp.sk.sign(m2, None);
+        let sig = sk.sign(m2, None);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
         m_sig.extend_from_slice(sig.as_ref());
@@ -326,7 +326,7 @@ mod test_vectors {
         debug_assert!(test.secret_key.is_some());
 
         let sk = AsymmetricSecretKey::<V2>::from(
-            &hex::decode(test.secret_key.as_ref().unwrap()).unwrap()[..32],
+            &hex::decode(test.secret_key.as_ref().unwrap()).unwrap(),
         )
         .unwrap();
         let pk = AsymmetricPublicKey::<V2>::from(
@@ -353,7 +353,7 @@ mod test_vectors {
 
         let message = test.payload.as_ref().unwrap().as_str().unwrap();
 
-        let actual = PublicToken::sign(&sk, &pk, message.as_bytes(), footer).unwrap();
+        let actual = PublicToken::sign(&sk, message.as_bytes(), footer).unwrap();
         assert_eq!(actual, test.token, "Failed {:?}", test.name);
         let ut = UntrustedToken::<Public, V2>::try_from(&test.token).unwrap();
 
@@ -412,7 +412,7 @@ mod test_tokens {
     fn test_gen_keypair() {
         let kp = AsymmetricKeyPair::<V2>::generate().unwrap();
 
-        let token = PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None).unwrap();
+        let token = PublicToken::sign(&kp.secret, MESSAGE.as_bytes(), None).unwrap();
 
         let ut = UntrustedToken::<Public, V2>::try_from(&token).unwrap();
         assert!(PublicToken::verify(&kp.public, &ut, None).is_ok());
@@ -434,13 +434,8 @@ mod test_tokens {
 
         // Public
         let kp = AsymmetricKeyPair::<V2>::generate().unwrap();
-        let token = PublicToken::sign(
-            &kp.secret,
-            &kp.public,
-            MESSAGE.as_bytes(),
-            Some(FOOTER.as_bytes()),
-        )
-        .unwrap();
+        let token =
+            PublicToken::sign(&kp.secret, MESSAGE.as_bytes(), Some(FOOTER.as_bytes())).unwrap();
 
         let untrusted_token = UntrustedToken::<Public, V2>::try_from(token.as_str()).unwrap();
         assert!(PublicToken::verify(&kp.public, &untrusted_token, Some(FOOTER.as_bytes())).is_ok());
@@ -463,7 +458,7 @@ mod test_tokens {
         let test_sk = AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).unwrap();
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
-        let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None).unwrap();
+        let token = PublicToken::sign(&test_sk, MESSAGE.as_bytes(), None).unwrap();
         let ut = UntrustedToken::<Public, V2>::try_from(&token).unwrap();
 
         assert!(PublicToken::verify(&test_pk, &ut, None).is_ok());
@@ -479,11 +474,11 @@ mod test_tokens {
 
         // We create a token with Some(footer) and with None
         let actual_some = UntrustedToken::<Public, V2>::try_from(
-            &PublicToken::sign(&test_sk, &test_pk, message, Some(FOOTER.as_bytes())).unwrap(),
+            &PublicToken::sign(&test_sk, message, Some(FOOTER.as_bytes())).unwrap(),
         )
         .unwrap();
         let actual_none = UntrustedToken::<Public, V2>::try_from(
-            &PublicToken::sign(&test_sk, &test_pk, message, None).unwrap(),
+            &PublicToken::sign(&test_sk, message, None).unwrap(),
         )
         .unwrap();
 
@@ -523,7 +518,7 @@ mod test_tokens {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         assert_eq!(
-            PublicToken::sign(&test_sk, &test_pk, b"", None).unwrap_err(),
+            PublicToken::sign(&test_sk, b"", None).unwrap_err(),
             Error::EmptyPayload
         );
         assert_eq!(
@@ -753,8 +748,8 @@ mod test_tokens {
 
 #[cfg(test)]
 mod test_keys {
-    use crate::common::decode_b64;
     use super::*;
+    use crate::common::decode_b64;
 
     #[test]
     fn test_symmetric_gen() {
@@ -799,17 +794,19 @@ mod test_keys {
         let kp1 = AsymmetricKeyPair::<V2>::generate().unwrap();
         let kp2 = AsymmetricKeyPair::<V2>::generate().unwrap();
 
-        let tok1 = PublicToken::sign(&kp1.secret, &kp1.public, "Hello World".as_bytes(), None).unwrap();
-        let tok2 = PublicToken::sign(&kp1.secret, &kp2.public, "Hello World".as_bytes(), None).unwrap();
+        let tok1 = PublicToken::sign(&kp1.secret, "Hello World".as_bytes(), None).unwrap();
+        let tok2 = PublicToken::sign(&kp1.secret, "Hello World".as_bytes(), None).unwrap();
 
         // Token format: HEADER + MSG + SIG
         let mlen = "Hello World".as_bytes().len();
 
-        let mut sig1 = decode_b64(&tok1.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
-        sig1 = sig1[mlen..mlen+32].to_vec();
+        let mut sig1 =
+            decode_b64(&tok1.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
+        sig1 = sig1[mlen..mlen + 32].to_vec();
 
-        let mut sig2 = decode_b64(&tok2.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
-        sig2 = sig2[mlen..mlen+32].to_vec();
+        let mut sig2 =
+            decode_b64(&tok2.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
+        sig2 = sig2[mlen..mlen + 32].to_vec();
 
         assert_ne!(sig1, sig2);
     }
@@ -832,7 +829,7 @@ impl AsymmetricKeyPair<V2> {
 
     pub(crate) fn as_bytes<'a>(&self) -> [u8; 64] {
         let mut buf = [0u8; V2::SECRET_KEY + V2::PUBLIC_KEY];
-        buf[..V2::SECRET_KEY].copy_from_slice(self.secret.as_bytes());
+        buf[..V2::SECRET_KEY].copy_from_slice(&self.secret.as_bytes()[..32]);
         buf[V2::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
 
         buf
