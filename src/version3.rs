@@ -778,7 +778,7 @@ mod test_keys {
     }
 
     #[test]
-    fn try_from_secret_to_public_v3() {
+    fn try_from_secret_to_public() {
         let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
         let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
         assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());

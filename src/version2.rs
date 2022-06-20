@@ -1,5 +1,6 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "v2")))]
 
+use core::convert::TryFrom;
 use core::marker::PhantomData;
 
 use crate::common::{encode_b64, validate_footer_untrusted_token};
@@ -54,6 +55,14 @@ impl Version for V2 {
         }
 
         Ok(())
+    }
+}
+
+impl TryFrom<&AsymmetricSecretKey<V2>> for AsymmetricPublicKey<V2> {
+    type Error = Error;
+
+    fn try_from(value: &AsymmetricSecretKey<V2>) -> Result<Self, Self::Error> {
+        AsymmetricPublicKey::<V2>::from(&value.as_bytes()[32..])
     }
 }
 
@@ -775,6 +784,15 @@ mod test_keys {
         assert!(SymmetricKey::<V2>::from(&[0u8; 31]).is_err());
         assert!(SymmetricKey::<V2>::from(&[0u8; 32]).is_ok());
         assert!(SymmetricKey::<V2>::from(&[0u8; 33]).is_err());
+    }
+
+    #[test]
+    fn try_from_secret_to_public() {
+        let kpv2 = AsymmetricKeyPair::<V2>::generate().unwrap();
+        let pubv2 = AsymmetricPublicKey::<V2>::try_from(&kpv2.secret).unwrap();
+        assert_eq!(pubv2.as_bytes(), kpv2.public.as_bytes());
+        assert_eq!(pubv2, kpv2.public);
+        assert_eq!(&kpv2.secret.as_bytes()[32..], pubv2.as_bytes());
     }
 
     #[test]
