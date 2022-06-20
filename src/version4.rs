@@ -981,12 +981,4 @@ impl AsymmetricKeyPair<V4> {
             public: AsymmetricPublicKey::from(&bytes[V4::SECRET_KEY..])?,
         })
     }
-
-    pub(crate) fn as_bytes<'a>(&self) -> [u8; 96] {
-        let mut buf = [0u8; V4::SECRET_KEY + V4::PUBLIC_KEY];
-        buf[..V4::SECRET_KEY].copy_from_slice(&self.secret.as_bytes());
-        buf[V4::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
-
-        buf
-    }
 }
