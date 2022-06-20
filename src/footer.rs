@@ -256,7 +256,7 @@ mod tests {
         let skv4 = SymmetricKey::<V4>::generate().unwrap();
 
         let mut buf = String::new();
-        kpv2.fmt(&mut buf).unwrap();
+        kpv2.secret.fmt(&mut buf).unwrap();
         assert!(footer.add_additional("wpk", &buf).is_err());
         assert!(footer.add_additional("kid", &buf).is_err());
         assert!(footer.add_additional("custom", &buf).is_err());
@@ -280,7 +280,7 @@ mod tests {
         assert!(footer.add_additional("custom", &buf).is_err());
 
         let mut buf = String::new();
-        kpv4.fmt(&mut buf).unwrap();
+        kpv4.secret.fmt(&mut buf).unwrap();
         assert!(footer.add_additional("wpk", &buf).is_err());
         assert!(footer.add_additional("kid", &buf).is_err());
         assert!(footer.add_additional("custom", &buf).is_err());
@@ -322,7 +322,7 @@ mod tests {
         let skv4 = SymmetricKey::<V4>::generate().unwrap();
 
         let mut buf = String::new();
-        let paserk_id = Id::from(&kpv2);
+        let paserk_id = Id::from(&kpv2.secret);
         paserk_id.fmt(&mut buf).unwrap();
         assert!(footer.add_additional("kid", &buf).is_err());
         assert!(footer.add_additional("custom", &buf).is_ok());
@@ -358,7 +358,7 @@ mod tests {
         assert_eq!(footer.get_claim("kid").unwrap().as_str().unwrap(), buf);
 
         let mut buf = String::new();
-        let paserk_id = Id::from(&kpv4);
+        let paserk_id = Id::from(&kpv4.secret);
         paserk_id.fmt(&mut buf).unwrap();
         assert!(footer.add_additional("kid", &buf).is_err());
         assert!(footer.add_additional("custom", &buf).is_ok());

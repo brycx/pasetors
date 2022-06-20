@@ -154,10 +154,9 @@ impl PublicToken {
 
     /// Create a public token.
     ///
-    /// The `secret_key` and `public_key` **must** be in big-endian.
+    /// The `secret_key` **must** be in big-endian.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V3>,
-        public_key: &AsymmetricPublicKey<V3>,
         message: &[u8],
         footer: Option<&[u8]>,
         implicit_assert: Option<&[u8]>,
@@ -167,16 +166,11 @@ impl PublicToken {
         }
 
         let signing_key = SigningKey::from_bytes(secret_key.as_bytes()).map_err(|_| Error::Key)?;
+        let public_key = VerifyingKey::from(&signing_key).to_encoded_point(true);
 
         let f = footer.unwrap_or(&[]);
         let i = implicit_assert.unwrap_or(&[]);
-        let m2 = pae::pae(&[
-            public_key.as_bytes(),
-            Self::HEADER.as_bytes(),
-            message,
-            f,
-            i,
-        ])?;
+        let m2 = pae::pae(&[public_key.as_ref(), Self::HEADER.as_bytes(), message, f, i])?;
 
         let mut msg_digest = sha2::Sha384::new();
         msg_digest.update(m2);
@@ -335,8 +329,7 @@ mod test_vectors {
         let message = "this is a signed message";
 
         let token = UntrustedToken::<Public, V3>::try_from(
-            &PublicToken::sign(&sk, &pk, message.as_bytes(), Some(b"footer"), Some(b"impl"))
-                .unwrap(),
+            &PublicToken::sign(&sk, message.as_bytes(), Some(b"footer"), Some(b"impl")).unwrap(),
         )
         .unwrap();
         assert!(PublicToken::verify(&pk, &token, Some(b"footer"), Some(b"impl")).is_ok());
@@ -378,7 +371,7 @@ mod test_vectors {
 
         let message = test.payload.as_ref().unwrap().as_str().unwrap();
         let actual =
-            PublicToken::sign(&sk, &pk, message.as_bytes(), footer, Some(implicit_assert)).unwrap();
+            PublicToken::sign(&sk, message.as_bytes(), footer, Some(implicit_assert)).unwrap();
         assert_eq!(actual, test.token, "Failed {:?}", test.name);
         let ut = UntrustedToken::<Public, V3>::try_from(&test.token).unwrap();
 
@@ -533,8 +526,7 @@ mod test_tokens {
     fn test_gen_keypair() {
         let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
 
-        let token =
-            PublicToken::sign(&kp.secret, &kp.public, MESSAGE.as_bytes(), None, None).unwrap();
+        let token = PublicToken::sign(&kp.secret, MESSAGE.as_bytes(), None, None).unwrap();
 
         let ut = UntrustedToken::<Public, V3>::try_from(&token).unwrap();
         assert!(PublicToken::verify(&kp.public, &ut, None, None).is_ok());
@@ -546,7 +538,6 @@ mod test_tokens {
         let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
         let token = PublicToken::sign(
             &kp.secret,
-            &kp.public,
             MESSAGE.as_bytes(),
             Some(FOOTER.as_bytes()),
             None,
@@ -568,7 +559,7 @@ mod test_tokens {
         let test_sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
 
-        let token = PublicToken::sign(&test_sk, &test_pk, MESSAGE.as_bytes(), None, None).unwrap();
+        let token = PublicToken::sign(&test_sk, MESSAGE.as_bytes(), None, None).unwrap();
         let ut = UntrustedToken::<Public, V3>::try_from(&token).unwrap();
 
         assert!(PublicToken::verify(&test_pk, &ut, None, None).is_ok());
@@ -583,11 +574,11 @@ mod test_tokens {
 
         // We create a token with Some(footer) and with None
         let actual_some = UntrustedToken::<Public, V3>::try_from(
-            &PublicToken::sign(&test_sk, &test_pk, message, Some(FOOTER.as_bytes()), None).unwrap(),
+            &PublicToken::sign(&test_sk, message, Some(FOOTER.as_bytes()), None).unwrap(),
         )
         .unwrap();
         let actual_none = UntrustedToken::<Public, V3>::try_from(
-            &PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap(),
+            &PublicToken::sign(&test_sk, message, None, None).unwrap(),
         )
         .unwrap();
 
@@ -614,11 +605,11 @@ mod test_tokens {
         let implicit = b"";
 
         let actual_some = UntrustedToken::<Public, V3>::try_from(
-            &PublicToken::sign(&test_sk, &test_pk, message, None, Some(implicit)).unwrap(),
+            &PublicToken::sign(&test_sk, message, None, Some(implicit)).unwrap(),
         )
         .unwrap();
         let actual_none = UntrustedToken::<Public, V3>::try_from(
-            &PublicToken::sign(&test_sk, &test_pk, message, None, None).unwrap(),
+            &PublicToken::sign(&test_sk, message, None, None).unwrap(),
         )
         .unwrap();
 
@@ -630,10 +621,9 @@ mod test_tokens {
     // NOTE: See https://github.com/paseto-standard/paseto-spec/issues/17
     fn empty_payload() {
         let test_sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
-        let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
 
         assert_eq!(
-            PublicToken::sign(&test_sk, &test_pk, b"", None, None).unwrap_err(),
+            PublicToken::sign(&test_sk, b"", None, None).unwrap_err(),
             Error::EmptyPayload
         );
     }
@@ -788,7 +778,7 @@ mod test_keys {
     }
 
     #[test]
-    fn try_from_secret_to_public_v3() {
+    fn try_from_secret_to_public() {
         let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
         let pubv3 = AsymmetricPublicKey::<V3>::try_from(&kpv3.secret).unwrap();
         assert_eq!(pubv3.as_bytes(), kpv3.public.as_bytes());

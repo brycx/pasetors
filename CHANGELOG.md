@@ -1,3 +1,14 @@
+### 0.6.0
+
+__Date:__ June 20, 2022.
+
+__Changelog:__
+- PASERK operations are now implemented for `AsymmetricSecretKey<V2>` and `AsymmetricSecretKey<V4>` instead of `AsymmetricKeyPair<V2>` and `AsymmetricKeyPair<V4>`, respectively
+- All `sign()` operations with public tokens now take only the secret key
+- `V2` and `V4` token's `AsymmetricSecretKey<>` are now defined to contain both the Ed25519 secret seed and the public key (see https://github.com/MystenLabs/ed25519-unsafe-libs)
+- `TryFrom<AsymmetricSecretKey<>> for AsymmetricPublicKey<>` is now provided for `V2` and `V4` as well
+
+
 ### 0.5.0
 
 __Date:__ June 4, 2022.

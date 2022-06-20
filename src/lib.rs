@@ -25,7 +25,7 @@
 //!
 //! // Generate the keys and sign the claims.
 //! let kp = AsymmetricKeyPair::<V4>::generate()?;
-//! let pub_token = public::sign(&kp.secret, &kp.public, &claims, None, Some(b"implicit assertion"))?;
+//! let pub_token = public::sign(&kp.secret, &claims, None, Some(b"implicit assertion"))?;
 //!
 //! // Decide how we want to validate the claims after verifying the token itself.
 //! // The default verifies the `nbf`, `iat` and `exp` claims. `nbf` and `iat` are always
@@ -141,7 +141,7 @@
 //! footer.add_additional("custom_footer_claim", "custom_value")?;
 //!
 //! let mut claims = Claims::new()?;
-//! let pub_token = public::sign(&kp.secret, &kp.public, &claims, Some(&footer), Some(b"implicit assertion"))?;
+//! let pub_token = public::sign(&kp.secret, &claims, Some(&footer), Some(b"implicit assertion"))?;
 //!
 //! // If we receive a token that needs to be verified, we can still try to parse a Footer from it
 //! // as long one was used during creation, if we don't know it beforehand.
@@ -183,7 +183,7 @@
     unused_qualifications,
     overflowing_literals
 )]
-#![doc(html_root_url = "https://docs.rs/pasetors/0.5.0")]
+#![doc(html_root_url = "https://docs.rs/pasetors/0.6.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
@@ -246,7 +246,6 @@ pub mod public {
     /// Create a public token using the latest PASETO version (v4).
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V4>,
-        public_key: &AsymmetricPublicKey<V4>,
         message: &Claims,
         footer: Option<&Footer>,
         implicit_assert: Option<&[u8]>,
@@ -254,14 +253,12 @@ pub mod public {
         match footer {
             Some(f) => crate::version4::PublicToken::sign(
                 secret_key,
-                public_key,
                 message.to_string()?.as_bytes(),
                 Some(f.to_string()?.as_bytes()),
                 implicit_assert,
             ),
             None => crate::version4::PublicToken::sign(
                 secret_key,
-                public_key,
                 message.to_string()?.as_bytes(),
                 None,
                 implicit_assert,

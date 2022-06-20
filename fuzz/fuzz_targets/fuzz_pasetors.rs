@@ -21,7 +21,7 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
     csprng.fill_bytes(&mut seed_bytes);
     let seed = Seed::from_slice(&seed_bytes).unwrap();
     let keypair: KeyPair = KeyPair::from_seed(seed);
-    let sk = AsymmetricSecretKey::<V2>::from(&keypair.sk[..32]).unwrap();
+    let sk = AsymmetricSecretKey::<V2>::from(keypair.sk.as_ref()).unwrap();
     let pk = AsymmetricPublicKey::<V2>::from(keypair.pk.as_ref()).unwrap();
     let mut key = [0u8; 32];
     csprng.fill_bytes(&mut key);
@@ -39,7 +39,7 @@ fn fuzztest_v2(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 
     let public_token = UntrustedToken::<Public, V2>::try_from(
-        &version2::PublicToken::sign(&sk, &pk, message.as_bytes(), None).unwrap(),
+        &version2::PublicToken::sign(&sk, message.as_bytes(), None).unwrap(),
     )
     .unwrap();
     match version2::PublicToken::verify(&pk, &public_token, None) {
@@ -87,7 +87,7 @@ fn fuzztest_v3(data: &[u8]) {
     }
 
     let public_token = UntrustedToken::<Public, V3>::try_from(
-        &version3::PublicToken::sign(&kp.secret, &kp.public, message.as_bytes(), None, None)
+        &version3::PublicToken::sign(&kp.secret, message.as_bytes(), None, None)
             .unwrap(),
     )
     .unwrap();
@@ -106,7 +106,7 @@ fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
     csprng.fill_bytes(&mut seed_bytes);
     let seed = Seed::from_slice(&seed_bytes).unwrap();
     let keypair: KeyPair = KeyPair::from_seed(seed);
-    let sk = AsymmetricSecretKey::<V4>::from(&keypair.sk[..32]).unwrap();
+    let sk = AsymmetricSecretKey::<V4>::from(keypair.sk.as_ref()).unwrap();
     let pk = AsymmetricPublicKey::<V4>::from(keypair.pk.as_ref()).unwrap();
     let mut key = [0u8; 32];
     csprng.fill_bytes(&mut key);
@@ -124,7 +124,7 @@ fn fuzztest_v4(data: &[u8], csprng: &mut ChaCha20Rng) {
     }
 
     let public_token = UntrustedToken::<Public, V4>::try_from(
-        &version4::PublicToken::sign(&sk, &pk, message.as_bytes(), None, None).unwrap(),
+        &version4::PublicToken::sign(&sk, message.as_bytes(), None, None).unwrap(),
     )
     .unwrap();
     match version4::PublicToken::verify(&pk, &public_token, None, None) {
@@ -161,7 +161,7 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
     csprng.fill_bytes(&mut seed_bytes);
     let seed = Seed::from_slice(&seed_bytes).unwrap();
     let keypair: KeyPair = KeyPair::from_seed(seed);
-    let sk = AsymmetricSecretKey::<V4>::from(&keypair.sk[..32]).unwrap();
+    let sk = AsymmetricSecretKey::<V4>::from(keypair.sk.as_ref()).unwrap();
     let pk = AsymmetricPublicKey::<V4>::from(keypair.pk.as_ref()).unwrap();
     let mut key = [0u8; 32];
     csprng.fill_bytes(&mut key);
@@ -177,7 +177,7 @@ fn fuzz_highlevel(data: &[u8], csprng: &mut ChaCha20Rng) {
     let validation_rules = ClaimsValidationRules::new();
 
     let public_token = UntrustedToken::<Public, V4>::try_from(
-        &pasetors::public::sign(&sk, &pk, &claims, None, None).unwrap(),
+        &pasetors::public::sign(&sk, &claims, None, None).unwrap(),
     )
     .unwrap();
     if let Ok(trusted_token) =

@@ -54,6 +54,8 @@ impl<V: Version> PartialEq<SymmetricKey<V>> for SymmetricKey<V> {
 }
 
 /// An asymmetric secret key used for `.public` tokens, given a version `V`.
+///
+/// In case of Ed25519, which is used in V2 and V4, this is the seed concatenated with the public key.
 pub struct AsymmetricSecretKey<V> {
     pub(crate) bytes: Vec<u8>,
     pub(crate) phantom: PhantomData<V>,

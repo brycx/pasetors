@@ -2,7 +2,7 @@
 
 use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
-use crate::keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
+use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
 use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -96,34 +96,20 @@ impl TryFrom<&str> for SymmetricKey<V4> {
 }
 
 #[cfg(feature = "v2")]
-impl FormatAsPaserk for AsymmetricKeyPair<V2> {
+impl FormatAsPaserk for AsymmetricSecretKey<V2> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k2.secret.")?;
-
-        // See spec: "Here, Ed25519 secret key means the clamped 32-byte seed followed by the
-        // 32-byte public key, as used in the NaCl and libsodium APIs, rather than just the
-        // clamped 32-byte seed."
-        let mut buf = [0u8; V2::SECRET_KEY + V2::PUBLIC_KEY];
-        buf[..V2::SECRET_KEY].copy_from_slice(self.secret.as_bytes());
-        buf[V2::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
-        write.write_str(&encode_b64(buf).map_err(|_| core::fmt::Error)?)?;
-        buf.iter_mut().zeroize();
-
-        Ok(())
+        write.write_str(&encode_b64(self.as_bytes()).map_err(|_| core::fmt::Error)?)
     }
 }
 
 #[cfg(feature = "v2")]
-impl TryFrom<&str> for AsymmetricKeyPair<V2> {
+impl TryFrom<&str> for AsymmetricSecretKey<V2> {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut buf =
-            validate_paserk_string(value, "k2", "secret", V2::SECRET_KEY + V2::PUBLIC_KEY)?;
-        let ret = Self {
-            secret: AsymmetricSecretKey::from(&buf[..V2::SECRET_KEY])?,
-            public: AsymmetricPublicKey::from(&buf[V2::SECRET_KEY..])?,
-        };
+        let mut buf = validate_paserk_string(value, "k2", "secret", V2::SECRET_KEY)?;
+        let ret = Self::from(&buf)?;
         buf.iter_mut().zeroize();
 
         Ok(ret)
@@ -154,31 +140,20 @@ impl TryFrom<&str> for AsymmetricSecretKey<V3> {
 }
 
 #[cfg(feature = "v4")]
-impl FormatAsPaserk for AsymmetricKeyPair<V4> {
+impl FormatAsPaserk for AsymmetricSecretKey<V4> {
     fn fmt(&self, write: &mut dyn Write) -> core::fmt::Result {
         write.write_str("k4.secret.")?;
-
-        let mut buf = [0u8; V4::SECRET_KEY + V4::PUBLIC_KEY];
-        buf[..V4::SECRET_KEY].copy_from_slice(self.secret.as_bytes());
-        buf[V4::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
-        write.write_str(&encode_b64(buf).map_err(|_| core::fmt::Error)?)?;
-        buf.iter_mut().zeroize();
-
-        Ok(())
+        write.write_str(&encode_b64(self.as_bytes()).map_err(|_| core::fmt::Error)?)
     }
 }
 
 #[cfg(feature = "v4")]
-impl TryFrom<&str> for AsymmetricKeyPair<V4> {
+impl TryFrom<&str> for AsymmetricSecretKey<V4> {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut buf =
-            validate_paserk_string(value, "k4", "secret", V4::SECRET_KEY + V4::PUBLIC_KEY)?;
-        let ret = Self {
-            secret: AsymmetricSecretKey::from(&buf[..V4::SECRET_KEY])?,
-            public: AsymmetricPublicKey::from(&buf[V4::SECRET_KEY..])?,
-        };
+        let mut buf = validate_paserk_string(value, "k4", "secret", V4::SECRET_KEY)?;
+        let ret = Self::from(&buf)?;
         buf.iter_mut().zeroize();
 
         Ok(ret)
@@ -337,8 +312,8 @@ impl From<&SymmetricKey<V4>> for Id {
 }
 
 #[cfg(feature = "v2")]
-impl From<&AsymmetricKeyPair<V2>> for Id {
-    fn from(key: &AsymmetricKeyPair<V2>) -> Self {
+impl From<&AsymmetricSecretKey<V2>> for Id {
+    fn from(key: &AsymmetricSecretKey<V2>) -> Self {
         let header = String::from("k2.sid.");
         let mut hasher = blake2b::Blake2b::new(33).unwrap();
         hasher.update(header.as_bytes()).unwrap();
@@ -354,8 +329,8 @@ impl From<&AsymmetricKeyPair<V2>> for Id {
 }
 
 #[cfg(feature = "v4")]
-impl From<&AsymmetricKeyPair<V4>> for Id {
-    fn from(key: &AsymmetricKeyPair<V4>) -> Self {
+impl From<&AsymmetricSecretKey<V4>> for Id {
+    fn from(key: &AsymmetricSecretKey<V4>) -> Self {
         let header = String::from("k4.sid.");
         let mut hasher = blake2b::Blake2b::new(33).unwrap();
         hasher.update(header.as_bytes()).unwrap();
@@ -535,7 +510,7 @@ mod tests {
 
         test_id_type!(
             test_secret_k2_id,
-            AsymmetricKeyPair,
+            AsymmetricSecretKey,
             V2,
             "./test_vectors/PASERK/k2.sid.json"
         );
@@ -563,7 +538,7 @@ mod tests {
 
         test_paserk_type!(
             test_secret_k2,
-            AsymmetricKeyPair,
+            AsymmetricSecretKey,
             V2,
             "./test_vectors/PASERK/k2.secret.json"
         );
@@ -604,10 +579,10 @@ mod tests {
             )
             .is_err());
 
-            assert!(AsymmetricKeyPair::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
-            assert!(AsymmetricKeyPair::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricKeyPair::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricKeyPair::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
         }
     }
 
@@ -696,7 +671,7 @@ mod tests {
 
         test_id_type!(
             test_secret_k4_id,
-            AsymmetricKeyPair,
+            AsymmetricSecretKey,
             V4,
             "./test_vectors/PASERK/k4.sid.json"
         );
@@ -724,7 +699,7 @@ mod tests {
 
         test_paserk_type!(
             test_secret_k4,
-            AsymmetricKeyPair,
+            AsymmetricSecretKey,
             V4,
             "./test_vectors/PASERK/k4.secret.json"
         );
@@ -765,23 +740,23 @@ mod tests {
             )
             .is_err());
 
-            assert!(AsymmetricKeyPair::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
-            assert!(AsymmetricKeyPair::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricKeyPair::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricKeyPair::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
         }
     }
 
     #[test]
     #[cfg(all(feature = "v4", feature = "v3"))]
     fn test_partial_eq_id() {
-        use crate::keys::Generate;
+        use crate::keys::{AsymmetricKeyPair, Generate};
 
         let kpv4 = AsymmetricKeyPair::<V4>::generate().unwrap();
-        assert_eq!(Id::from(&kpv4), Id::from(&kpv4));
-        assert_ne!(Id::from(&kpv4), Id::from(&kpv4.public));
+        assert_eq!(Id::from(&kpv4.secret), Id::from(&kpv4.secret));
+        assert_ne!(Id::from(&kpv4.secret), Id::from(&kpv4.public));
         let kpv3 = AsymmetricKeyPair::<V3>::generate().unwrap();
-        assert_ne!(Id::from(&kpv4), Id::from(&kpv3.secret));
+        assert_ne!(Id::from(&kpv4.secret), Id::from(&kpv3.secret));
     }
 
     #[test]
