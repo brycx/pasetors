@@ -75,7 +75,7 @@ version = "0.10.2"
 optional = true
 
 [features]
-default = [ "std", "v4", "paserk", "v2" ]
+default = [ "std", "v4", "paserk", "v2", "v3" ]
 std = [ "serde_json", "time", "regex" ]
 v2 = [ "orion", "ed25519-compact" ]
 v3 = [ "rand_core", "p384", "sha2" ]
