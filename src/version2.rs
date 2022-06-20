@@ -24,7 +24,7 @@ pub struct V2;
 
 impl Version for V2 {
     const LOCAL_KEY: usize = 32;
-    const SECRET_KEY: usize = 64; // Secretkey + Seed
+    const SECRET_KEY: usize = 32 + Self::PUBLIC_KEY; // Seed || PK
     const PUBLIC_KEY: usize = 32;
     const PUBLIC_SIG: usize = 64;
     const LOCAL_NONCE: usize = 24;
@@ -61,7 +61,7 @@ impl Generate<AsymmetricKeyPair<V2>, V2> for AsymmetricKeyPair<V2> {
     fn generate() -> Result<AsymmetricKeyPair<V2>, Error> {
         let key_pair = KeyPair::generate();
 
-        let secret = AsymmetricSecretKey::<V2>::from(&key_pair.sk.as_ref())
+        let secret = AsymmetricSecretKey::<V2>::from(key_pair.sk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
         let public = AsymmetricPublicKey::<V2>::from(key_pair.pk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
@@ -392,9 +392,16 @@ mod test_tokens {
     use crate::token::UntrustedToken;
     use core::convert::TryFrom;
 
-    const TEST_SK_BYTES: [u8; 32] = [
+    const TEST_LOCAL_SK_BYTES: [u8; 32] = [
+        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
+        130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+    ];
+
+    const TEST_SK_BYTES: [u8; 64] = [
         180, 203, 251, 67, 223, 76, 226, 16, 114, 125, 149, 62, 74, 113, 51, 7, 250, 25, 187, 125,
-        159, 133, 4, 20, 56, 217, 225, 27, 148, 42, 55, 116,
+        159, 133, 4, 20, 56, 217, 225, 27, 148, 42, 55, 116, 30, 185, 219, 187, 188, 4, 124, 3,
+        253, 112, 96, 78, 0, 113, 240, 152, 126, 22, 178, 139, 117, 114, 37, 193, 31, 0, 65, 93,
+        14, 32, 177, 162,
     ];
 
     const TEST_PK_BYTES: [u8; 32] = [
@@ -466,7 +473,7 @@ mod test_tokens {
 
     #[test]
     fn footer_logic() {
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
         let test_sk = AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).unwrap();
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
         let message =
@@ -513,9 +520,8 @@ mod test_tokens {
     #[test]
     // NOTE: See https://github.com/paseto-standard/paseto-spec/issues/17
     fn empty_payload() {
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
         let test_sk = AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).unwrap();
-        let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::sign(&test_sk, b"", None).unwrap_err(),
@@ -530,7 +536,7 @@ mod test_tokens {
     #[test]
     fn err_on_modified_footer() {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(
@@ -555,7 +561,7 @@ mod test_tokens {
     #[test]
     fn err_on_footer_in_token_none_supplied() {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::verify(
@@ -580,7 +586,7 @@ mod test_tokens {
     #[test]
     fn err_on_no_footer_in_token_some_supplied() {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
         let invalid_public: String = format!(
@@ -639,7 +645,7 @@ mod test_tokens {
 
     #[test]
     fn err_on_modified_tag() {
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_tag = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -665,7 +671,7 @@ mod test_tokens {
 
     #[test]
     fn err_on_modified_ciphertext() {
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_ct = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -691,7 +697,7 @@ mod test_tokens {
 
     #[test]
     fn err_on_modified_nonce() {
-        let test_local_sk = SymmetricKey::<V2>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
         let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
@@ -749,7 +755,6 @@ mod test_tokens {
 #[cfg(test)]
 mod test_keys {
     use super::*;
-    use crate::common::decode_b64;
 
     #[test]
     fn test_symmetric_gen() {
@@ -759,9 +764,9 @@ mod test_keys {
 
     #[test]
     fn test_invalid_sizes() {
-        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 31]).is_err());
-        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 32]).is_ok());
-        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 33]).is_err());
+        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 63]).is_err());
+        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 64]).is_ok());
+        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 65]).is_err());
 
         assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 31]).is_err());
         assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 32]).is_ok());
@@ -788,28 +793,6 @@ mod test_keys {
         let zero = AsymmetricKeyPair::<V2>::from(&[0u8; V2::SECRET_KEY + V2::PUBLIC_KEY]).unwrap();
         assert_ne!(randomv.secret, zero.secret);
     }
-
-    #[test]
-    fn double_pubkey_attack() {
-        let kp1 = AsymmetricKeyPair::<V2>::generate().unwrap();
-        let kp2 = AsymmetricKeyPair::<V2>::generate().unwrap();
-
-        let tok1 = PublicToken::sign(&kp1.secret, "Hello World".as_bytes(), None).unwrap();
-        let tok2 = PublicToken::sign(&kp1.secret, "Hello World".as_bytes(), None).unwrap();
-
-        // Token format: HEADER + MSG + SIG
-        let mlen = "Hello World".as_bytes().len();
-
-        let mut sig1 =
-            decode_b64(&tok1.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
-        sig1 = sig1[mlen..mlen + 32].to_vec();
-
-        let mut sig2 =
-            decode_b64(&tok2.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
-        sig2 = sig2[mlen..mlen + 32].to_vec();
-
-        assert_ne!(sig1, sig2);
-    }
 }
 
 #[cfg(test)]
@@ -827,9 +810,9 @@ impl AsymmetricKeyPair<V2> {
         })
     }
 
-    pub(crate) fn as_bytes<'a>(&self) -> [u8; 64] {
+    pub(crate) fn as_bytes<'a>(&self) -> [u8; 96] {
         let mut buf = [0u8; V2::SECRET_KEY + V2::PUBLIC_KEY];
-        buf[..V2::SECRET_KEY].copy_from_slice(&self.secret.as_bytes()[..32]);
+        buf[..V2::SECRET_KEY].copy_from_slice(&self.secret.as_bytes());
         buf[V2::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
 
         buf

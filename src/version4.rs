@@ -26,7 +26,7 @@ pub struct V4;
 
 impl Version for V4 {
     const LOCAL_KEY: usize = 32;
-    const SECRET_KEY: usize = 64; // Secretkey + Seed
+    const SECRET_KEY: usize = 32 + Self::PUBLIC_KEY; // Seed || PK
     const PUBLIC_KEY: usize = 32;
     const PUBLIC_SIG: usize = 64;
     const LOCAL_NONCE: usize = 32;
@@ -63,7 +63,7 @@ impl Generate<AsymmetricKeyPair<V4>, V4> for AsymmetricKeyPair<V4> {
     fn generate() -> Result<AsymmetricKeyPair<V4>, Error> {
         let key_pair = KeyPair::generate();
 
-        let secret = AsymmetricSecretKey::<V4>::from(&key_pair.sk.as_ref())
+        let secret = AsymmetricSecretKey::<V4>::from(key_pair.sk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
         let public = AsymmetricPublicKey::<V4>::from(key_pair.pk.as_ref())
             .map_err(|_| Error::KeyGeneration)?;
@@ -434,13 +434,6 @@ mod test_vectors {
     }
 }
 
-#[test]
-fn display() {
-    println!("{:?}", &hex::decode("b4cbfb43df4ce210727d953e4a713307fa19bb7d9f85041438d9e11b942a37741eb9dbbbbc047c03fd70604e0071f0987e16b28b757225c11f00415d0e20b1a2").unwrap());
-
-    // b4cbfb43df4ce210727d953e4a713307fa19bb7d9f85041438d9e11b942a37741eb9dbbbbc047c03fd70604e0071f0987e16b28b757225c11f00415d0e20b1a2
-}
-
 #[cfg(test)]
 mod test_tokens {
     use super::*;
@@ -449,16 +442,16 @@ mod test_tokens {
     use crate::token::UntrustedToken;
     use core::convert::TryFrom;
 
-    // In version 2 tests, the SK used for public tokens is valid for the local as well.
-    // Not the case with version 4.
     const TEST_LOCAL_SK_BYTES: [u8; 32] = [
         112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
         130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
     ];
 
-    const TEST_SK_BYTES: [u8; 32] = [
+    const TEST_SK_BYTES: [u8; 64] = [
         180, 203, 251, 67, 223, 76, 226, 16, 114, 125, 149, 62, 74, 113, 51, 7, 250, 25, 187, 125,
-        159, 133, 4, 20, 56, 217, 225, 27, 148, 42, 55, 116,
+        159, 133, 4, 20, 56, 217, 225, 27, 148, 42, 55, 116, 30, 185, 219, 187, 188, 4, 124, 3,
+        253, 112, 96, 78, 0, 113, 240, 152, 126, 22, 178, 139, 117, 114, 37, 193, 31, 0, 65, 93,
+        14, 32, 177, 162,
     ];
 
     const TEST_PK_BYTES: [u8; 32] = [
@@ -540,7 +533,7 @@ mod test_tokens {
 
     #[test]
     fn footer_logic() {
-        let test_local_sk = SymmetricKey::<V4>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V4>::from(&TEST_LOCAL_SK_BYTES).unwrap();
         let test_sk = AsymmetricSecretKey::<V4>::from(&TEST_SK_BYTES).unwrap();
         let test_pk = AsymmetricPublicKey::<V4>::from(&TEST_PK_BYTES).unwrap();
         let message =
@@ -592,7 +585,7 @@ mod test_tokens {
 
     #[test]
     fn implicit_none_some_empty_is_same() {
-        let test_local_sk = SymmetricKey::<V4>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V4>::from(&TEST_LOCAL_SK_BYTES).unwrap();
         let test_sk = AsymmetricSecretKey::<V4>::from(&TEST_SK_BYTES).unwrap();
         let test_pk = AsymmetricPublicKey::<V4>::from(&TEST_PK_BYTES).unwrap();
         let message =
@@ -629,9 +622,8 @@ mod test_tokens {
     #[test]
     // NOTE: See https://github.com/paseto-standard/paseto-spec/issues/17
     fn empty_payload() {
-        let test_local_sk = SymmetricKey::<V4>::from(&TEST_SK_BYTES).unwrap();
+        let test_local_sk = SymmetricKey::<V4>::from(&TEST_LOCAL_SK_BYTES).unwrap();
         let test_sk = AsymmetricSecretKey::<V4>::from(&TEST_SK_BYTES).unwrap();
-        let test_pk = AsymmetricPublicKey::<V4>::from(&TEST_PK_BYTES).unwrap();
 
         assert_eq!(
             PublicToken::sign(&test_sk, b"", None, None).unwrap_err(),
@@ -917,7 +909,6 @@ mod test_tokens {
 #[cfg(test)]
 mod test_keys {
     use super::*;
-    use crate::common::decode_b64;
 
     #[test]
     fn test_symmetric_gen() {
@@ -927,9 +918,9 @@ mod test_keys {
 
     #[test]
     fn test_invalid_sizes() {
-        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 31]).is_err());
-        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 32]).is_ok());
-        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 33]).is_err());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 63]).is_err());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 64]).is_ok());
+        assert!(AsymmetricSecretKey::<V4>::from(&[0u8; 65]).is_err());
 
         assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 31]).is_err());
         assert!(AsymmetricPublicKey::<V4>::from(&[0u8; 32]).is_ok());
@@ -956,28 +947,6 @@ mod test_keys {
         let zero = AsymmetricKeyPair::<V4>::from(&[0u8; V4::SECRET_KEY + V4::PUBLIC_KEY]).unwrap();
         assert_ne!(randomv.secret, zero.secret);
     }
-
-    #[test]
-    fn double_pubkey_attack() {
-        let kp1 = AsymmetricKeyPair::<V4>::generate().unwrap();
-        let kp2 = AsymmetricKeyPair::<V4>::generate().unwrap();
-
-        let tok1 = PublicToken::sign(&kp1.secret, "Hello World".as_bytes(), None, None).unwrap();
-        let tok2 = PublicToken::sign(&kp1.secret, "Hello World".as_bytes(), None, None).unwrap();
-
-        // Token format: HEADER + MSG + SIG
-        let mlen = "Hello World".as_bytes().len();
-
-        let mut sig1 =
-            decode_b64(&tok1.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
-        sig1 = sig1[mlen..mlen + 32].to_vec();
-
-        let mut sig2 =
-            decode_b64(&tok2.strip_prefix(PublicToken::HEADER).unwrap().as_bytes()).unwrap();
-        sig2 = sig2[mlen..mlen + 32].to_vec();
-
-        assert_ne!(sig1, sig2);
-    }
 }
 
 #[cfg(test)]
@@ -995,9 +964,9 @@ impl AsymmetricKeyPair<V4> {
         })
     }
 
-    pub(crate) fn as_bytes<'a>(&self) -> [u8; 64] {
+    pub(crate) fn as_bytes<'a>(&self) -> [u8; 96] {
         let mut buf = [0u8; V4::SECRET_KEY + V4::PUBLIC_KEY];
-        buf[..V4::SECRET_KEY].copy_from_slice(&self.secret.as_bytes()[..32]);
+        buf[..V4::SECRET_KEY].copy_from_slice(&self.secret.as_bytes());
         buf[V4::SECRET_KEY..].copy_from_slice(self.public.as_bytes());
 
         buf
