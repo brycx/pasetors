@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 /// Errors for token operations.
 pub enum Error {
     /// Error for a token with an invalid format.

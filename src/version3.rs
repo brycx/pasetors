@@ -33,7 +33,7 @@ use p384::PublicKey;
 use rand_core::OsRng;
 use sha2::Digest;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Version 3 of the PASETO spec.
 pub struct V3;
 

@@ -7,7 +7,7 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A footer with optional claims that are JSON-encoded.
 pub struct Footer {
     list_of: HashMap<String, Value>,

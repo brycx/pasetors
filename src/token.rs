@@ -31,11 +31,11 @@ pub(crate) mod private {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A public token.
 pub struct Public;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A local token.
 pub struct Local;
 
@@ -87,7 +87,7 @@ impl<V: Version> Purpose<V> for Local {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// A [`TrustedToken`] is returned by either a `verify()` or `decrypt()` operation and represents
 /// a validated token.
 ///
@@ -188,7 +188,7 @@ impl TryFrom<&TrustedToken> for Footer {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// [`UntrustedToken`] can parse PASETO tokens in order to extract individual parts of it.
 ///
 /// A use-case for this would be parsing the tokens footer, if this is not known before receiving it. Then,

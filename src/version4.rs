@@ -21,7 +21,7 @@ use orion::hazardous::stream::xchacha20;
 use xchacha20::Nonce as EncNonce;
 use xchacha20::SecretKey as EncKey;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Version 4 of the PASETO spec.
 pub struct V4;
 
