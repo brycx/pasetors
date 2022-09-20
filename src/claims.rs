@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A collection of claims that are passed as payload for a PASETO token.
 pub struct Claims {
     list_of: HashMap<String, Value>,
@@ -224,7 +224,7 @@ impl Claims {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// The validation rules that are used to validate a set of [`Claims`].
 pub struct ClaimsValidationRules {
     validate_currently_valid: bool,

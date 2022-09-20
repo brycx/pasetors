@@ -19,7 +19,7 @@ use orion::hazardous::mac::blake2b;
 use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
 use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Version 2 of the PASETO spec.
 pub struct V2;
 
