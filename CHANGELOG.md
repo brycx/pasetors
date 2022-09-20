@@ -1,3 +1,14 @@
+### 0.6.1
+
+__Date:__ September 20, 2022.
+
+__Changelog:__
+- Bump MSRV to `1.59.0`
+- `clippy` fixes
+- Add `rust-version` field to `Cargo.toml`
+- Update copyright year to 2022
+
+
 ### 0.6.0
 
 __Date:__ June 20, 2022.
