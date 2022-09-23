@@ -1,3 +1,10 @@
+### 0.6.2
+
+__Date:__ September 23, 2022.
+
+__Changelog:__
+- Fix `ed25519-compact` imports that broke build after the crate bumped to `1.0.13+`
+
 ### 0.6.1
 
 __Date:__ September 20, 2022.
