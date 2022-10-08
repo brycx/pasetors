@@ -359,11 +359,8 @@ mod test_vectors {
 
         // payload is null when we expect failure
         if test.expect_fail {
-            match UntrustedToken::<Public, V3>::try_from(&test.token) {
-                Ok(ut) => {
-                    assert!(PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).is_err());
-                }
-                Err(_) => (),
+            if let Ok(ut) = UntrustedToken::<Public, V3>::try_from(&test.token) {
+                assert!(PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).is_err());
             }
 
             return;
@@ -517,10 +514,10 @@ mod test_tokens {
         105, 158, 163, 14, 114, 135, 76, 114, 251,
     ];
 
-    const MESSAGE: &'static str =
+    const MESSAGE: &str =
         "{\"data\":\"this is a signed message\",\"exp\":\"2022-01-01T00:00:00+00:00\"}";
-    const FOOTER: &'static str = "{\"kid\":\"dYkISylxQeecEcHELfzF88UZrwbLolNiCdpzUHGw9Uqn\"}";
-    const VALID_PUBLIC_TOKEN: &'static str = "v3.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9ZWrbGZ6L0MDK72skosUaS0Dz7wJ_2bMcM6tOxFuCasO9GhwHrvvchqgXQNLQQyWzGC2wkr-VKII71AvkLpC8tJOrzJV1cap9NRwoFzbcXjzMZyxQ0wkshxZxx8ImmNWP.eyJraWQiOiJkWWtJU3lseFFlZWNFY0hFTGZ6Rjg4VVpyd2JMb2xOaUNkcHpVSEd3OVVxbiJ9";
+    const FOOTER: &str = "{\"kid\":\"dYkISylxQeecEcHELfzF88UZrwbLolNiCdpzUHGw9Uqn\"}";
+    const VALID_PUBLIC_TOKEN: &str = "v3.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAyMi0wMS0wMVQwMDowMDowMCswMDowMCJ9ZWrbGZ6L0MDK72skosUaS0Dz7wJ_2bMcM6tOxFuCasO9GhwHrvvchqgXQNLQQyWzGC2wkr-VKII71AvkLpC8tJOrzJV1cap9NRwoFzbcXjzMZyxQ0wkshxZxx8ImmNWP.eyJraWQiOiJkWWtJU3lseFFlZWNFY0hFTGZ6Rjg4VVpyd2JMb2xOaUNkcHpVSEd3OVVxbiJ9";
 
     #[test]
     fn test_gen_keypair() {
@@ -636,7 +633,7 @@ mod test_tokens {
             PublicToken::verify(
                 &test_pk,
                 &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
-                Some(&FOOTER.replace("kid", "mid").as_bytes()),
+                Some(FOOTER.replace("kid", "mid").as_bytes()),
                 None
             )
             .unwrap_err(),
@@ -709,7 +706,7 @@ mod test_tokens {
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
 
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_sig = Vec::from(decode_b64(split_public[2]).unwrap());
+        let mut bad_sig = decode_b64(split_public[2]).unwrap();
         bad_sig.copy_within(0..32, 32);
         let tmp = encode_b64(bad_sig).unwrap();
         split_public[2] = &tmp;

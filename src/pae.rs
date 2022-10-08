@@ -43,7 +43,6 @@ pub fn pae(pieces: &[&[u8]]) -> Result<Vec<u8>, Error> {
 #[cfg(test)]
 mod unit_tests {
     use super::*;
-    use hex;
 
     #[test]
     fn test_le64() {
