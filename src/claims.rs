@@ -450,17 +450,17 @@ mod test {
         let mut claims = Claims::new().unwrap();
 
         // Default claims
-        assert_eq!(claims.contains_claim("iat"), true);
-        assert_eq!(claims.contains_claim("nbf"), true);
-        assert_eq!(claims.contains_claim("exp"), true);
+        assert!(claims.contains_claim("iat"));
+        assert!(claims.contains_claim("nbf"));
+        assert!(claims.contains_claim("exp"));
 
-        assert_eq!(claims.contains_claim("iss"), false);
+        assert!(!claims.contains_claim("iss"));
         claims.issuer("testIssuer").unwrap();
-        assert_eq!(claims.contains_claim("iss"), true);
+        assert!(claims.contains_claim("iss"));
 
-        assert_eq!(claims.contains_claim("aud"), false);
+        assert!(!claims.contains_claim("aud"));
         claims.audience("testAudience").unwrap();
-        assert_eq!(claims.contains_claim("aud"), true);
+        assert!(claims.contains_claim("aud"));
     }
 
     #[test]
@@ -634,7 +634,7 @@ mod test {
                 .unwrap_err(),
             Error::ClaimValidation
         );
-        future_claims.issued_at(&old_iat.as_str().unwrap()).unwrap();
+        future_claims.issued_at(old_iat.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
         // Not yet valid
         let old_nbf = future_claims
@@ -669,7 +669,7 @@ mod test {
             Error::ClaimValidation
         );
 
-        let mut incomplete_claims = claims.clone();
+        let mut incomplete_claims = claims;
         incomplete_claims.list_of.remove_entry("nbf").unwrap();
         assert_eq!(
             claims_validation
@@ -720,15 +720,15 @@ mod test {
 
         // Default validation rules validate these times but error if they're missing
         let mut claims = Claims::new().unwrap();
-        claims.list_of.remove("iat".into());
+        claims.list_of.remove("iat");
         assert!(claims_validation.validate_claims(&claims).is_err());
 
         let mut claims = Claims::new().unwrap();
-        claims.list_of.remove("nbf".into());
+        claims.list_of.remove("nbf");
         assert!(claims_validation.validate_claims(&claims).is_err());
 
         let mut claims = Claims::new().unwrap();
-        claims.list_of.remove("exp".into());
+        claims.list_of.remove("exp");
         assert!(claims_validation.validate_claims(&claims).is_err());
     }
 }

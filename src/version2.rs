@@ -293,11 +293,8 @@ mod test_vectors {
 
         // payload is null when we expect failure
         if test.expect_fail {
-            match UntrustedToken::<Local, V2>::try_from(&test.token) {
-                Ok(ut) => {
-                    assert!(LocalToken::decrypt(&sk, &ut, footer).is_err());
-                }
-                Err(_) => (),
+            if let Ok(ut) = UntrustedToken::<Local, V2>::try_from(&test.token) {
+                assert!(LocalToken::decrypt(&sk, &ut, footer).is_err());
             }
 
             return;
@@ -317,7 +314,7 @@ mod test_vectors {
         assert_eq!(trusted.header(), LocalToken::HEADER);
         assert!(trusted.implicit_assert().is_empty());
 
-        let parsed_claims = Claims::from_bytes(&trusted.payload().as_bytes()).unwrap();
+        let parsed_claims = Claims::from_bytes(trusted.payload().as_bytes()).unwrap();
         let test_vector_claims = serde_json::from_str::<Payload>(message).unwrap();
 
         assert_eq!(
@@ -350,11 +347,8 @@ mod test_vectors {
 
         // payload is null when we expect failure
         if test.expect_fail {
-            match UntrustedToken::<Public, V2>::try_from(&test.token) {
-                Ok(ut) => {
-                    assert!(PublicToken::verify(&pk, &ut, footer).is_err());
-                }
-                Err(_) => (),
+            if let Ok(ut) = UntrustedToken::<Public, V2>::try_from(&test.token) {
+                assert!(PublicToken::verify(&pk, &ut, footer).is_err());
             }
 
             return;
@@ -418,11 +412,11 @@ mod test_tokens {
         117, 114, 37, 193, 31, 0, 65, 93, 14, 32, 177, 162,
     ];
 
-    const MESSAGE: &'static str =
+    const MESSAGE: &str =
         "{\"data\":\"this is a signed message\",\"exp\":\"2019-01-01T00:00:00+00:00\"}";
-    const FOOTER: &'static str = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
-    const VALID_PUBLIC_TOKEN: &'static str = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
-    const VALID_LOCAL_TOKEN: &'static str = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
+    const FOOTER: &str = "{\"kid\":\"zVhMiPBP9fRf2snEcT7gFTioeA9COcNy9DfgL1W60haN\"}";
+    const VALID_PUBLIC_TOKEN: &str = "v2.public.eyJkYXRhIjoidGhpcyBpcyBhIHNpZ25lZCBtZXNzYWdlIiwiZXhwIjoiMjAxOS0wMS0wMVQwMDowMDowMCswMDowMCJ9flsZsx_gYCR0N_Ec2QxJFFpvQAs7h9HtKwbVK2n1MJ3Rz-hwe8KUqjnd8FAnIJZ601tp7lGkguU63oGbomhoBw.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
+    const VALID_LOCAL_TOKEN: &str = "v2.local.5K4SCXNhItIhyNuVIZcwrdtaDKiyF81-eWHScuE0idiVqCo72bbjo07W05mqQkhLZdVbxEa5I_u5sgVk1QLkcWEcOSlLHwNpCkvmGGlbCdNExn6Qclw3qTKIIl5-zSLIrxZqOLwcFLYbVK1SrQ.eyJraWQiOiJ6VmhNaVBCUDlmUmYyc25FY1Q3Z0ZUaW9lQTlDT2NOeTlEZmdMMVc2MGhhTiJ9";
 
     #[test]
     fn test_gen_keypair() {
@@ -551,7 +545,7 @@ mod test_tokens {
             PublicToken::verify(
                 &test_pk,
                 &UntrustedToken::<Public, V2>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
-                Some(&FOOTER.replace("kid", "mid").as_bytes())
+                Some(FOOTER.replace("kid", "mid").as_bytes())
             )
             .unwrap_err(),
             Error::TokenValidation
@@ -560,7 +554,7 @@ mod test_tokens {
             LocalToken::decrypt(
                 &test_local_sk,
                 &UntrustedToken::<Local, V2>::try_from(VALID_LOCAL_TOKEN).unwrap(),
-                Some(&FOOTER.replace("kid", "mid").as_bytes())
+                Some(FOOTER.replace("kid", "mid").as_bytes())
             )
             .unwrap_err(),
             Error::TokenValidation
@@ -632,7 +626,7 @@ mod test_tokens {
         let test_pk = AsymmetricPublicKey::<V2>::from(&TEST_PK_BYTES).unwrap();
 
         let mut split_public = VALID_PUBLIC_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_sig = Vec::from(decode_b64(split_public[2]).unwrap());
+        let mut bad_sig = decode_b64(split_public[2]).unwrap();
         bad_sig.copy_within(0..32, 32);
         let tmp = encode_b64(bad_sig).unwrap();
         split_public[2] = &tmp;
@@ -657,7 +651,7 @@ mod test_tokens {
         let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_tag = Vec::from(decode_b64(split_local[2]).unwrap());
+        let mut bad_tag = decode_b64(split_local[2]).unwrap();
         let tlen = bad_tag.len();
         bad_tag.copy_within(0..16, tlen - 16);
         let tmp = encode_b64(bad_tag).unwrap();
@@ -683,7 +677,7 @@ mod test_tokens {
         let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_ct = Vec::from(decode_b64(split_local[2]).unwrap());
+        let mut bad_ct = decode_b64(split_local[2]).unwrap();
         let ctlen = bad_ct.len();
         bad_ct.copy_within((ctlen - 16)..ctlen, 24);
         let tmp = encode_b64(bad_ct).unwrap();
@@ -709,7 +703,7 @@ mod test_tokens {
         let test_local_sk = SymmetricKey::<V2>::from(&TEST_LOCAL_SK_BYTES).unwrap();
 
         let mut split_local = VALID_LOCAL_TOKEN.split('.').collect::<Vec<&str>>();
-        let mut bad_nonce = Vec::from(decode_b64(split_local[2]).unwrap());
+        let mut bad_nonce = decode_b64(split_local[2]).unwrap();
         let nlen = bad_nonce.len();
         bad_nonce.copy_within((nlen - 24)..nlen, 0);
         let tmp = encode_b64(bad_nonce).unwrap();
