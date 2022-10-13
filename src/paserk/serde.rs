@@ -1,4 +1,4 @@
-use super::{AsymmetricPublicKey, AsymmetricSecretKey, FormatAsPaserk, SymmetricKey};
+use super::{AsymmetricPublicKey, AsymmetricSecretKey, FormatAsPaserk, Id, SymmetricKey};
 use std::convert::TryFrom;
 
 impl<V> serde::Serialize for AsymmetricPublicKey<V>
@@ -85,5 +85,27 @@ where
     {
         let paserk_string = <&str>::deserialize(deserializer)?;
         TryFrom::try_from(paserk_string).map_err(serde::de::Error::custom)
+    }
+}
+
+impl serde::Serialize for Id {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        let mut paserk_id = String::new();
+        self.fmt(&mut paserk_id).map_err(S::Error::custom)?;
+        serializer.serialize_str(&paserk_id)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Id {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let paserk_id = <&str>::deserialize(deserializer)?;
+        TryFrom::try_from(paserk_id).map_err(serde::de::Error::custom)
     }
 }

@@ -389,6 +389,42 @@ impl FormatAsPaserk for Id {
     }
 }
 
+impl TryFrom<&str> for Id {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let split = value.split('.').collect::<Vec<&str>>();
+        if split.len() != 3 {
+            return Err(Error::PaserkParsing);
+        }
+
+        let header = match (split[0], split[1]) {
+            ("k2", "lid" | "sid" | "pid")
+            | ("k3", "sid" | "pid")
+            | ("k4", "lid" | "sid" | "pid") => format!("{}.{}.", split[0], split[1]),
+            _ => return Err(Error::PaserkParsing),
+        };
+
+        let expected_len = match split[0] {
+            #[cfg(feature = "v2")]
+            "k2" => V2::PASERK_ID,
+            #[cfg(feature = "v3")]
+            "k3" => V3::PASERK_ID,
+            #[cfg(feature = "v4")]
+            "k4" => V4::PASERK_ID,
+            _ => return Err(Error::PaserkParsing),
+        };
+        if split[2].len() != expected_len {
+            return Err(Error::PaserkParsing);
+        }
+
+        Ok(Self {
+            header,
+            identifier: split[2].to_string(),
+        })
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "std")]
 mod tests {
@@ -497,12 +533,28 @@ mod tests {
                             continue;
                         }
                         (false, Some(paserk), Some(key)) => {
+                            let key_hex = key.clone();
                             let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
 
                             let paserk_id = Id::from(&key);
                             let mut buf = String::new();
                             paserk_id.fmt(&mut buf).unwrap();
                             assert_eq!(paserk, buf);
+
+                            #[cfg(feature = "serde")]
+                            {
+                                let key = $key::<$version>::from(&hex::decode(&key_hex).unwrap())
+                                    .unwrap();
+                                let paserk_id = Id::from(&key);
+                                let mut buf = String::new();
+                                paserk_id.fmt(&mut buf).unwrap();
+
+                                let deser: Id =
+                                    serde_json::from_str(&format!(r#""{buf}""#)).unwrap();
+                                assert_eq!(paserk_id, deser);
+                                let ser = serde_json::to_string(&paserk_id).unwrap();
+                                assert_eq!(format!(r#""{buf}""#), ser);
+                            }
                         }
                         _ => unreachable!("This test vectors shouldn't exist"),
                     }
