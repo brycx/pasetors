@@ -75,6 +75,10 @@ optional = true
 version = "0.10.2"
 optional = true
 
+[dependencies.serde]
+version = "1.0.145"
+optional = true
+
 [features]
 default = [ "std", "v4", "paserk" ]
 std = [ "serde_json", "time", "regex" ]

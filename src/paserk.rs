@@ -1,5 +1,8 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "paserk")))]
 
+#[cfg(feature = "serde")]
+mod serde;
+
 use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
@@ -391,10 +394,10 @@ impl FormatAsPaserk for Id {
 mod tests {
     use super::*;
 
+    use ::serde::{Deserialize, Serialize};
     use alloc::string::String;
     use alloc::vec::Vec;
     use hex;
-    use serde::{Deserialize, Serialize};
     use std::fs::File;
     use std::io::BufReader;
 
@@ -444,12 +447,24 @@ mod tests {
                             continue;
                         }
                         (false, Some(paserk), Some(key)) => {
+                            let key_hex = key.clone();
                             let deser = $key::<$version>::try_from(paserk.as_str()).unwrap();
                             let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
                             assert_eq!(deser.as_bytes(), key.as_bytes());
                             let mut buf = String::new();
                             key.fmt(&mut buf).unwrap();
                             assert_eq!(paserk, buf);
+
+                            #[cfg(feature = "serde")]
+                            {
+                                let deser: $key<$version> =
+                                    serde_json::from_str(&format!(r#""{paserk}""#)).unwrap();
+                                let key = $key::<$version>::from(&hex::decode(&key_hex).unwrap())
+                                    .unwrap();
+                                assert_eq!(deser.as_bytes(), key.as_bytes());
+                                let ser = serde_json::to_string(&key).unwrap();
+                                assert_eq!(format!(r#""{paserk}""#), ser);
+                            }
                         }
                         _ => unreachable!("This test vectors shouldn't exist"),
                     }
