@@ -23,6 +23,9 @@ pub(crate) mod private {
         const PUBLIC_HEADER: &'static str;
         /// Header for a local token for this version.
         const LOCAL_HEADER: &'static str;
+        /// Size of a PASERK ID.
+        #[cfg(feature = "paserk")]
+        const PASERK_ID: usize;
 
         /// Validate bytes for a `local` key of a given version.
         fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error>;

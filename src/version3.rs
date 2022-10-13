@@ -46,6 +46,8 @@ impl Version for V3 {
     const LOCAL_TAG: usize = 48;
     const PUBLIC_HEADER: &'static str = "v3.public.";
     const LOCAL_HEADER: &'static str = "v3.local.";
+    #[cfg(feature = "paserk")]
+    const PASERK_ID: usize = 44;
 
     fn validate_local_key(_key_bytes: &[u8]) -> Result<(), Error> {
         unimplemented!();

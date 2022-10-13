@@ -32,6 +32,8 @@ impl Version for V2 {
     const LOCAL_TAG: usize = 16;
     const PUBLIC_HEADER: &'static str = "v2.public.";
     const LOCAL_HEADER: &'static str = "v2.local.";
+    #[cfg(feature = "paserk")]
+    const PASERK_ID: usize = 44;
 
     fn validate_local_key(key_bytes: &[u8]) -> Result<(), Error> {
         if key_bytes.len() != Self::LOCAL_KEY {
