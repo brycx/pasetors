@@ -1,13 +1,10 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "paserk")))]
 
-#[cfg(feature = "serde")]
-mod serde;
-
 use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
 use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
 use crate::version::private::Version;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -389,6 +386,7 @@ impl FormatAsPaserk for Id {
     }
 }
 
+#[cfg(any(feature = "v2", feature = "v3", feature = "v4"))]
 impl TryFrom<&str> for Id {
     type Error = Error;
 
@@ -483,6 +481,7 @@ mod tests {
                             continue;
                         }
                         (false, Some(paserk), Some(key)) => {
+                            #[cfg(feature = "serde")]
                             let key_hex = key.clone();
                             let deser = $key::<$version>::try_from(paserk.as_str()).unwrap();
                             let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
@@ -533,6 +532,7 @@ mod tests {
                             continue;
                         }
                         (false, Some(paserk), Some(key)) => {
+                            #[cfg(feature = "serde")]
                             let key_hex = key.clone();
                             let key = $key::<$version>::from(&hex::decode(&key).unwrap()).unwrap();
 

@@ -226,6 +226,10 @@ pub mod version4;
 /// Types for handling tokens.
 pub mod token;
 
+#[cfg(feature = "serde")]
+/// Serialization and deserialization support for various types.
+pub mod serde;
+
 mod version;
 
 /// Public and local tokens.
