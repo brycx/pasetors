@@ -1,6 +1,11 @@
-use super::{AsymmetricPublicKey, AsymmetricSecretKey, FormatAsPaserk, Id, SymmetricKey};
-use std::convert::TryFrom;
+use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
+#[cfg(feature = "paserk")]
+use crate::paserk::{FormatAsPaserk, Id};
+use alloc::string::String;
+use core::convert::TryFrom;
 
+#[cfg(all(feature = "paserk", feature = "serde"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "paserk", feature = "serde"))))]
 impl<V> serde::Serialize for AsymmetricPublicKey<V>
 where
     AsymmetricPublicKey<V>: FormatAsPaserk,
@@ -16,6 +21,8 @@ where
     }
 }
 
+#[cfg(all(feature = "serde", feature = "std"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "serde", feature = "std"))))]
 impl<'de, V> serde::Deserialize<'de> for AsymmetricPublicKey<V>
 where
     AsymmetricPublicKey<V>: TryFrom<&'de str>,
@@ -30,6 +37,8 @@ where
     }
 }
 
+#[cfg(all(feature = "paserk", feature = "serde"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "paserk", feature = "serde"))))]
 impl<V> serde::Serialize for AsymmetricSecretKey<V>
 where
     AsymmetricSecretKey<V>: FormatAsPaserk,
@@ -45,6 +54,8 @@ where
     }
 }
 
+#[cfg(all(feature = "serde", feature = "std"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "serde", feature = "std"))))]
 impl<'de, V> serde::Deserialize<'de> for AsymmetricSecretKey<V>
 where
     AsymmetricSecretKey<V>: TryFrom<&'de str>,
@@ -59,6 +70,8 @@ where
     }
 }
 
+#[cfg(all(feature = "paserk", feature = "serde"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "paserk", feature = "serde"))))]
 impl<V> serde::Serialize for SymmetricKey<V>
 where
     SymmetricKey<V>: FormatAsPaserk,
@@ -74,6 +87,8 @@ where
     }
 }
 
+#[cfg(all(feature = "serde", feature = "std"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "serde", feature = "std"))))]
 impl<'de, V> serde::Deserialize<'de> for SymmetricKey<V>
 where
     SymmetricKey<V>: TryFrom<&'de str>,
@@ -88,6 +103,8 @@ where
     }
 }
 
+#[cfg(all(feature = "paserk", feature = "serde"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "paserk", feature = "serde"))))]
 impl serde::Serialize for Id {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -100,6 +117,11 @@ impl serde::Serialize for Id {
     }
 }
 
+#[cfg(all(feature = "paserk", feature = "serde", feature = "std"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "paserk", feature = "serde", feature = "std")))
+)]
 impl<'de> serde::Deserialize<'de> for Id {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
