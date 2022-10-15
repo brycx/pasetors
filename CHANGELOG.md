@@ -1,3 +1,12 @@
+### 0.6.3
+
+__Date:__ October 15, 2022.
+
+__Changelog:__
+- Add optional `serde` support for keys + PASERK ID, to be de/serialized from/to PASERK strings. Also introducing a new optional feature `serde` (see [#26](https://github.com/brycx/pasetors/issues/26), by [@SanchithHegde](https://github.com/SanchithHegde))
+- Clippy improvements to tests (see [#69](https://github.com/brycx/pasetors/pull/69), by [@SanchithHegde](https://github.com/SanchithHegde))
+- Update `ed25519-compact` to `2.0.2` (see [#72](https://github.com/brycx/pasetors/pull/72))
+
 ### 0.6.2
 
 __Date:__ September 23, 2022.
