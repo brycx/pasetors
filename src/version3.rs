@@ -101,7 +101,7 @@ impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
 /// Format: `[0x04 || x || y]`
 ///
 /// This is provided to be able to convert uncompressed keys to compressed ones, as compressed is
-/// required by PASETO and what an [AsymmetricPublicKey<V3>] represents.
+/// required by PASETO and what an [`AsymmetricPublicKey<V3>`] represents.
 pub struct UncompressedPublicKey(PublicKey);
 
 impl TryFrom<&[u8]> for UncompressedPublicKey {

@@ -228,7 +228,7 @@ pub mod token;
 
 #[cfg(feature = "serde")]
 /// Serialization and deserialization support for various types.
-pub mod serde;
+mod serde;
 
 mod version;
 
