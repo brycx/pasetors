@@ -14,10 +14,11 @@ use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
 use blake2b::SecretKey as AuthKey;
-use ed25519_compact::{KeyPair, PublicKey, SecretKey, Signature};
+use ed25519_compact::{KeyPair, PublicKey, SecretKey, Seed, Signature};
 use orion::hazardous::mac::blake2b;
 use orion::hazardous::mac::blake2b::Blake2b;
 use orion::hazardous::stream::xchacha20;
+use subtle::ConstantTimeEq;
 use xchacha20::Nonce as EncNonce;
 use xchacha20::SecretKey as EncKey;
 
@@ -47,6 +48,13 @@ impl Version for V4 {
 
     fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
         if key_bytes.len() != Self::SECRET_KEY {
+            return Err(Error::Key);
+        }
+
+        let seed = Seed::from_slice(&key_bytes[..32]).map_err(|_| Error::Key)?;
+        let kp = KeyPair::from_seed(seed);
+
+        if !bool::from(kp.pk.as_slice().ct_eq(&key_bytes[32..])) {
             return Err(Error::Key);
         }
 

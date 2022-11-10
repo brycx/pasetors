@@ -1,8 +1,5 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "v2")))]
 
-use core::convert::TryFrom;
-use core::marker::PhantomData;
-
 use crate::common::{encode_b64, validate_footer_untrusted_token};
 use crate::errors::Error;
 use crate::keys::{
@@ -13,11 +10,14 @@ use crate::token::{Local, Public, TrustedToken, UntrustedToken};
 use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
-use ed25519_compact::{KeyPair, PublicKey, SecretKey as SigningKey, Signature};
+use core::convert::TryFrom;
+use core::marker::PhantomData;
+use ed25519_compact::{KeyPair, PublicKey, SecretKey as SigningKey, Seed, Signature};
 use orion::hazardous::aead::xchacha20poly1305::*;
 use orion::hazardous::mac::blake2b;
 use orion::hazardous::mac::poly1305::POLY1305_OUTSIZE;
 use orion::hazardous::stream::xchacha20::XCHACHA_NONCESIZE;
+use subtle::ConstantTimeEq;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// Version 2 of the PASETO spec.
@@ -45,6 +45,13 @@ impl Version for V2 {
 
     fn validate_secret_key(key_bytes: &[u8]) -> Result<(), Error> {
         if key_bytes.len() != Self::SECRET_KEY {
+            return Err(Error::Key);
+        }
+
+        let seed = Seed::from_slice(&key_bytes[..32]).map_err(|_| Error::Key)?;
+        let kp = KeyPair::from_seed(seed);
+
+        if !bool::from(kp.pk.as_slice().ct_eq(&key_bytes[32..])) {
             return Err(Error::Key);
         }
 
