@@ -287,7 +287,7 @@ impl From<&SymmetricKey<V2>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -304,7 +304,7 @@ impl From<&SymmetricKey<V4>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -321,7 +321,7 @@ impl From<&AsymmetricSecretKey<V2>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -338,7 +338,7 @@ impl From<&AsymmetricSecretKey<V4>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -355,7 +355,7 @@ impl From<&AsymmetricPublicKey<V2>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -372,7 +372,7 @@ impl From<&AsymmetricPublicKey<V4>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -456,6 +456,9 @@ mod tests {
         pub(crate) secret_key_seed: Option<String>,
     }
 
+    const TEST_WITH_ALL_ZERO_SEED: [&str; 4] =
+        ["k2.secret-1", "k2.sid-1", "k4.secret-1", "k4.sid-1"];
+
     macro_rules! test_paserk_type {
         ($test_func_name:ident, $key:ident, $version:ident, $path:expr) => {
             #[test]
@@ -465,6 +468,13 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
+                    if TEST_WITH_ALL_ZERO_SEED.contains(&test_paserk.name.as_str()) {
+                        // We require that the public key match the secret seed. Thus,
+                        // the first test vectors for PASERK dealing with secret keys
+                        // will always fail.
+                        continue;
+                    }
+
                     match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
                         (true, Some(_paserk), Some(_key)) => {
                             unreachable!("This test vectors shouldn't exist")
@@ -517,6 +527,13 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
+                    if TEST_WITH_ALL_ZERO_SEED.contains(&test_paserk.name.as_str()) {
+                        // We require that the public key match the secret seed. Thus,
+                        // the first test vectors for PASERK dealing with secret keys
+                        // will always fail.
+                        continue;
+                    }
+
                     match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
                         (true, Some(_paserk), Some(_key)) => {
                             unreachable!("This test vectors shouldn't exist")
@@ -646,10 +663,10 @@ mod tests {
             )
             .is_err());
 
-            assert!(AsymmetricSecretKey::<V2>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
-            assert!(AsymmetricSecretKey::<V2>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricSecretKey::<V2>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricSecretKey::<V2>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k2.secret.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_ok());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k4.secret.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_err());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k2.local.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_err());
+            assert!(AsymmetricSecretKey::<V2>::try_from("k4.local.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_err());
         }
     }
 
@@ -807,10 +824,10 @@ mod tests {
             )
             .is_err());
 
-            assert!(AsymmetricSecretKey::<V4>::try_from("k4.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_ok());
-            assert!(AsymmetricSecretKey::<V4>::try_from("k2.secret.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricSecretKey::<V4>::try_from("k4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
-            assert!(AsymmetricSecretKey::<V4>::try_from("k2.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7aie8zrakLWKjqNAqbw1zZTIVdx3iQ6Y6wEihi1naKQ").is_err());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k4.secret.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_ok());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k2.secret.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_err());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k4.local.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_err());
+            assert!(AsymmetricSecretKey::<V4>::try_from("k2.local.cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8c5WpIyC_5kWKhS8VEYSZ05dYfuTF-ZdQFV4D9vLTcNQ").is_err());
         }
     }
 
@@ -836,7 +853,7 @@ mod tests {
         );
         let too_long = format!(
             "k4.public.{}",
-            encode_b64(&[0u8; V4::PUBLIC_KEY * 2]).unwrap()
+            encode_b64([0u8; V4::PUBLIC_KEY * 2]).unwrap()
         );
         assert!(validate_paserk_string(&too_long, "k4", "public", V4::PUBLIC_KEY).is_err());
     }
