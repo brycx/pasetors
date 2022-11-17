@@ -972,21 +972,3 @@ mod test_keys {
         assert_ne!(random1.secret, random2.secret);
     }
 }
-
-#[cfg(test)]
-#[cfg(feature = "std")]
-// NOTE: Only intended for V2/V4 testing purposes.
-impl AsymmetricKeyPair<V4> {
-    pub(crate) fn from(bytes: &[u8]) -> Result<Self, Error> {
-        debug_assert_eq!(V4::SECRET_KEY, V4::PUBLIC_KEY * 2);
-
-        if bytes.len() != V4::SECRET_KEY {
-            return Err(Error::PaserkParsing);
-        }
-
-        Ok(Self {
-            secret: AsymmetricSecretKey::from(&bytes[..V4::PUBLIC_KEY])?,
-            public: AsymmetricPublicKey::from(&bytes[V4::PUBLIC_KEY..])?,
-        })
-    }
-}

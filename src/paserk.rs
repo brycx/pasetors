@@ -287,7 +287,7 @@ impl From<&SymmetricKey<V2>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -304,7 +304,7 @@ impl From<&SymmetricKey<V4>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -321,7 +321,7 @@ impl From<&AsymmetricSecretKey<V2>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -338,7 +338,7 @@ impl From<&AsymmetricSecretKey<V4>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -355,7 +355,7 @@ impl From<&AsymmetricPublicKey<V2>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
@@ -372,7 +372,7 @@ impl From<&AsymmetricPublicKey<V4>> for Id {
         let mut paserk_string = String::new();
         key.fmt(&mut paserk_string).unwrap();
         hasher.update(paserk_string.as_bytes()).unwrap();
-        let identifier = encode_b64(&hasher.finalize().unwrap().as_ref()).unwrap();
+        let identifier = encode_b64(hasher.finalize().unwrap().as_ref()).unwrap();
         debug_assert_eq!(identifier.len(), 44);
 
         Self { header, identifier }
