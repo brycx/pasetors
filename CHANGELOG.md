@@ -1,3 +1,10 @@
+### 0.6.4
+
+__Date:__ November 17, 2022.
+
+__Changelog:__
+- `AsymmetricSecretKey` now re-computes the public key from the secret seed to check if they match. If they don't an error is returned. Because we use `ed25519-compact` crate for Ed25519, if an all-zero seed is used, the creation of `AsymmetricSecretKey` will panic.
+
 ### 0.6.3
 
 __Date:__ October 15, 2022.

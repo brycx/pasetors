@@ -63,6 +63,9 @@ pub struct AsymmetricSecretKey<V> {
 
 impl<V: Version> AsymmetricSecretKey<V> {
     /// Create a `AsymmetricSecretKey` from `bytes`.
+    ///
+    /// __PANIC__: If the version is V2 or V4, a panic will occur if an all-zero
+    /// secret seed is used.
     pub fn from(bytes: &[u8]) -> Result<Self, Error> {
         V::validate_secret_key(bytes)?;
 
