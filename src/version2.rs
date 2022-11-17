@@ -52,6 +52,7 @@ impl Version for V2 {
         let kp = KeyPair::from_seed(seed);
 
         if !bool::from(kp.pk.as_slice().ct_eq(&key_bytes[32..])) {
+            dbg!("All-zero is not valid");
             return Err(Error::Key);
         }
 
