@@ -456,6 +456,9 @@ mod tests {
         pub(crate) secret_key_seed: Option<String>,
     }
 
+    const TEST_WITH_ALL_ZERO_SEED: [&str; 4] =
+        ["k2.secret-1", "k2.sid-1", "k4.secret-1", "k4.sid-1"];
+
     macro_rules! test_paserk_type {
         ($test_func_name:ident, $key:ident, $version:ident, $path:expr) => {
             #[test]
@@ -465,6 +468,13 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
+                    if TEST_WITH_ALL_ZERO_SEED.contains(&test_paserk.name.as_str()) {
+                        // We require that the public key match the secret seed. Thus,
+                        // the first test vectors for PASERK dealing with secret keys
+                        // will always fail.
+                        continue;
+                    }
+
                     match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
                         (true, Some(_paserk), Some(_key)) => {
                             unreachable!("This test vectors shouldn't exist")
@@ -517,6 +527,13 @@ mod tests {
                 let tests: TestFile = serde_json::from_reader(reader).unwrap();
 
                 for test_paserk in tests.tests {
+                    if TEST_WITH_ALL_ZERO_SEED.contains(&test_paserk.name.as_str()) {
+                        // We require that the public key match the secret seed. Thus,
+                        // the first test vectors for PASERK dealing with secret keys
+                        // will always fail.
+                        continue;
+                    }
+
                     match (test_paserk.expect_fail, test_paserk.paserk, test_paserk.key) {
                         (true, Some(_paserk), Some(_key)) => {
                             unreachable!("This test vectors shouldn't exist")
