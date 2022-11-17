@@ -409,7 +409,7 @@ mod test_tokens {
         130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
     ];
 
-    const TEST_SK_BYTES: [u8; 64] = [
+    pub(crate) const TEST_SK_BYTES: [u8; 64] = [
         180, 203, 251, 67, 223, 76, 226, 16, 114, 125, 149, 62, 74, 113, 51, 7, 250, 25, 187, 125,
         159, 133, 4, 20, 56, 217, 225, 27, 148, 42, 55, 116, 30, 185, 219, 187, 188, 4, 124, 3,
         253, 112, 96, 78, 0, 113, 240, 152, 126, 22, 178, 139, 117, 114, 37, 193, 31, 0, 65, 93,
@@ -767,6 +767,7 @@ mod test_tokens {
 #[cfg(test)]
 mod test_keys {
     use super::*;
+    use crate::version2::test_tokens::TEST_SK_BYTES;
 
     #[test]
     fn test_symmetric_gen() {
@@ -776,13 +777,13 @@ mod test_keys {
 
     #[test]
     fn test_invalid_sizes() {
-        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 63]).is_err());
-        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 64]).is_ok());
-        assert!(AsymmetricSecretKey::<V2>::from(&[0u8; 65]).is_err());
+        assert!(AsymmetricSecretKey::<V2>::from(&[1u8; 63]).is_err());
+        assert!(AsymmetricSecretKey::<V2>::from(&TEST_SK_BYTES).is_ok());
+        assert!(AsymmetricSecretKey::<V2>::from(&[1u8; 65]).is_err());
 
-        assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 31]).is_err());
-        assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 32]).is_ok());
-        assert!(AsymmetricPublicKey::<V2>::from(&[0u8; 33]).is_err());
+        assert!(AsymmetricPublicKey::<V2>::from(&[1u8; 31]).is_err());
+        assert!(AsymmetricPublicKey::<V2>::from(&[1u8; 32]).is_ok());
+        assert!(AsymmetricPublicKey::<V2>::from(&[1u8; 33]).is_err());
 
         assert!(SymmetricKey::<V2>::from(&[0u8; 31]).is_err());
         assert!(SymmetricKey::<V2>::from(&[0u8; 32]).is_ok());
@@ -810,9 +811,9 @@ mod test_keys {
         let debug = format!("{:?}", AsymmetricKeyPair::<V2>::generate().unwrap().secret);
         assert_eq!(debug, "AsymmetricSecretKey {***OMITTED***}");
 
-        let randomv = AsymmetricKeyPair::<V2>::generate().unwrap();
-        let zero = AsymmetricKeyPair::<V2>::from(&[0u8; V2::SECRET_KEY + V2::PUBLIC_KEY]).unwrap();
-        assert_ne!(randomv.secret, zero.secret);
+        let random1 = AsymmetricKeyPair::<V2>::generate().unwrap();
+        let random2 = AsymmetricKeyPair::<V2>::generate().unwrap();
+        assert_ne!(random1.secret, random2.secret);
     }
 }
 
@@ -821,13 +822,15 @@ mod test_keys {
 // NOTE: Only intended for V2/V4 testing purposes.
 impl AsymmetricKeyPair<V2> {
     pub(crate) fn from(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != V2::SECRET_KEY + V2::PUBLIC_KEY {
+        debug_assert_eq!(V2::SECRET_KEY, V2::PUBLIC_KEY * 2);
+
+        if bytes.len() != V2::SECRET_KEY {
             return Err(Error::PaserkParsing);
         }
 
         Ok(Self {
-            secret: AsymmetricSecretKey::from(&bytes[..V2::SECRET_KEY])?,
-            public: AsymmetricPublicKey::from(&bytes[V2::SECRET_KEY..])?,
+            secret: AsymmetricSecretKey::from(&bytes[..V2::PUBLIC_KEY])?,
+            public: AsymmetricPublicKey::from(&bytes[V2::PUBLIC_KEY..])?,
         })
     }
 }
