@@ -853,7 +853,7 @@ mod tests {
         );
         let too_long = format!(
             "k4.public.{}",
-            encode_b64(&[0u8; V4::PUBLIC_KEY * 2]).unwrap()
+            encode_b64([0u8; V4::PUBLIC_KEY * 2]).unwrap()
         );
         assert!(validate_paserk_string(&too_long, "k4", "public", V4::PUBLIC_KEY).is_err());
     }
