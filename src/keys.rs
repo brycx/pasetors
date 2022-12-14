@@ -10,6 +10,7 @@ pub trait Generate<T, V: Version> {
     fn generate() -> Result<T, Error>;
 }
 
+#[derive(Clone)]
 /// A symmetric key used for `.local` tokens, given a version `V`.
 pub struct SymmetricKey<V> {
     pub(crate) bytes: Vec<u8>,
@@ -53,6 +54,7 @@ impl<V: Version> PartialEq<SymmetricKey<V>> for SymmetricKey<V> {
     }
 }
 
+#[derive(Clone)]
 /// An asymmetric secret key used for `.public` tokens, given a version `V`.
 ///
 /// In case of Ed25519, which is used in V2 and V4, this is the seed concatenated with the public key.
@@ -132,7 +134,7 @@ impl<V: Version> PartialEq<AsymmetricPublicKey<V>> for AsymmetricPublicKey<V> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// A keypair of an [`AsymmetricSecretKey`] and its corresponding [`AsymmetricPublicKey`].
 pub struct AsymmetricKeyPair<V> {
     /// The [`AsymmetricSecretKey`].
