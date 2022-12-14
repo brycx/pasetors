@@ -1,3 +1,10 @@
+### 0.6.5
+
+__Date:__ December 14, 2022.
+
+__Changelog:__
+- `SymmetricKey`, `AsymmetricSecretKey` and `AsymmetricKeyPair` now implement `Clone`.
+
 ### 0.6.4
 
 __Date:__ November 17, 2022.

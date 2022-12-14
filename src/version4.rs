@@ -970,4 +970,14 @@ mod test_keys {
         let random2 = AsymmetricKeyPair::<V4>::generate().unwrap();
         assert_ne!(random1.secret, random2.secret);
     }
+
+    #[test]
+    fn test_clone() {
+        let sk = SymmetricKey::<V4>::generate().unwrap();
+        assert_eq!(sk, sk.clone());
+
+        let kp = AsymmetricKeyPair::<V4>::generate().unwrap();
+        assert_eq!(kp.secret, kp.secret.clone());
+        assert_eq!(kp.public, kp.public.clone());
+    }
 }

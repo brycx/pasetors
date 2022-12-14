@@ -807,4 +807,11 @@ mod test_keys {
         kpv3.public.bytes[0] = 0x04;
         assert!(UncompressedPublicKey::try_from(&kpv3.public).is_err());
     }
+
+    #[test]
+    fn test_clone() {
+        let kp = AsymmetricKeyPair::<V3>::generate().unwrap();
+        assert_eq!(kp.secret, kp.secret.clone());
+        assert_eq!(kp.public, kp.public.clone());
+    }
 }
