@@ -24,7 +24,7 @@ jobs:
           override: true
 
       - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@044a1e5bdace8dd2f727b1af63c1d9a1d3572068
+        uses: actions-rs/tarpaulin@53c8f13dfa32fcd0f2787937353776e34409e833
         with:
           timeout: '120'
           out-type: 'Xml'
