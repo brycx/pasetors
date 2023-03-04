@@ -1,3 +1,14 @@
+### 0.6.6
+
+__Date:__ March 4, 2023.
+
+__Changelog:__
+- Update license year to 2023.
+- Bump `p384` to `0.13.0`
+- Bump MSRV to `1.65.0`
+- Switch from `actions-rs/tarpaulin` to `cargo-tarpaulin` in CI.
+
+
 ### 0.6.5
 
 __Date:__ December 14, 2022.
