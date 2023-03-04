@@ -77,7 +77,7 @@ impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
     fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
-        let sk = SigningKey::from_bytes(value.as_bytes()).map_err(|_| Error::Key)?;
+        let sk = SigningKey::from_bytes(value.as_bytes().into()).map_err(|_| Error::Key)?;
         AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
     }
 }
@@ -167,7 +167,8 @@ impl PublicToken {
             return Err(Error::EmptyPayload);
         }
 
-        let signing_key = SigningKey::from_bytes(secret_key.as_bytes()).map_err(|_| Error::Key)?;
+        let signing_key =
+            SigningKey::from_bytes(secret_key.as_bytes().into()).map_err(|_| Error::Key)?;
         let public_key = VerifyingKey::from(&signing_key).to_encoded_point(true);
 
         let f = footer.unwrap_or(&[]);
@@ -177,13 +178,13 @@ impl PublicToken {
         let mut msg_digest = sha2::Sha384::new();
         msg_digest.update(m2);
 
-        let sig = signing_key
+        let sig: Signature = signing_key
             .try_sign_digest(msg_digest)
             .map_err(|_| Error::Signing)?;
-        debug_assert_eq!(sig.as_ref().len(), V3::PUBLIC_SIG);
+        debug_assert_eq!(sig.to_bytes().len(), V3::PUBLIC_SIG);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
-        m_sig.extend_from_slice(sig.as_ref());
+        m_sig.extend_from_slice(&sig.to_bytes());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
 
