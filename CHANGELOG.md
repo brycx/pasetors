@@ -1,3 +1,12 @@
+### 0.6.7
+
+__Date:__ June 10, 2023.
+
+__Changelog:__
+- Add security policy.
+- Add `Claims::new_expires_in()` ([#96](https://github.com/brycx/pasetors/issues/96)).
+
+
 ### 0.6.6
 
 __Date:__ March 4, 2023.
