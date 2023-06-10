@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "std")))]
 
 use crate::errors::Error;
+use core::convert::TryFrom;
 use serde_json::Value;
 use std::collections::HashMap;
 use time::format_description::well_known::Rfc3339;
@@ -28,6 +29,30 @@ impl Claims {
         let nbf = iat;
         let mut exp = iat;
         exp += Duration::hours(1);
+
+        let mut claims = Self {
+            list_of: HashMap::new(),
+        };
+
+        claims.issued_at(&iat.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        claims.not_before(&nbf.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        claims.expiration(&exp.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+
+        Ok(claims)
+    }
+
+    /// Create a new `Claims` instance expiring in `duration`, setting:
+    /// - `iat`, `nbf` to current UTC time
+    /// - `iat + duration`
+    ///
+    /// Errors:
+    /// - If adding current time with `duration` would overflow
+    /// - If `core::time::Duration` failed to convert to `time::Duration`
+    pub fn new_expires_in(duration: &core::time::Duration) -> Result<Self, Error> {
+        let iat = OffsetDateTime::now_utc();
+        let nbf = iat;
+        let mut exp = iat;
+        exp += Duration::try_from(*duration).map_err(|_| Error::InvalidClaim)?;
 
         let mut claims = Self {
             list_of: HashMap::new(),
