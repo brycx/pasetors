@@ -756,4 +756,24 @@ mod test {
         claims.list_of.remove("exp");
         assert!(claims_validation.validate_claims(&claims).is_err());
     }
+
+    #[test]
+    fn test_custom_expiration_duration() {
+        // Duration of 3 hours instead of 1.
+        let duration = core::time::Duration::new(10800, 0);
+        let mut claims = Claims::new_expires_in(&duration).unwrap();
+
+        let claims_validation = ClaimsValidationRules::new();
+        assert!(claims_validation.validate_claims(&claims).is_ok());
+
+        claims
+            .list_of
+            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".into())
+            .unwrap();
+        // Expired
+        assert_eq!(
+            claims_validation.validate_claims(&claims).unwrap_err(),
+            Error::ClaimValidation
+        );
+    }
 }
