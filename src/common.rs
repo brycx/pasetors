@@ -8,7 +8,7 @@ use ct_codecs::{Base64UrlSafeNoPadding, Decoder, Encoder};
 use subtle::ConstantTimeEq;
 
 /// Encode bytes with Base64 URL-safe and no padding.
-pub(crate) fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Error> {
+pub fn encode_b64<T: AsRef<[u8]>>(bytes: T) -> Result<String, Error> {
     let inlen = bytes.as_ref().len();
     let mut buf = vec![0u8; Base64UrlSafeNoPadding::encoded_len(inlen)?];
 

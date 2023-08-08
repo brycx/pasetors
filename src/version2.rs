@@ -108,31 +108,42 @@ impl PublicToken {
     /// The header and purpose for the public token: `v2.public.`.
     pub const HEADER: &'static str = "v2.public.";
 
+    /// Pre-authenticated encoding
+    pub fn pae(message: &[u8], footer: &[u8]) -> Result<Vec<u8>, Error> {
+        if message.is_empty() {
+            return Err(Error::EmptyPayload);
+        }
+
+        pae::pae(&[Self::HEADER.as_bytes(), message, footer])
+    }
+
+    /// Concatenate message with signature
+    pub fn concatenate(message: &[u8], sig: &[u8], footer: &[u8]) -> Result<String, Error> {
+        let mut m_sig: Vec<u8> = Vec::from(message);
+        m_sig.extend_from_slice(sig);
+
+        let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
+
+        if footer.is_empty() {
+            Ok(token_no_footer)
+        } else {
+            Ok(format!("{}.{}", token_no_footer, encode_b64(footer)?))
+        }
+    }
+
     /// Create a public token.
     pub fn sign(
         secret_key: &AsymmetricSecretKey<V2>,
         message: &[u8],
         footer: Option<&[u8]>,
     ) -> Result<String, Error> {
-        if message.is_empty() {
-            return Err(Error::EmptyPayload);
-        }
+        let f = footer.unwrap_or(&[]);
+        let m2 = Self::pae(message, f)?;
 
         let sk = SigningKey::from_slice(secret_key.as_bytes()).map_err(|_| Error::Key)?;
-        let f = footer.unwrap_or(&[]);
-        let m2 = pae::pae(&[Self::HEADER.as_bytes(), message, f])?;
         let sig = sk.sign(m2, None);
 
-        let mut m_sig: Vec<u8> = Vec::from(message);
-        m_sig.extend_from_slice(sig.as_ref());
-
-        let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
-
-        if f.is_empty() {
-            Ok(token_no_footer)
-        } else {
-            Ok(format!("{}.{}", token_no_footer, encode_b64(f)?))
-        }
+        Self::concatenate(message, sig.as_ref(), f)
     }
 
     /// Verify a public token.
