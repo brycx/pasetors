@@ -1,3 +1,9 @@
+### TBD
+
+__Date:__ TBD
+
+- Bump MSRV to `1.67`.
+
 ### 0.6.7
 
 __Date:__ June 10, 2023.
