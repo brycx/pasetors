@@ -1,4 +1,4 @@
-![Tests](https://github.com/brycx/pasetors/workflows/Tests/badge.svg) [![Documentation](https://docs.rs/pasetors/badge.svg)](https://docs.rs/pasetors/) [![Crates.io](https://img.shields.io/crates/v/pasetors.svg)](https://crates.io/crates/pasetors) [![Safety Dance](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/) [![MSRV](https://img.shields.io/badge/MSRV-1.67.0-informational.svg)](https://img.shields.io/badge/MSRV-1.67.0-informational) [![codecov](https://codecov.io/gh/brycx/pasetors/branch/master/graph/badge.svg)](https://codecov.io/gh/brycx/pasetors)
+![Tests](https://github.com/brycx/pasetors/workflows/Tests/badge.svg) [![Documentation](https://docs.rs/pasetors/badge.svg)](https://docs.rs/pasetors/) [![Crates.io](https://img.shields.io/crates/v/pasetors.svg)](https://crates.io/crates/pasetors) [![Safety Dance](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/) [![MSRV](https://img.shields.io/badge/MSRV-1.70.0-informational.svg)](https://img.shields.io/badge/MSRV-1.70.0-informational) [![codecov](https://codecov.io/gh/brycx/pasetors/branch/master/graph/badge.svg)](https://codecov.io/gh/brycx/pasetors)
 
 ### PASETOrs
 
@@ -26,7 +26,7 @@ This library includes:
 This library has **not undergone any third-party security audit**. Usage is at **own risk**. 
 
 ### Minimum Supported Rust Version
-Rust 1.67.0 or later is supported however, the majority of testing happens with latest stable Rust.
+Rust 1.70.0 or later is supported however, the majority of testing happens with latest stable Rust.
 
 MSRV may be changed at any point and will not be considered a SemVer breaking change.
 
