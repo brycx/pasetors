@@ -25,20 +25,7 @@ impl Claims {
     /// Errors:
     /// - If adding current time with one hour would overflow
     pub fn new() -> Result<Self, Error> {
-        let iat = OffsetDateTime::now_utc();
-        let nbf = iat;
-        let mut exp = iat;
-        exp += Duration::hours(1);
-
-        let mut claims = Self {
-            list_of: HashMap::new(),
-        };
-
-        claims.issued_at(&iat.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-        claims.not_before(&nbf.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-        claims.expiration(&exp.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-
-        Ok(claims)
+        Self::new_expires_in(&core::time::Duration::from_secs(3600))
     }
 
     /// Create a new `Claims` instance expiring in `duration`, setting:
@@ -49,20 +36,33 @@ impl Claims {
     /// - If adding current time with `duration` would overflow
     /// - If `core::time::Duration` failed to convert to `time::Duration`
     pub fn new_expires_in(duration: &core::time::Duration) -> Result<Self, Error> {
+        let mut claims = Self {
+            list_of: HashMap::new(),
+        };
+
+        claims.set_expires_in(duration)?;
+
+        Ok(claims)
+    }
+
+    /// Set `iat`, `nbf`, `exp` claims expiring in `duration`, setting:
+    /// - `iat`, `nbf` to current UTC time
+    /// - `iat + duration`
+    ///
+    /// Errors:
+    /// - If adding current time with `duration` would overflow
+    /// - If `core::time::Duration` failed to convert to `time::Duration`
+    pub fn set_expires_in(&mut self, duration: &core::time::Duration) -> Result<(), Error> {
         let iat = OffsetDateTime::now_utc();
         let nbf = iat;
         let mut exp = iat;
         exp += Duration::try_from(*duration).map_err(|_| Error::InvalidClaim)?;
 
-        let mut claims = Self {
-            list_of: HashMap::new(),
-        };
+        self.issued_at(&iat.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        self.not_before(&nbf.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        self.expiration(&exp.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
 
-        claims.issued_at(&iat.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-        claims.not_before(&nbf.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-        claims.expiration(&exp.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-
-        Ok(claims)
+        Ok(())
     }
 
     /// Removes the `exp` claim, indicating a token that never expires.
