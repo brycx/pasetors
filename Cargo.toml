@@ -10,7 +10,7 @@ readme = "README.md"
 repository = "https://github.com/brycx/pasetors"
 documentation = "https://docs.rs/pasetors"
 license = "MIT"
-rust-version = "1.70.0" # Update CI test along with this.
+rust-version = "1.72.0" # Update CI test along with this.
 
 [package.metadata.docs.rs]
 all-features = true
