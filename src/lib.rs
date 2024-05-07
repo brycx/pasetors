@@ -255,13 +255,13 @@ pub mod public {
         implicit_assert: Option<&[u8]>,
     ) -> Result<String, Error> {
         match footer {
-            Some(f) => crate::version4::PublicToken::sign(
+            Some(f) => version4::PublicToken::sign(
                 secret_key,
                 message.to_string()?.as_bytes(),
                 Some(f.to_string()?.as_bytes()),
                 implicit_assert,
             ),
-            None => crate::version4::PublicToken::sign(
+            None => version4::PublicToken::sign(
                 secret_key,
                 message.to_string()?.as_bytes(),
                 None,
@@ -280,13 +280,13 @@ pub mod public {
         implicit_assert: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
         let mut trusted_token = match footer {
-            Some(f) => crate::version4::PublicToken::verify(
+            Some(f) => version4::PublicToken::verify(
                 public_key,
                 token,
                 Some(f.to_string()?.as_bytes()),
                 implicit_assert,
             )?,
-            None => crate::version4::PublicToken::verify(public_key, token, None, implicit_assert)?,
+            None => version4::PublicToken::verify(public_key, token, None, implicit_assert)?,
         };
 
         let claims = Claims::from_string(trusted_token.payload())?;
@@ -317,13 +317,13 @@ pub mod local {
         implicit_assert: Option<&[u8]>,
     ) -> Result<String, Error> {
         match footer {
-            Some(f) => crate::version4::LocalToken::encrypt(
+            Some(f) => version4::LocalToken::encrypt(
                 secret_key,
                 message.to_string()?.as_bytes(),
                 Some(f.to_string()?.as_bytes()),
                 implicit_assert,
             ),
-            None => crate::version4::LocalToken::encrypt(
+            None => version4::LocalToken::encrypt(
                 secret_key,
                 message.to_string()?.as_bytes(),
                 None,
@@ -342,13 +342,13 @@ pub mod local {
         implicit_assert: Option<&[u8]>,
     ) -> Result<TrustedToken, Error> {
         let mut trusted_token = match footer {
-            Some(f) => crate::version4::LocalToken::decrypt(
+            Some(f) => version4::LocalToken::decrypt(
                 secret_key,
                 token,
                 Some(f.to_string()?.as_bytes()),
                 implicit_assert,
             )?,
-            None => crate::version4::LocalToken::decrypt(secret_key, token, None, implicit_assert)?,
+            None => version4::LocalToken::decrypt(secret_key, token, None, implicit_assert)?,
         };
 
         let claims = Claims::from_string(trusted_token.payload())?;

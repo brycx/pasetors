@@ -305,7 +305,7 @@ impl LocalToken {
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n.as_ref(), c, f, i])?;
         let expected_tag = blake2b::Tag::from_slice(t).map_err(|_| Error::TokenValidation)?;
-        blake2b::Blake2b::verify(&expected_tag, &auth_key, 32, pre_auth.as_slice())
+        Blake2b::verify(&expected_tag, &auth_key, 32, pre_auth.as_slice())
             .map_err(|_| Error::TokenValidation)?;
 
         let mut out = vec![0u8; c.len()];
