@@ -370,11 +370,17 @@ mod test_vectors {
         }
 
         let message = test.payload.as_ref().unwrap().as_str().unwrap();
+
         let actual =
             PublicToken::sign(&sk, message.as_bytes(), footer, Some(implicit_assert)).unwrap();
-        assert_eq!(actual, test.token, "Failed {:?}", test.name);
-        let ut = UntrustedToken::<Public, V3>::try_from(&test.token).unwrap();
+        let ut = UntrustedToken::<Public, V3>::try_from(&actual).unwrap();
+        let trusted = PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).unwrap();
+        assert_eq!(trusted.payload(), message);
+        assert_eq!(trusted.footer(), test.footer.as_bytes());
+        assert_eq!(trusted.header(), PublicToken::HEADER);
+        assert_eq!(trusted.implicit_assert(), implicit_assert);
 
+        let ut = UntrustedToken::<Public, V3>::try_from(&test.token).unwrap();
         let trusted = PublicToken::verify(&pk, &ut, footer, Some(implicit_assert)).unwrap();
         assert_eq!(trusted.payload(), message);
         assert_eq!(trusted.footer(), test.footer.as_bytes());

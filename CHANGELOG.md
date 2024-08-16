@@ -2,7 +2,8 @@
 
 __Date:__ TBD
 
-- Bump MSRV to `1.72`.
+- Bump MSRV to `1.80`.
+- Updated test vectors for `v3.public`.
 
 ### 0.6.8
 
@@ -95,8 +96,8 @@ __Changelog:__
 - Stricter permissions for GH Actions workflows ([#43](https://github.com/brycx/pasetors/pull/43))
 - Add `Generate` trait and implement this for all key-types, removing also `SymmetricKey::gen()` ([#45](https://github.com/brycx/pasetors/issues/45))
 - Switch from `ed25519-dalek` to `ed25519-compact` ([#48](https://github.com/brycx/pasetors/issues/48))
-- Add new types `token::UntrustedToken` and `token::TrustedToken` which are now used by `verify()`/`decrypt()` operations. 
-These allow extracting parts of tokens before and after verification ([#47](https://github.com/brycx/pasetors/issues/47)) 
+- Add new types `token::UntrustedToken` and `token::TrustedToken` which are now used by `verify()`/`decrypt()` operations.
+These allow extracting parts of tokens before and after verification ([#47](https://github.com/brycx/pasetors/issues/47))
 - Version structs previously available in `keys::` have been moved to a new `version::` module
 - Add `Footer` type that makes it easier to create JSON-encoded footers ([#52](https://github.com/brycx/pasetors/pull/52))
 - PASERK deserialization of keys now takes `&str` instead of `String` ([#53](https://github.com/brycx/pasetors/issues/53))
@@ -150,7 +151,7 @@ __Changelog:__
 - Update Orion to `0.16`
 
 
-### 0.1.1 
+### 0.1.1
 
 __Date:__ March 21, 2021.
 
