@@ -1,16 +1,16 @@
 [package]
 name = "pasetors"
-version = "0.6.8" # Update html_root_url in lib.rs along with this.
+version = "0.6.8"                                                          # Update html_root_url in lib.rs along with this.
 authors = ["brycx <brycx@protonmail.com>"]
 edition = "2018"
 description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
-keywords = [ "cryptography", "crypto", "token", "paseto", "authentication" ]
-categories = [ "cryptography", "authentication" ]
+keywords = ["cryptography", "crypto", "token", "paseto", "authentication"]
+categories = ["cryptography", "authentication"]
 readme = "README.md"
 repository = "https://github.com/brycx/pasetors"
 documentation = "https://docs.rs/pasetors"
 license = "MIT"
-rust-version = "1.72.0" # Update CI test along with this.
+rust-version = "1.80.0"                                                    # Update CI test along with this.
 
 [package.metadata.docs.rs]
 all-features = true
@@ -34,7 +34,7 @@ optional = true
 
 [dependencies.getrandom]
 version = "0.2"
-features = [ "js" ]
+features = ["js"]
 
 [dependencies.ct-codecs]
 version = "1.1.1"
@@ -80,9 +80,9 @@ version = "1.0.145"
 optional = true
 
 [features]
-default = [ "std", "v4", "paserk" ]
-std = [ "serde_json", "time", "regex" ]
-v2 = [ "orion", "ed25519-compact" ]
-v3 = [ "rand_core", "p384", "sha2" ]
-v4 = [ "orion", "ed25519-compact" ]
-paserk = [ "orion" ]
+default = ["std", "v4", "paserk"]
+std = ["serde_json", "time", "regex"]
+v2 = ["orion", "ed25519-compact"]
+v3 = ["rand_core", "p384", "sha2"]
+v4 = ["orion", "ed25519-compact"]
+paserk = ["orion"]

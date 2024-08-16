@@ -8,29 +8,29 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.72.0 # MSRV
+          - 1.80.0 # MSRV
           - nightly
-    
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: false
-      
+
       - name: Install toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-      
+
       - name: Test debug-mode
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
         with:
           command: test
           args: --all-features
-      
+
       - name: Test release-mode
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
         with:
@@ -48,7 +48,7 @@ jobs:
         with:
           command: test
           args: --no-default-features --tests --features v2,std,paserk
-      
+
       - name: Test only v3-full
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
         with:
