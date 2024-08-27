@@ -1,6 +1,6 @@
 #![cfg_attr(docsrs, doc(cfg(feature = "std")))]
 
-use crate::errors::Error;
+use crate::errors::{ClaimValidationError, Error};
 use core::convert::TryFrom;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -325,79 +325,91 @@ impl ClaimsValidationRules {
     /// separately.
     pub fn validate_claims(&self, claims: &Claims) -> Result<(), Error> {
         if self.validate_currently_valid {
-            match (claims.list_of.get("iat"), claims.list_of.get("nbf")) {
-                (Some(iat), Some(nbf)) => match (iat.as_str(), nbf.as_str()) {
-                    (Some(iat), Some(nbf)) => {
-                        let iat = OffsetDateTime::parse(iat, &Rfc3339)
-                            .map_err(|_| Error::ClaimValidation)?;
-                        let nbf = OffsetDateTime::parse(nbf, &Rfc3339)
-                            .map_err(|_| Error::ClaimValidation)?;
-                        let current_time = OffsetDateTime::now_utc();
+            let current_time = OffsetDateTime::now_utc();
 
-                        if current_time < nbf || current_time < iat {
-                            return Err(Error::ClaimValidation);
-                        }
+            if let Some(nbf) = claims.list_of.get("nbf") {
+                if let Some(nbf) = nbf.as_str() {
+                    let nbf = OffsetDateTime::parse(nbf, &Rfc3339)
+                        .map_err(|_| Error::ClaimValidation(ClaimValidationError::ParseNbf))?;
+                    if current_time < nbf {
+                        return Err(Error::ClaimValidation(ClaimValidationError::Nbf));
                     }
-                    _ => return Err(Error::ClaimValidation),
-                },
-                _ => return Err(Error::ClaimValidation),
+                } else {
+                    return Err(Error::ClaimValidation(ClaimValidationError::NoStrNbf));
+                }
+            } else {
+                return Err(Error::ClaimValidation(ClaimValidationError::NoNbf));
+            }
+
+            if let Some(iat) = claims.list_of.get("iat") {
+                if let Some(iat) = iat.as_str() {
+                    let iat = OffsetDateTime::parse(iat, &Rfc3339)
+                        .map_err(|_| Error::ClaimValidation(ClaimValidationError::ParseIat))?;
+                    if current_time < iat {
+                        return Err(Error::ClaimValidation(ClaimValidationError::Iat));
+                    }
+                } else {
+                    return Err(Error::ClaimValidation(ClaimValidationError::NoStrIat));
+                }
+            } else {
+                return Err(Error::ClaimValidation(ClaimValidationError::NoIat));
             }
         }
 
         if let Some(exp) = claims.list_of.get("exp") {
             if let Some(exp) = exp.as_str() {
-                let exp =
-                    OffsetDateTime::parse(exp, &Rfc3339).map_err(|_| Error::ClaimValidation)?;
+                let exp = OffsetDateTime::parse(exp, &Rfc3339)
+                    .map_err(|_| Error::ClaimValidation(ClaimValidationError::ParseExp))?;
                 let current_time = OffsetDateTime::now_utc();
 
                 if current_time > exp {
-                    return Err(Error::ClaimValidation);
+                    return Err(Error::ClaimValidation(ClaimValidationError::Exp));
                 }
             } else {
-                return Err(Error::ClaimValidation);
+                return Err(Error::ClaimValidation(ClaimValidationError::NoStrExp));
             }
         } else if !self.allow_non_expiring {
             // We didn't explicitly allow non-expiring tokens so we expect `exp` claim.
-            return Err(Error::ClaimValidation);
+            return Err(Error::ClaimValidation(ClaimValidationError::NoExp));
         }
 
         if let Some(expected_issuer) = &self.validate_issuer {
             if let Some(actual_issuer) = claims.list_of.get("iss") {
                 if expected_issuer != actual_issuer {
-                    return Err(Error::ClaimValidation);
+                    return Err(Error::ClaimValidation(ClaimValidationError::Iss));
                 }
             } else {
-                return Err(Error::ClaimValidation);
+                return Err(Error::ClaimValidation(ClaimValidationError::NoIss));
             }
         }
 
         if let Some(expected_subject) = &self.validate_subject {
             if let Some(actual_subject) = claims.list_of.get("sub") {
                 if expected_subject != actual_subject {
-                    return Err(Error::ClaimValidation);
+                    return Err(Error::ClaimValidation(ClaimValidationError::Sub));
                 }
             } else {
-                return Err(Error::ClaimValidation);
+                return Err(Error::ClaimValidation(ClaimValidationError::NoSub));
             }
         }
 
         if let Some(expected_audience) = &self.validate_audience {
             if let Some(actual_audience) = claims.list_of.get("aud") {
                 if expected_audience != actual_audience {
-                    return Err(Error::ClaimValidation);
+                    return Err(Error::ClaimValidation(ClaimValidationError::Aud));
                 }
             } else {
-                return Err(Error::ClaimValidation);
+                return Err(Error::ClaimValidation(ClaimValidationError::NoAud));
             }
         }
 
         if let Some(expected_token_identifier) = &self.validate_token_identifier {
             if let Some(actual_token_identifier) = claims.list_of.get("jti") {
                 if expected_token_identifier != actual_token_identifier {
-                    return Err(Error::ClaimValidation);
+                    return Err(Error::ClaimValidation(ClaimValidationError::Jti));
                 }
             } else {
-                return Err(Error::ClaimValidation);
+                return Err(Error::ClaimValidation(ClaimValidationError::NoJti));
             }
         }
 
@@ -623,7 +635,7 @@ mod test {
             claims_validation
                 .validate_claims(&outdated_claims)
                 .unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::Exp)
         );
         outdated_claims.non_expiring();
         let mut claims_validation_allow_expiry = claims_validation.clone();
@@ -657,7 +669,7 @@ mod test {
             claims_validation
                 .validate_claims(&future_claims)
                 .unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::Iat)
         );
         future_claims.issued_at(old_iat.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
@@ -670,7 +682,7 @@ mod test {
             claims_validation
                 .validate_claims(&future_claims)
                 .unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::Nbf)
         );
         future_claims.not_before(old_nbf.as_str().unwrap()).unwrap();
         assert!(claims_validation.validate_claims(&future_claims).is_ok());
@@ -682,7 +694,7 @@ mod test {
             claims_validation
                 .validate_claims(&incomplete_claims)
                 .unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::NoIat)
         );
 
         let mut incomplete_claims = claims.clone();
@@ -691,7 +703,7 @@ mod test {
             claims_validation
                 .validate_claims(&incomplete_claims)
                 .unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::NoExp)
         );
 
         let mut incomplete_claims = claims;
@@ -700,7 +712,7 @@ mod test {
             claims_validation
                 .validate_claims(&incomplete_claims)
                 .unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::NoNbf)
         );
     }
 
@@ -773,7 +785,7 @@ mod test {
         // Expired
         assert_eq!(
             claims_validation.validate_claims(&claims).unwrap_err(),
-            Error::ClaimValidation
+            Error::ClaimValidation(ClaimValidationError::Exp)
         );
     }
 }

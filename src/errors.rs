@@ -20,7 +20,7 @@ pub enum Error {
     /// Error for attempting to create an invalid claim.
     InvalidClaim,
     /// Claim validation error. See [`crate::claims::ClaimsValidationRules::validate_claims`].
-    ClaimValidation,
+    ClaimValidation(ClaimValidationError),
     /// Error for attempting to parse a Claim but found invalid UTF-8 sequence.
     ClaimInvalidUtf8,
     /// Error for attempting to parse a Claim but found invalid JSON sequence.
@@ -37,6 +37,51 @@ pub enum Error {
     PayloadInvalidUtf8,
     /// Error during parsing of a `Footer`.
     FooterParsing,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+/// Errors for claim validation operations.
+pub enum ClaimValidationError {
+    /// `Audience` claim doesn't match.
+    Aud,
+    /// `Expiration` claim expired.
+    Exp,
+    /// `Issued at` claim has date set in the future.
+    Iat,
+    /// `Issuer` claim doesn't match.
+    Iss,
+    /// `Token Identifier` doesn't match.
+    Jti,
+    /// `Not before` claim date not reached.
+    Nbf,
+    /// `Subject` claim doesn't match.
+    Sub,
+    /// No `Audience` claim was set.
+    NoAud,
+    /// No `Expiration` claim was set.
+    NoExp,
+    /// No `Issued at` claim was set.
+    NoIat,
+    /// No `Issuer` claim was set.
+    NoIss,
+    /// No `Token Identifier` claim was set.
+    NoJti,
+    /// No `Not before` claim was set.
+    NoNbf,
+    /// No `Subject` claim was set.
+    NoSub,
+    /// Claim `Expiration` is no string.
+    NoStrExp,
+    /// Claim `Issued at` is no string.
+    NoStrIat,
+    /// Claim `Not before` is no string.
+    NoStrNbf,
+    /// Error during parsing of `Expiration` claim.
+    ParseExp,
+    /// Error during parsing of `Issued at` claim.
+    ParseIat,
+    /// Error during parsing of `Not before` claim.
+    ParseNbf,
 }
 
 #[cfg(feature = "std")]
