@@ -1,9 +1,10 @@
-### 0.6.9
+### 0.7.0
 
-__Date:__ TBD
+__Date:__ August 28, 2024.
 
 - Bump MSRV to `1.80`.
 - Updated test vectors for `v3.public`.
+- (_BREAKING_) Improved error-handling during claims validation. Added `Error::ClaimValidation(ClaimValidationError)`, where `ClaimValidationError` now further specifies the validation error ([#131](https://github.com/brycx/pasetors/pull/131), credits: @jpramosi).
 
 ### 0.6.8
 
