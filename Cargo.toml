@@ -79,10 +79,29 @@ optional = true
 version = "1.0.145"
 optional = true
 
+[dependencies.aes]
+version = "0.8.4"
+optional = true
+
+[dependencies.ctr]
+version = "0.9.2"
+optional = true
+
+# This is not to be used yet.
+# [dependencies.ml-dsa]
+# version = "0.0.3"
+# optional = true
+
+[dependencies.slh-dsa]
+version = "0.1.0"
+optional = true
+
 [features]
-default = ["std", "v4", "paserk"]
+default = ["std", "v4", "paserk", "v5", "v6"]
 std = ["serde_json", "time", "regex"]
 v2 = ["orion", "ed25519-compact"]
 v3 = ["rand_core", "p384", "sha2"]
 v4 = ["orion", "ed25519-compact"]
+v5 = ["orion", "aes", "ctr"]
+v6 = ["orion", "slh-dsa"]
 paserk = ["orion"]
