@@ -6,12 +6,16 @@ jobs:
   test:
     strategy:
       matrix:
-        rust:
+        toolchain:
           - stable
-          - 1.80.0 # MSRV
           - nightly
+          - 1.80.0 # MSRV
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
@@ -19,47 +23,27 @@ jobs:
           persist-credentials: false
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+          toolchain: ${{ matrix.toolchain }}
 
       - name: Test debug-mode
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: test
-          args: --all-features
+        run: cargo test --all-features
 
       - name: Test release-mode
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: test
-          args: --release --all-features
+        run: cargo test --release --all-features
 
       - name: Test no_std
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: build
-          args: --no-default-features --features v2,v3,v4
+        run: cargo build --no-default-features --features v2,v3,v4
 
       - name: Test only v2-full
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: test
-          args: --no-default-features --tests --features v2,std,paserk
+        run: cargo test --no-default-features --tests --features v2,std,paserk
 
       - name: Test only v3-full
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: test
-          args: --no-default-features --tests --features v3,std,paserk
+        run: cargo test --no-default-features --tests --features v3,std,paserk
 
       - name: Test only v4-full
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: test
-          args: --no-default-features --tests --features v4,std,paserk
+        run: cargo test --no-default-features --tests --features v4,std,paserk
 
   # https://rustwasm.github.io/docs/book/reference/add-wasm-support-to-crate.html#maintaining-ongoing-support-for-webassembly
   web_assembly:
@@ -73,15 +57,13 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: false
-      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          target: ${{ matrix.arch }}
-          override: true
-      - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: check
-          args: --no-default-features --features v2,v3,v4 --target ${{ matrix.arch }}
+          targets: ${{ matrix.arch }}
+
+      - run: cargo check --no-default-features --features v2,v3,v4 --target ${{ matrix.arch }}
 
   cross_compilation:
     name: Linux/ARM/Big-Endian/32-Bit - Release tests
@@ -96,13 +78,21 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: false
-      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+
+      - uses: houseabsolute/actions-rust-cross@ad283b2fc65ad1f3a04fb8bf8b2b829aad4a9318
         with:
-          toolchain: stable
-          target: ${{ matrix.arch }}
-          override: true
-      - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          use-cross: true
           command: test
-          args: --release --all-features --target ${{ matrix.arch }}
+          target: ${{ matrix.arch }}
+          args: "--release --all-features"
+
+  docs:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo doc --no-deps --all-features
