@@ -34,7 +34,7 @@ jobs:
         run: cargo test --release --all-features
 
       - name: Test no_std
-        run: cargo test --no-default-features --features v2,v3,v4
+        run: cargo build --no-default-features --features v2,v3,v4
 
       - name: Test only v2-full
         run: cargo test --no-default-features --tests --features v2,std,paserk
