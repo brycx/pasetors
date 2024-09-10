@@ -30,7 +30,7 @@ jobs:
       - name: Test debug-mode
         run: cargo test --all-features
 
-      - name: Test debug-mode
+      - name: Test release-mode
         run: cargo test --release --all-features
 
       - name: Test no_std
