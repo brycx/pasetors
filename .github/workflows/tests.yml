@@ -79,7 +79,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: houseabsolute/actions-rust-cross@e35168ee8f31f83b4af8ba73d497bf25f3518a93
+      - uses: houseabsolute/actions-rust-cross@9ea5352c0f279f0b89ea2eb503337acf4f27c73e
         with:
           command: test
           target: ${{ matrix.arch }}
