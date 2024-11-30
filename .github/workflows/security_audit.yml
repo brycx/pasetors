@@ -1,7 +1,6 @@
 name: Security Audit (advisories, sources)
 permissions:
   contents: read
-  issues: write
 
 on:
   push:
