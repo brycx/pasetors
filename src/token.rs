@@ -688,11 +688,19 @@ mod test_trusted {
         let token = local::encrypt(&sk, &claims, Some(&footer), None).unwrap();
         let validation_rules = ClaimsValidationRules::default();
         let untrusted = UntrustedToken::<Local, V4>::try_from(&token).unwrap();
+
+        assert_eq!(
+            &untrusted,
+            &serde_json::from_str::<UntrustedToken<Local, V4>>(
+                &serde_json::to_string(&untrusted).unwrap()
+            )
+            .unwrap()
+        );
+
         let trusted =
             local::decrypt(&sk, &untrusted, &validation_rules, Some(&footer), None).unwrap();
 
         let json = serde_json::to_string(&trusted).unwrap();
-        println!("{}", json);
         // a couple of manual assertions that some keys values have appeared in the JSON
         assert!(json.contains("\"payload\""));
         assert!(json.contains("\"payload_claims\""));
