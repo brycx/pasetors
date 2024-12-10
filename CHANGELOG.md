@@ -1,3 +1,9 @@
+### 0.7.1
+
+__Date:__ December 10, 2024.
+
+- Add `serde` `Serialize` and `Deserialize` to `TrustedToken`, `UntrustedToken` and `Claims` ([#150](https://github.com/brycx/pasetors/issues/150), credits: [@tomtom5152](https://github.com/tomtom5152)).
+
 ### 0.7.0
 
 __Date:__ August 28, 2024.
