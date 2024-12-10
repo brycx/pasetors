@@ -88,6 +88,7 @@ impl<V: Version> Purpose<V> for Local {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// A [`TrustedToken`] is returned by either a `verify()` or `decrypt()` operation and represents
 /// a validated token.
 ///
@@ -101,9 +102,18 @@ pub struct TrustedToken {
     // PASETO requires the payload to be valid JSON in UTF-8, so we say String for UTF-8.
     payload: String,
     #[cfg(feature = "std")]
+    #[cfg_attr(feature = "serde", serde(default))]
     // If std is available, we also keep claims as JSON.
     payload_claims: Option<Claims>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Vec::is_empty", default)
+    )]
     footer: Vec<u8>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Vec::is_empty", default)
+    )]
     implicit_assert: Vec<u8>,
 }
 
@@ -189,6 +199,7 @@ impl TryFrom<&TrustedToken> for Footer {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// [`UntrustedToken`] can parse PASETO tokens in order to extract individual parts of it.
 ///
 /// A use-case for this would be parsing the tokens footer, if this is not known before receiving it. Then,
@@ -201,7 +212,9 @@ impl TryFrom<&TrustedToken> for Footer {
 pub struct UntrustedToken<T, V> {
     message: Vec<u8>,
     footer: Vec<u8>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     phantom_t: PhantomData<T>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     phantom_v: PhantomData<V>,
 }
 
@@ -652,5 +665,48 @@ mod tests_untrusted {
         tt.set_payload_claims(claims.clone());
 
         assert_eq!(tt.payload_claims.unwrap(), claims);
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod test_trusted {
+    use super::*;
+    use crate::claims::ClaimsValidationRules;
+    use crate::keys::{Generate, SymmetricKey};
+    use crate::local;
+    use crate::version4::V4;
+
+    #[test]
+    /// Simple serialize -> deserialize test to ensure that round trip produces the same result
+    fn test_serde() {
+        let sk = SymmetricKey::<V4>::generate().unwrap();
+        let mut claims = Claims::new().unwrap();
+        // additional claim for searching in the JSON output
+        claims.add_additional("test", "serde").unwrap();
+        let mut footer = Footer::default();
+        footer.add_additional("test", "footer").unwrap();
+        let token = local::encrypt(&sk, &claims, Some(&footer), None).unwrap();
+        let validation_rules = ClaimsValidationRules::default();
+        let untrusted = UntrustedToken::<Local, V4>::try_from(&token).unwrap();
+        let trusted =
+            local::decrypt(&sk, &untrusted, &validation_rules, Some(&footer), None).unwrap();
+
+        let json = serde_json::to_string(&trusted).unwrap();
+        println!("{}", json);
+        // a couple of manual assertions that some keys values have appeared in the JSON
+        assert!(json.contains("\"payload\""));
+        assert!(json.contains("\"payload_claims\""));
+        assert!(json.contains("\\\"test\\\":\\\"serde\\\""));
+        // footer is a Vec<u8> so need a fixed byte slice to compare in JSON
+        assert!(json.contains(
+            "\"footer\":[123,34,116,101,115,116,34,58,34,102,111,111,116,101,114,34,125]"
+        ));
+        // implicit_assert = None so shouldn't appear in the serialized version
+        assert!(!json.contains("implicit_assert"));
+
+        let output: TrustedToken = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(output, trusted);
+        assert_eq!(output.payload_claims.unwrap(), claims);
     }
 }

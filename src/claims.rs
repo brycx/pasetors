@@ -8,8 +8,10 @@ use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// A collection of claims that are passed as payload for a PASETO token.
 pub struct Claims {
+    #[cfg_attr(feature="serde", serde(flatten))]
     list_of: HashMap<String, Value>,
 }
 
@@ -787,5 +789,23 @@ mod test {
             claims_validation.validate_claims(&claims).unwrap_err(),
             Error::ClaimValidation(ClaimValidationError::Exp)
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde() {
+        let mut input = Claims::new().unwrap();
+        input.issued_at("2020-01-01T00:00:00Z").unwrap();
+        input.not_before("2020-01-02T00:00:00Z").unwrap();
+        input.expiration("2020-01-03T00:00:00Z").unwrap();
+
+        let json = serde_json::to_string(&input).unwrap();
+        // it would be nice to compare full JSON, but the field order is not certain
+        assert!(json.contains("\"iat\":\"2020-01-01T00:00:00Z\""));
+        assert!(json.contains("\"nbf\":\"2020-01-02T00:00:00Z\""));
+        assert!(json.contains("\"exp\":\"2020-01-03T00:00:00Z\""));
+
+        let output: Claims = serde_json::from_str(&json).unwrap();
+        assert_eq!(output, input);
     }
 }
