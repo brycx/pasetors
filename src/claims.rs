@@ -11,7 +11,7 @@ use time::{Duration, OffsetDateTime};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// A collection of claims that are passed as payload for a PASETO token.
 pub struct Claims {
-    #[cfg_attr(feature="serde", serde(flatten))]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     list_of: HashMap<String, Value>,
 }
 
