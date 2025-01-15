@@ -187,8 +187,8 @@ impl LocalToken {
     /// Domain separator for key-splitting the authentication key (24 in length as bytes).
     const DOMAIN_SEPARATOR_AUTH: &'static str = "paseto-auth-key-for-aead";
 
-    const M1_LEN: usize = V4::LOCAL_NONCE + Self::DOMAIN_SEPARATOR_ENC.as_bytes().len();
-    const M2_LEN: usize = V4::LOCAL_NONCE + Self::DOMAIN_SEPARATOR_AUTH.as_bytes().len();
+    const M1_LEN: usize = V4::LOCAL_NONCE + Self::DOMAIN_SEPARATOR_ENC.len();
+    const M2_LEN: usize = V4::LOCAL_NONCE + Self::DOMAIN_SEPARATOR_AUTH.len();
 
     /// Split the user-provided secret key into keys used for encryption and authentication.
     fn key_split(sk: &[u8], n: &[u8]) -> Result<(EncKey, EncNonce, AuthKey), Error> {
@@ -337,7 +337,7 @@ mod test_vectors {
             SymmetricKey::<V4>::from(&hex::decode(test.key.as_ref().unwrap()).unwrap()).unwrap();
 
         let nonce = hex::decode(test.nonce.as_ref().unwrap()).unwrap();
-        let footer: Option<&[u8]> = if test.footer.as_bytes().is_empty() {
+        let footer: Option<&[u8]> = if test.footer.is_empty() {
             None
         } else {
             Some(test.footer.as_bytes())
@@ -397,7 +397,7 @@ mod test_vectors {
             &hex::decode(test.public_key.as_ref().unwrap()).unwrap(),
         )
         .unwrap();
-        let footer: Option<&[u8]> = if test.footer.as_bytes().is_empty() {
+        let footer: Option<&[u8]> = if test.footer.is_empty() {
             None
         } else {
             Some(test.footer.as_bytes())
