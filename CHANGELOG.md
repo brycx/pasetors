@@ -1,3 +1,9 @@
+### 0.7.2
+
+__Date:__ January 27, 2025.
+
+- Bump `getrandom` to `0.3.0`.
+
 ### 0.7.1
 
 __Date:__ December 10, 2024.
