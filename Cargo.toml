@@ -1,6 +1,6 @@
 [package]
 name = "pasetors"
-version = "0.7.1"                                                          # Update html_root_url in lib.rs along with this.
+version = "0.7.2"                                                          # Update html_root_url in lib.rs along with this.
 authors = ["brycx <brycx@protonmail.com>"]
 edition = "2018"
 description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
@@ -33,8 +33,8 @@ default-features = false
 optional = true
 
 [dependencies.getrandom]
-version = "0.2"
-features = ["js"]
+version = "0.3"
+features = ["wasm_js"]
 
 [dependencies.ct-codecs]
 version = "1.1.1"
