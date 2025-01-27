@@ -92,7 +92,7 @@ impl Generate<SymmetricKey<V2>, V2> for SymmetricKey<V2> {
     fn generate() -> Result<SymmetricKey<V2>, Error> {
         let mut rng_bytes = vec![0u8; V2::LOCAL_KEY];
         V2::validate_local_key(&rng_bytes)?;
-        getrandom::getrandom(&mut rng_bytes)?;
+        getrandom::fill(&mut rng_bytes)?;
 
         Ok(Self {
             bytes: rng_bytes,
@@ -230,7 +230,7 @@ impl LocalToken {
         }
 
         let mut rng_bytes = [0u8; XCHACHA_NONCESIZE];
-        getrandom::getrandom(&mut rng_bytes)?;
+        getrandom::fill(&mut rng_bytes)?;
 
         Self::encrypt_with_derived_nonce(secret_key, &rng_bytes, message, footer)
     }
