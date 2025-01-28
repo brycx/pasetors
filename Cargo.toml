@@ -66,7 +66,7 @@ version = "0.13.0"
 optional = true
 
 [dependencies.rand_core]
-version = "0.6.3"
+version = "0.9.0"
 default-features = false
 features = ["getrandom"]
 optional = true
