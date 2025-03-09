@@ -1,3 +1,9 @@
+### 0.7.3
+
+__Date:__ TBD
+
+- Bump MSRV to `1.81.0`.
+
 ### 0.7.2
 
 __Date:__ January 27, 2025.
