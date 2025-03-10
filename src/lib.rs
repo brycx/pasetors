@@ -223,6 +223,14 @@ pub mod version3;
 /// PASETO version 4 tokens.
 pub mod version4;
 
+#[cfg(feature = "v5")]
+/// PASETO version 5 tokens.
+pub mod version5;
+
+#[cfg(feature = "v6")]
+/// PASETO version 6 tokens.
+pub mod version6;
+
 /// Types for handling tokens.
 pub mod token;
 
