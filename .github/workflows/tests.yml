@@ -42,13 +42,13 @@ jobs:
         run: cargo build --no-default-features --features v2,v3,v4
 
       - name: Test only v2-full
-        run: cargo test --no-default-features --tests --features v2,std,paserk,serde
+        run: cargo test --no-default-features --tests --features v2,std,paserk
 
       - name: Test only v3-full
-        run: cargo test --no-default-features --tests --features v3,std,paserk,serde
+        run: cargo test --no-default-features --tests --features v3,std,paserk
 
       - name: Test only v4-full
-        run: cargo test --no-default-features --tests --features v4,std,paserk,serde
+        run: cargo test --no-default-features --tests --features v4,std,paserk
 
       - name: Test only v2-full + serde
         run: cargo test --no-default-features --tests --features v2,std,paserk,serde

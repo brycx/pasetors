@@ -160,7 +160,7 @@ impl TrustedToken {
         }
     }
 
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", feature = "v4"))]
     /// Set the payload claims **AFTER HAVING VALIDATED THEM**.
     pub(crate) fn set_payload_claims(&mut self, claims: Claims) {
         self.payload_claims = Some(claims);
@@ -668,7 +668,7 @@ mod tests_untrusted {
     }
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(all(test, feature = "serde", feature = "v4"))]
 mod test_trusted {
     use super::*;
     use crate::claims::ClaimsValidationRules;
