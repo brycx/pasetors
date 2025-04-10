@@ -32,6 +32,9 @@ jobs:
       - name: Test debug-mode
         run: cargo test --all-features
 
+      - name: Test debug-mode + serde
+        run: cargo test --features serde
+
       - name: Test release-mode
         run: cargo test --release --all-features
 
@@ -39,13 +42,22 @@ jobs:
         run: cargo build --no-default-features --features v2,v3,v4
 
       - name: Test only v2-full
-        run: cargo test --no-default-features --tests --features v2,std,paserk
+        run: cargo test --no-default-features --tests --features v2,std,paserk,serde
 
       - name: Test only v3-full
-        run: cargo test --no-default-features --tests --features v3,std,paserk
+        run: cargo test --no-default-features --tests --features v3,std,paserk,serde
 
       - name: Test only v4-full
-        run: cargo test --no-default-features --tests --features v4,std,paserk
+        run: cargo test --no-default-features --tests --features v4,std,paserk,serde
+
+      - name: Test only v2-full + serde
+        run: cargo test --no-default-features --tests --features v2,std,paserk,serde
+
+      - name: Test only v3-full + serde
+        run: cargo test --no-default-features --tests --features v3,std,paserk,serde
+
+      - name: Test only v4-full + serde
+        run: cargo test --no-default-features --tests --features v4,std,paserk,serde
 
   # https://rustwasm.github.io/docs/book/reference/add-wasm-support-to-crate.html#maintaining-ongoing-support-for-webassembly
   web_assembly:
