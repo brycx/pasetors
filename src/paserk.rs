@@ -2,14 +2,19 @@
 
 use crate::common::{decode_b64, encode_b64};
 use crate::errors::Error;
-use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey};
+use crate::keys::{AsymmetricPublicKey, AsymmetricSecretKey};
 use crate::version::private::Version;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Write;
 use core::marker::PhantomData;
+
+#[cfg(any(feature = "v2", feature = "v4"))] // v3 has only public
+use crate::keys::SymmetricKey;
+#[cfg(any(feature = "v2", feature = "v4"))]
 use orion::hazardous::hash::blake2::blake2b;
+#[cfg(any(feature = "v2", feature = "v4"))]
 use zeroize::Zeroize;
 
 #[cfg(feature = "v2")]

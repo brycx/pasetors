@@ -1,7 +1,8 @@
 ### 0.7.3
 
-__Date:__ TBD
+__Date:__ April 10, 2025.
 
+- Fix bug that prevented compiling with `serde`-feature enabled.
 - Bump MSRV to `1.81.0`.
 
 ### 0.7.2
