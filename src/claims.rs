@@ -928,4 +928,66 @@ mod test {
         let output: Claims = serde_json::from_str(&json).unwrap();
         assert_eq!(output, input);
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_claims_from_string() {
+        let mut claims = Claims::new().unwrap();
+
+        // Fail to parse a registered claim that isn't a string
+        claims
+            .list_of
+            .insert("nbf".into(), Value::Bool(false))
+            .unwrap();
+        let claimsstring = serde_json::to_string(&claims).unwrap();
+        assert_eq!(
+            Claims::from_string(&claimsstring).unwrap_err(),
+            Error::InvalidClaim
+        );
+    }
+
+    #[test]
+    fn test_error_validation_if_registered_nostr() {
+        let claims = Claims::new().unwrap();
+        let claims_validation = ClaimsValidationRules::new();
+        assert!(claims_validation.validate_claims(&claims).is_ok());
+
+        let mut claims_nostr_exp = claims.clone();
+        let mut claims_nostr_iat = claims.clone();
+        let mut claims_nostr_nbf = claims.clone();
+
+        // Check that expiry still is validated.
+        claims_nostr_exp
+            .list_of
+            .insert("exp".to_string(), Value::Bool(false))
+            .unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&claims_nostr_exp)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::NoStrExp)
+        );
+
+        claims_nostr_iat
+            .list_of
+            .insert("iat".to_string(), Value::Bool(false))
+            .unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&claims_nostr_iat)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::NoStrIat)
+        );
+
+        claims_nostr_nbf
+            .list_of
+            .insert("nbf".to_string(), Value::Bool(false))
+            .unwrap();
+        assert_eq!(
+            claims_validation
+                .validate_claims(&claims_nostr_nbf)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::NoStrNbf)
+        );
+    }
 }
