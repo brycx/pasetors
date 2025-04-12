@@ -1,3 +1,9 @@
+### 0.7.4
+
+__Date:__ TBD.
+
+- Add `ClaimsValidationRules::disable_valid_at()` which optionally skips validation of `iat` and `nbf`, that _may_ be present within payload claims [#173](https://github.com/brycx/pasetors/issues/173).
+
 ### 0.7.3
 
 __Date:__ April 10, 2025.

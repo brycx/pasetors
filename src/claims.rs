@@ -282,6 +282,19 @@ impl ClaimsValidationRules {
         }
     }
 
+    /// Disables the validation of `iat` and `nbf`, from the `ValidAt` validation pattern.
+    ///
+    /// `iat` and `nbf` may still be present in the [`Claims`] payload, at validation time, but will not be parsed.
+    /// This means, you can disable this validation without modifying the creation of your [`Claims`].
+    /// In case of using `allow_non_expiring()`, the validation expects no `exp` claim to be present within the payload.
+    ///
+    /// To disable the entire `ValidAt` pattern, specify also `allow_non_expiring()`.
+    ///
+    /// See [PASETO Validators](https://github.com/paseto-standard/paseto-spec/blob/master/docs/02-Implementation-Guide/02-Validators.md).
+    pub fn disable_valid_at(&mut self) {
+        self.validate_currently_valid = false;
+    }
+
     /// Explicitly allow non-expiring tokens (i.e. the `exp` claim is missing).
     pub fn allow_non_expiring(&mut self) {
         self.allow_non_expiring = true;
@@ -716,6 +729,112 @@ mod test {
                 .unwrap_err(),
             Error::ClaimValidation(ClaimValidationError::NoNbf)
         );
+    }
+
+    #[test]
+    fn test_skip_iat_nbf_validation() {
+        let claims = Claims::new().unwrap();
+        let claims_validation = ClaimsValidationRules::new();
+        assert!(claims_validation.validate_claims(&claims).is_ok());
+
+        let mut no_iat_claims = claims.clone();
+        let mut no_nbf_claims = claims.clone();
+        let mut no_iat_or_nbf_claims = claims.clone();
+        let mut no_iat_nbf_claims_validation = claims_validation.clone();
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_iat_claims)
+            .is_ok(),);
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_nbf_claims)
+            .is_ok(),);
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_iat_or_nbf_claims)
+            .is_ok(),);
+
+        no_iat_claims.list_of.remove("iat").unwrap();
+        no_nbf_claims.list_of.remove("nbf").unwrap();
+        no_iat_or_nbf_claims.list_of.remove("iat").unwrap();
+        no_iat_or_nbf_claims.list_of.remove("nbf").unwrap();
+        // Normal validation fails without iat
+        assert_eq!(
+            claims_validation
+                .validate_claims(&no_iat_claims)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::NoIat)
+        );
+        // Normal validation fails without iat
+        assert_eq!(
+            claims_validation
+                .validate_claims(&no_nbf_claims)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::NoNbf)
+        );
+        assert_eq!(
+            claims_validation
+                .validate_claims(&no_iat_or_nbf_claims)
+                .unwrap_err(),
+            // Nbf is just the one checked first.
+            Error::ClaimValidation(ClaimValidationError::NoNbf)
+        );
+
+        // Disable iat, nbf validation passes
+        no_iat_nbf_claims_validation.disable_valid_at();
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_iat_claims)
+            .is_ok(),);
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_nbf_claims)
+            .is_ok(),);
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_iat_or_nbf_claims)
+            .is_ok(),);
+
+        // Check that expiry still is validated.
+        no_iat_claims
+            .list_of
+            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".into())
+            .unwrap();
+        no_nbf_claims
+            .list_of
+            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".into())
+            .unwrap();
+        no_iat_or_nbf_claims
+            .list_of
+            .insert("exp".to_string(), "2019-01-01T00:00:00+00:00".into())
+            .unwrap();
+        assert_eq!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_claims)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::Exp)
+        );
+        assert_eq!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_nbf_claims)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::Exp)
+        );
+        assert_eq!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_or_nbf_claims)
+                .unwrap_err(),
+            Error::ClaimValidation(ClaimValidationError::Exp)
+        );
+
+        // Setting non_expiring() will validate them again
+        no_iat_claims.non_expiring();
+        no_nbf_claims.non_expiring();
+        no_iat_or_nbf_claims.non_expiring();
+        no_iat_nbf_claims_validation.allow_non_expiring();
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_iat_claims)
+            .is_ok());
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_nbf_claims)
+            .is_ok());
+        assert!(no_iat_nbf_claims_validation
+            .validate_claims(&no_iat_or_nbf_claims)
+            .is_ok());
     }
 
     #[test]
