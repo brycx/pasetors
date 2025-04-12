@@ -743,13 +743,13 @@ mod test {
         let mut no_iat_nbf_claims_validation = claims_validation.clone();
         assert!(no_iat_nbf_claims_validation
             .validate_claims(&no_iat_claims)
-            .is_ok(),);
+            .is_ok());
         assert!(no_iat_nbf_claims_validation
             .validate_claims(&no_nbf_claims)
-            .is_ok(),);
+            .is_ok());
         assert!(no_iat_nbf_claims_validation
             .validate_claims(&no_iat_or_nbf_claims)
-            .is_ok(),);
+            .is_ok());
 
         no_iat_claims.list_of.remove("iat").unwrap();
         no_nbf_claims.list_of.remove("nbf").unwrap();
@@ -762,13 +762,14 @@ mod test {
                 .unwrap_err(),
             Error::ClaimValidation(ClaimValidationError::NoIat)
         );
-        // Normal validation fails without iat
+        // Normal validation fails without nbf
         assert_eq!(
             claims_validation
                 .validate_claims(&no_nbf_claims)
                 .unwrap_err(),
             Error::ClaimValidation(ClaimValidationError::NoNbf)
         );
+        // Normal validation fails without iat and nbf
         assert_eq!(
             claims_validation
                 .validate_claims(&no_iat_or_nbf_claims)
@@ -777,17 +778,17 @@ mod test {
             Error::ClaimValidation(ClaimValidationError::NoNbf)
         );
 
-        // Disable iat, nbf validation passes
+        // Disable iat+nbf validation passes
         no_iat_nbf_claims_validation.disable_valid_at();
         assert!(no_iat_nbf_claims_validation
             .validate_claims(&no_iat_claims)
-            .is_ok(),);
+            .is_ok());
         assert!(no_iat_nbf_claims_validation
             .validate_claims(&no_nbf_claims)
-            .is_ok(),);
+            .is_ok());
         assert!(no_iat_nbf_claims_validation
             .validate_claims(&no_iat_or_nbf_claims)
-            .is_ok(),);
+            .is_ok());
 
         // Check that expiry still is validated.
         no_iat_claims
