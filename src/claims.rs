@@ -333,7 +333,7 @@ impl ClaimsValidationRules {
     /// - The claims values cannot be converted to `str`
     /// - `iat`, `nbf` and `exp` fail `str -> DateTime` conversion
     /// - Claim `iss`, `sub`, `aud`, `jti` does not match the expected
-    /// - `claims` has no `nbf` or `iat`
+    /// - `claims` has no `nbf` or `iat` (unless [`Self::disable_valid_at()`] has been set)
     /// - a claim was registered for validation in the rules but is missing from the actual `claims`
     ///
     /// NOTE: This __does not__ validate any non-registered claims (see [`Claims::REGISTERED_CLAIMS`]). They must be validated
