@@ -862,4 +862,69 @@ mod tests {
         );
         assert!(validate_paserk_string(&too_long, "k4", "public", V4::PUBLIC_KEY).is_err());
     }
+
+    #[test]
+    #[cfg(any(feature = "v4", feature = "v3", feature = "v2"))]
+    fn test_id_tryfrom_string() {
+        assert_eq!(Id::try_from("k2.public").unwrap_err(), Error::PaserkParsing);
+        assert_eq!(
+            Id::try_from("k2.public.secret.kid").unwrap_err(),
+            Error::PaserkParsing
+        );
+
+        // We don't have V3 local so lid should be invalid.
+        assert_eq!(
+            Id::try_from("k3.lid.something").unwrap_err(),
+            Error::PaserkParsing
+        );
+        // `nid` invalid
+        assert_eq!(
+            Id::try_from("k2.nid.something").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k3.nid.something").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k4.nid.something").unwrap_err(),
+            Error::PaserkParsing
+        );
+
+        // bad expected length
+        assert_eq!(
+            Id::try_from("k2.lid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k2.sid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k2.pid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+
+        assert_eq!(
+            Id::try_from("k3.sid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k3.pid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+
+        assert_eq!(
+            Id::try_from("k4.lid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k4.sid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+        assert_eq!(
+            Id::try_from("k4.pid.toosmall").unwrap_err(),
+            Error::PaserkParsing
+        );
+    }
 }

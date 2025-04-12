@@ -120,6 +120,19 @@
 //!
 //! # Ok::<(), pasetors::errors::Error>(())
 //! ```
+//! ### Disabling validation of `iat` and `nbf`
+//! ```rust
+//! use pasetors::claims::{Claims, ClaimsValidationRules};
+//!
+//! // Standard claims with default `iat`, `nbf` and `exp` present
+//! let claims = Claims::new()?;
+//! // Skipping validation of `iat` and `nbf` claims (still checking expiry unless specifically disabled as above),
+//! // that _may_ be present in payload claims:
+//! let mut validation_rules = ClaimsValidationRules::new();
+//! validation_rules.disable_valid_at();
+//!
+//! # Ok::<(), pasetors::errors::Error>(())
+//! ```
 
 //! ## Footer with registered and custom claims
 //! ```rust
@@ -183,7 +196,6 @@
     unused_qualifications,
     overflowing_literals
 )]
-#![doc(html_root_url = "https://docs.rs/pasetors/0.6.8")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
