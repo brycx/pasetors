@@ -35,3 +35,4 @@ Please refer to the [CHANGELOG.md](https://github.com/brycx/pasetors/blob/master
 
 ### License
 pasetors is licensed under the MIT license. See the `LICENSE` file for more information.
+
