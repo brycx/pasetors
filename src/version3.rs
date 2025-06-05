@@ -412,7 +412,7 @@ mod test_wycheproof_point_compression {
     use alloc::string::String;
     use alloc::vec::Vec;
     use p384::elliptic_curve::sec1::ToEncodedPoint;
-    use serde::{Deserialize, Serialize};
+    use serde_derive::{Deserialize, Serialize};
     use std::convert::TryFrom;
     use std::fs::File;
     use std::io::BufReader;
