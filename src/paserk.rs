@@ -433,7 +433,7 @@ impl TryFrom<&str> for Id {
 mod tests {
     use super::*;
 
-    use ::serde::{Deserialize, Serialize};
+    use ::serde_derive::{Deserialize, Serialize};
     use alloc::string::String;
     use alloc::vec::Vec;
     use hex;

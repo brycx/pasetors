@@ -53,7 +53,7 @@ pub(crate) fn validate_footer_untrusted_token<T: Purpose<V>, V: Version>(
 pub(crate) mod tests {
     use alloc::string::String;
     use alloc::vec::Vec;
-    use serde::{Deserialize, Serialize};
+    use serde_derive::{Deserialize, Serialize};
     use serde_json::Value;
 
     #[allow(non_snake_case)]
