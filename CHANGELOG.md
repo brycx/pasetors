@@ -1,3 +1,9 @@
+### 0.7.6
+
+__Date:__ June 7, 2025.
+
+- Fixup for "Build serde and serde_derive in parallel" ([#192](https://github.com/brycx/pasetors/pull/192), credits: [@Enselic](https://github.com/Enselic)).
+
 ### 0.7.5
 
 __Date:__ June 7, 2025.
