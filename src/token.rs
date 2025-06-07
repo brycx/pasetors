@@ -88,7 +88,10 @@ impl<V: Version> Purpose<V> for Local {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 /// A [`TrustedToken`] is returned by either a `verify()` or `decrypt()` operation and represents
 /// a validated token.
 ///
@@ -199,7 +202,10 @@ impl TryFrom<&TrustedToken> for Footer {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 /// [`UntrustedToken`] can parse PASETO tokens in order to extract individual parts of it.
 ///
 /// A use-case for this would be parsing the tokens footer, if this is not known before receiving it. Then,

@@ -79,10 +79,14 @@ optional = true
 [dependencies.serde]
 version = "1.0"
 optional = true
-features = ["derive"]
+
+[dependencies.serde_derive]
+version = "1.0"
+optional = true
 
 [features]
 default = ["std", "v4", "paserk"]
+serde = ["dep:serde", "dep:serde_derive"]
 std = ["serde_json", "time", "regex"]
 v2 = ["orion", "ed25519-compact"]
 v3 = ["rand_core", "p384", "sha2"]
