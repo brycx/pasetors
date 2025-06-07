@@ -76,8 +76,11 @@ jobs:
         with:
           toolchain: stable
           targets: ${{ matrix.arch }}
+      # Remediation for potential template-injection: https://docs.zizmor.sh/audits/#template-injection
+      - env:
+        WASM_TARGET: ${{ matrix.arch }}
 
-      - run: RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo check --no-default-features --features v2,v3,v4 --target ${{ matrix.arch }}
+      - run: RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo check --no-default-features --features v2,v3,v4 --target ${WASM_TARGET}
 
   cross_compilation:
     name: Linux/ARM/Big-Endian/32-Bit - Release tests
