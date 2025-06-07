@@ -1,3 +1,9 @@
+### 0.7.5
+
+__Date:__ TBD.
+
+- Bump MSRV to 1.85.0 (due to `base64-ct`).
+
 ### 0.7.4
 
 __Date:__ April 12, 2025.
