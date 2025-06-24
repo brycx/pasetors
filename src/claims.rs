@@ -50,6 +50,17 @@ impl Claims {
         Ok(claims)
     }
 
+    /// Format a DateTime claim in ISO 8601 without fractional seconds.
+    ///
+    /// Omitting fractional seconds is recommended by PASETO spec:
+    /// > While arbitrary fractional seconds SHOULD be supported in parsers, is RECOMMENDED to omit them on creation.
+    fn format_datetime(time: OffsetDateTime) -> Result<String, Error> {
+        time.replace_nanosecond(0)
+            .map_err(|_| Error::InvalidClaim)?
+            .format(&Rfc3339)
+            .map_err(|_| Error::InvalidClaim)
+    }
+
     /// Set `iat`, `nbf`, `exp` claims expiring in `duration`, setting:
     /// - `iat`, `nbf` to current UTC time
     /// - `iat + duration`
@@ -63,9 +74,9 @@ impl Claims {
         let mut exp = iat;
         exp += Duration::try_from(*duration).map_err(|_| Error::InvalidClaim)?;
 
-        self.issued_at(&iat.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-        self.not_before(&nbf.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
-        self.expiration(&exp.format(&Rfc3339).map_err(|_| Error::InvalidClaim)?)?;
+        self.issued_at(&Self::format_datetime(iat)?)?;
+        self.not_before(&Self::format_datetime(nbf)?)?;
+        self.expiration(&Self::format_datetime(exp)?)?;
 
         Ok(())
     }
@@ -498,6 +509,47 @@ mod test {
 
         let validation_rules = ClaimsValidationRules::default();
         assert!(validation_rules.validate_claims(&claims).is_err());
+    }
+
+    #[test]
+    fn test_datetime_fractional_seconds() {
+        let mut claims = Claims::new().unwrap();
+
+        // Omitting fractional seconds on creation
+        const LEN: usize = "2025-06-24T18:03:53Z".len();
+        assert_eq!(
+            claims.get_claim("exp").unwrap().as_str().unwrap().len(),
+            LEN
+        );
+        assert_eq!(
+            claims.get_claim("nbf").unwrap().as_str().unwrap().len(),
+            LEN
+        );
+        assert_eq!(
+            claims.get_claim("iat").unwrap().as_str().unwrap().len(),
+            LEN
+        );
+
+        // Arbitrary fractional seconds SHOULD be supported in parsers
+        assert!(claims.expiration("9999-01-01T00:00:00Z").is_ok());
+        assert!(claims.not_before("1970-01-01T00:00:00+00:00").is_ok());
+        assert!(claims.issued_at("1970-01-01T00:00:00+00:00").is_ok());
+
+        let validation_rules = ClaimsValidationRules::default();
+        assert!(validation_rules.validate_claims(&claims).is_ok());
+
+        assert!(claims
+            .expiration("9999-01-01T00:00:00.1234567890123456789012345678901234567890+00:00")
+            .is_ok());
+        assert!(claims
+            .not_before("1970-01-01T00:00:00.1234567890123456789012345678901234567890Z")
+            .is_ok());
+        assert!(claims
+            .issued_at("1970-01-01T00:00:00.1234567890123456789012345678901234567890+00:00")
+            .is_ok());
+
+        let validation_rules = ClaimsValidationRules::default();
+        assert!(validation_rules.validate_claims(&claims).is_ok());
     }
 
     #[test]

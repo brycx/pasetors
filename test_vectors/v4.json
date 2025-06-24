@@ -92,6 +92,16 @@
       "implicit-assertion": "{\"test-vector\":\"4-E-9\"}"
     },
     {
+      "name": "4-E-10",
+      "expect-fail": false,
+      "key": "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f",
+      "nonce": "0000000000000000000000000000000000000000000000000000000000000000",
+      "token": "v4.local.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAr68PS4AXe7If_ZgesdkUMvSwscFlAl1pk5HC0e8kApeaqMfGo_7OpBnwJOAbY9V7WU6abu74MmcUE8YXQmYC7FN5TiAT7Bou4G1DMqRIzEs0H8QfAlKN-X-j7a7tAcRex7a7GVwDvJ9inDh61wlrJbn_sQUwDVv4Kpk0lvlcj9SJPN48SAsU4WGjDq4",
+      "payload": "{\"data\":\"this is a secret message\",\"exp\":\"2022-01-01T00:00:00.1234567890123456789012345678901234567890+00:00\"}",
+      "footer": "",
+      "implicit-assertion": ""
+    },
+    {
       "name": "4-S-1",
       "expect-fail": false,
       "public-key": "1eb9dbbbbc047c03fd70604e0071f0987e16b28b757225c11f00415d0e20b1a2",
