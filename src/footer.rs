@@ -203,7 +203,7 @@ mod tests {
         let mut footer = Footer::default();
         for n in 1..=11 {
             footer
-                .add_additional(format!("{}", n).as_str(), "test")
+                .add_additional(format!("{n}").as_str(), "test")
                 .unwrap();
         }
 
@@ -219,7 +219,7 @@ mod tests {
         let mut footer = Footer::new();
         for n in 1..=11 {
             footer
-                .add_additional(format!("{}", n).as_str(), "test")
+                .add_additional(format!("{n}").as_str(), "test")
                 .unwrap();
         }
         let ser_footer = footer.to_string().unwrap();
