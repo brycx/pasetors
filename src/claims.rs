@@ -83,9 +83,7 @@ impl Claims {
 
     /// Removes the `exp` claim, indicating a token that never expires.
     pub fn non_expiring(&mut self) {
-        if self.contains_claim("exp") {
-            self.list_of.remove_entry("exp").unwrap();
-        }
+        self.remove_claim("exp");
     }
 
     /// Add additional claims. If `claim` already exists, it is replaced with the new.
@@ -112,6 +110,14 @@ impl Claims {
     /// None otherwise.
     pub fn get_claim(&self, claim: &str) -> Option<&Value> {
         self.list_of.get(claim)
+    }
+
+    /// Remove a claim from the claims list.
+    ///
+    /// Return Some(claim value) if claims list contains the `claim`.
+    /// None otherwise.
+    pub fn remove_claim(&mut self, claim: &str) -> Option<Value> {
+        self.list_of.remove(claim)
     }
 
     /// Set the `iss` claim. If it already exists, replace it with the new.
