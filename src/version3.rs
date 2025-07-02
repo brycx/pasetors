@@ -353,7 +353,7 @@ mod test_vectors {
 
         test_pk_conversion(&pk);
 
-        let footer: Option<&[u8]> = if test.footer.as_bytes().is_empty() {
+        let footer: Option<&[u8]> = if test.footer.is_empty() {
             None
         } else {
             Some(test.footer.as_bytes())

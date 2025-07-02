@@ -294,7 +294,7 @@ mod test_vectors {
             SymmetricKey::<V2>::from(&hex::decode(test.key.as_ref().unwrap()).unwrap()).unwrap();
 
         let nonce = hex::decode(test.nonce.as_ref().unwrap()).unwrap();
-        let footer: Option<&[u8]> = if test.footer.as_bytes().is_empty() {
+        let footer: Option<&[u8]> = if test.footer.is_empty() {
             None
         } else {
             Some(test.footer.as_bytes())
@@ -348,7 +348,7 @@ mod test_vectors {
             &hex::decode(test.public_key.as_ref().unwrap()).unwrap(),
         )
         .unwrap();
-        let footer: Option<&[u8]> = if test.footer.as_bytes().is_empty() {
+        let footer: Option<&[u8]> = if test.footer.is_empty() {
             None
         } else {
             Some(test.footer.as_bytes())
