@@ -1,6 +1,6 @@
 ### 0.7.7
 
-__Date:__ TBD, 2025.
+__Date:__ July 16, 2025.
 
 - Omit fractional seconds in `DateTime` claims on creation ([#200](https://github.com/brycx/pasetors/pull/200), credits: [@Chaoses-Ib](https://github.com/Chaoses-Ib)).
 - Add `remove_claim()` to `Claims` ([#201](https://github.com/brycx/pasetors/pull/201), credits: [@Chaoses-Ib](https://github.com/Chaoses-Ib)).
