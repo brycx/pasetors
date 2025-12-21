@@ -8,15 +8,17 @@ on:
 
 permissions: {}
 
+# We don't need to run older workflows for the same PR's, since we always want the output of the newest ones.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   zizmor:
     name: zizmor latest via PyPI
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
-      # required for workflows in private repositories
-      contents: read
-      actions: read
+      security-events: write # required for the results to be written to repo security dashboard
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
