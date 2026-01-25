@@ -2,7 +2,7 @@
 
 __Date:__ TBD.
 
--  Bump MSRV to `1.87`.
+-  Bump MSRV to `1.88`.
 
 ### 0.7.7
 
