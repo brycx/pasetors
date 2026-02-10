@@ -34,7 +34,7 @@ default-features = false
 optional = true
 
 [dependencies.getrandom]
-version = "0.3"
+version = "0.4"
 
 [dependencies.ct-codecs]
 version = "1.1.1"
