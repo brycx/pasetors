@@ -2,7 +2,8 @@
 
 __Date:__ TBD.
 
--  Bump MSRV to `1.88`.
+- Bump MSRV to `1.88`.
+- Bump `getrandom` to `0.4`.
 
 ### 0.7.7
 
