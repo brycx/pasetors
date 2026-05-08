@@ -26,14 +26,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
-        with:
-          toolchain: ${{ matrix.toolchain }}
+        env: 
+          TARGET_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: rustup toolchain install "${TARGET_TOOLCHAIN}"
+        shell: bash
 
       - name: Test debug-mode
         run: cargo test --all-features
@@ -75,14 +76,15 @@ jobs:
           - wasm32-wasip1
           - wasm32-wasip2
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
-        with:
-          toolchain: stable
-          targets: ${{ matrix.arch }}
+      - name: Install toolchain
+        env: 
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: rustup toolchain install stable && rustup target add "${TARGET_ARCH}"
+        shell: bash
 
       - run: cargo check --no-default-features --features v2,v3,v4 --target ${WASM_TARGET}
         # Remediation for potential template-injection: https://docs.zizmor.sh/audits/#template-injection
@@ -99,11 +101,11 @@ jobs:
           - armv7-unknown-linux-gnueabihf
           - powerpc64-unknown-linux-gnu
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - uses: houseabsolute/actions-rust-cross@a8cc74d61047fa553b4e908b4b10e70029f00ca6
+      - uses: houseabsolute/actions-rust-cross@a8cc74d61047fa553b4e908b4b10e70029f00ca6 # v1.0.6
         with:
           command: test
           target: ${{ matrix.arch }}
@@ -113,13 +115,12 @@ jobs:
     name: Build documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
-        with:
-          toolchain: stable
+      - name: Install toolchain
+        run: rustup toolchain install stable
 
       - run: cargo doc --no-deps --all-features
 
@@ -127,10 +128,10 @@ jobs:
     name: Check SemVer
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - uses: obi1kenobi/cargo-semver-checks-action@5b298c9520f7096a4683c0bd981a7ac5a7e249ae
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
       
       - run: cargo semver-checks
