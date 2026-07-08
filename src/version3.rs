@@ -25,12 +25,11 @@ use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
-use p384::ecdsa::{
-    signature::DigestSigner, signature::DigestVerifier, Signature, SigningKey, VerifyingKey,
-};
-use p384::elliptic_curve::sec1::ToEncodedPoint;
+use p384::ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
+use p384::ecdsa::{Signature, SigningKey, VerifyingKey};
+use p384::elliptic_curve::sec1::ToSec1Point;
+use p384::elliptic_curve::Generate as p384Generate;
 use p384::PublicKey;
-use rand_core::OsRng;
 use sha2::Digest;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -77,18 +76,17 @@ impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
     fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
-        let sk = SigningKey::from_bytes(value.as_bytes().into()).map_err(|_| Error::Key)?;
-        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
+        let sk = SigningKey::try_from(value.as_bytes()).map_err(|_| Error::Key)?;
+        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_sec1_point(true).as_bytes())
     }
 }
 
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
-        let key = SigningKey::random(&mut OsRng);
+        let key = SigningKey::try_generate().map_err(|_| Error::Csprng)?;
 
-        let public = AsymmetricPublicKey::<V3>::from(
-            VerifyingKey::from(&key).to_encoded_point(true).as_ref(),
-        )?;
+        let public =
+            AsymmetricPublicKey::<V3>::from(VerifyingKey::from(&key).to_sec1_point(true).as_ref())?;
         let secret = AsymmetricSecretKey::<V3>::from(key.to_bytes().as_slice())?;
 
         Ok(Self { public, secret })
@@ -141,7 +139,7 @@ impl TryFrom<&UncompressedPublicKey> for AsymmetricPublicKey<V3> {
 
     fn try_from(value: &UncompressedPublicKey) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: value.0.to_encoded_point(true).as_ref().to_vec(),
+            bytes: value.0.to_sec1_point(true).as_ref().to_vec(),
             phantom: PhantomData,
         })
     }
@@ -167,19 +165,16 @@ impl PublicToken {
             return Err(Error::EmptyPayload);
         }
 
-        let signing_key =
-            SigningKey::from_bytes(secret_key.as_bytes().into()).map_err(|_| Error::Key)?;
-        let public_key = VerifyingKey::from(&signing_key).to_encoded_point(true);
+        let signing_key = SigningKey::try_from(secret_key.as_bytes()).map_err(|_| Error::Key)?;
+        let public_key = VerifyingKey::from(&signing_key).to_sec1_point(true);
 
         let f = footer.unwrap_or(&[]);
         let i = implicit_assert.unwrap_or(&[]);
         let m2 = pae::pae(&[public_key.as_ref(), Self::HEADER.as_bytes(), message, f, i])?;
 
-        let mut msg_digest = sha2::Sha384::new();
-        msg_digest.update(m2);
-
+        let msg_digest = sha2::Sha384::digest(&m2);
         let sig: Signature = signing_key
-            .try_sign_digest(msg_digest)
+            .sign_prehash(&msg_digest)
             .map_err(|_| Error::Signing)?;
         debug_assert_eq!(sig.to_bytes().len(), V3::PUBLIC_SIG);
 
@@ -221,10 +216,9 @@ impl PublicToken {
         let verifying_key =
             VerifyingKey::from_sec1_bytes(public_key.as_bytes()).map_err(|_| Error::Key)?;
 
-        let mut msg_digest = sha2::Sha384::new();
-        msg_digest.update(m2);
+        let msg_digest = sha2::Sha384::digest(m2);
         verifying_key
-            .verify_digest(msg_digest, &s)
+            .verify_prehash(&msg_digest, &s)
             .map_err(|_| Error::TokenValidation)?;
 
         TrustedToken::_new(Self::HEADER, m, f, i)
@@ -236,7 +230,7 @@ mod test_regression {
     use super::*;
     use crate::keys::AsymmetricPublicKey;
     use core::convert::TryFrom;
-    use p384::elliptic_curve::sec1::ToEncodedPoint;
+    use p384::elliptic_curve::sec1::ToSec1Point;
 
     #[test]
     fn fuzzer_regression_1() {
@@ -250,13 +244,13 @@ mod test_regression {
         ];
 
         let uc_pk = UncompressedPublicKey::try_from(pk_bytes.as_ref()).unwrap();
-        assert_eq!(&pk_bytes, &uc_pk.0.to_encoded_point(false).as_ref());
+        assert_eq!(&pk_bytes, &uc_pk.0.to_sec1_point(false).as_ref());
         let c_pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
         assert_eq!(&c_pk.as_bytes()[1..], &pk_bytes[1..49]);
 
         let round = UncompressedPublicKey::try_from(&c_pk).unwrap();
 
-        assert_eq!(round.0.to_encoded_point(false).as_ref(), pk_bytes);
+        assert_eq!(round.0.to_sec1_point(false).as_ref(), pk_bytes);
     }
 
     #[test]
@@ -411,7 +405,7 @@ mod test_wycheproof_point_compression {
     use crate::keys::AsymmetricPublicKey;
     use alloc::string::String;
     use alloc::vec::Vec;
-    use p384::elliptic_curve::sec1::ToEncodedPoint;
+    use p384::elliptic_curve::sec1::ToSec1Point;
     use serde_derive::{Deserialize, Serialize};
     use std::convert::TryFrom;
     use std::fs::File;
@@ -485,7 +479,7 @@ mod test_wycheproof_point_compression {
                     UncompressedPublicKey::try_from(&pk)
                         .unwrap()
                         .0
-                        .to_encoded_point(false)
+                        .to_sec1_point(false)
                         .as_ref()
                 ),
                 test_group.key.uncompressed,

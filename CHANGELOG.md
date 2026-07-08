@@ -1,3 +1,15 @@
+### 0.7.9
+
+__Date:__ TBD.
+
+- Bump `ed25519-compact` from `2.0.2` to `2.3.1`.
+- Bump `zeroize` from `1.4.1` to `1.9`.
+- Bump `subtle` from `2.4.1` to `2.6.1`.
+- Bump `p384` from `0.13.0` to `0.14.0`.
+- Bump `sha2` from `0.10.2` to `0.11.0`.
+- Remove `rand_core` from dependencies.
+
+
 ### 0.7.8
 
 __Date:__ February 23, 2026.
