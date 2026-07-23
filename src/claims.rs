@@ -476,15 +476,21 @@ mod test {
         assert!(claims.add_additional("iss", "test").is_err());
         assert!(claims.add_additional("sub", "test").is_err());
         assert!(claims.add_additional("aud", "test").is_err());
-        assert!(claims
-            .add_additional("exp", "2014-11-28T21:00:09+09:00")
-            .is_err());
-        assert!(claims
-            .add_additional("nbf", "2014-11-28T21:00:09+09:00")
-            .is_err());
-        assert!(claims
-            .add_additional("iat", "2014-11-28T21:00:09+09:00")
-            .is_err());
+        assert!(
+            claims
+                .add_additional("exp", "2014-11-28T21:00:09+09:00")
+                .is_err()
+        );
+        assert!(
+            claims
+                .add_additional("nbf", "2014-11-28T21:00:09+09:00")
+                .is_err()
+        );
+        assert!(
+            claims
+                .add_additional("iat", "2014-11-28T21:00:09+09:00")
+                .is_err()
+        );
         assert!(claims.add_additional("jti", "test").is_err());
 
         assert!(claims.add_additional("not_reserved", "test").is_ok());
@@ -494,15 +500,21 @@ mod test {
     fn test_failed_datetime_parsing() {
         let mut claims = Claims::new().unwrap();
 
-        assert!(claims
-            .expiration("this is not a ISO 8601 DateTime string")
-            .is_err());
-        assert!(claims
-            .not_before("this is not a ISO 8601 DateTime string")
-            .is_err());
-        assert!(claims
-            .issued_at("this is not a ISO 8601 DateTime string")
-            .is_err());
+        assert!(
+            claims
+                .expiration("this is not a ISO 8601 DateTime string")
+                .is_err()
+        );
+        assert!(
+            claims
+                .not_before("this is not a ISO 8601 DateTime string")
+                .is_err()
+        );
+        assert!(
+            claims
+                .issued_at("this is not a ISO 8601 DateTime string")
+                .is_err()
+        );
 
         claims.list_of.insert(
             "iat".to_string(),
@@ -544,15 +556,21 @@ mod test {
         let validation_rules = ClaimsValidationRules::default();
         assert!(validation_rules.validate_claims(&claims).is_ok());
 
-        assert!(claims
-            .expiration("9999-01-01T00:00:00.1234567890123456789012345678901234567890+00:00")
-            .is_ok());
-        assert!(claims
-            .not_before("1970-01-01T00:00:00.1234567890123456789012345678901234567890Z")
-            .is_ok());
-        assert!(claims
-            .issued_at("1970-01-01T00:00:00.1234567890123456789012345678901234567890+00:00")
-            .is_ok());
+        assert!(
+            claims
+                .expiration("9999-01-01T00:00:00.1234567890123456789012345678901234567890+00:00")
+                .is_ok()
+        );
+        assert!(
+            claims
+                .not_before("1970-01-01T00:00:00.1234567890123456789012345678901234567890Z")
+                .is_ok()
+        );
+        assert!(
+            claims
+                .issued_at("1970-01-01T00:00:00.1234567890123456789012345678901234567890+00:00")
+                .is_ok()
+        );
 
         let validation_rules = ClaimsValidationRules::default();
         assert!(validation_rules.validate_claims(&claims).is_ok());
@@ -716,23 +734,29 @@ mod test {
         outdated_claims.non_expiring();
         let mut claims_validation_allow_expiry = claims_validation.clone();
         // Rules not yet defined to allow non-expiring
-        assert!(claims_validation_allow_expiry
-            .validate_claims(&outdated_claims)
-            .is_err());
+        assert!(
+            claims_validation_allow_expiry
+                .validate_claims(&outdated_claims)
+                .is_err()
+        );
         claims_validation_allow_expiry.allow_non_expiring();
         // Test if claim has `exp` but rules dictate allowing non-expiring (which is ignored
         // as long as `exp` is present in the claims) so it's still expired
         outdated_claims
             .expiration("2019-01-01T00:00:00+00:00")
             .unwrap();
-        assert!(claims_validation_allow_expiry
-            .validate_claims(&outdated_claims)
-            .is_err());
+        assert!(
+            claims_validation_allow_expiry
+                .validate_claims(&outdated_claims)
+                .is_err()
+        );
         // Missing `exp` and allow in rules match
         outdated_claims.non_expiring();
-        assert!(claims_validation_allow_expiry
-            .validate_claims(&outdated_claims)
-            .is_ok());
+        assert!(
+            claims_validation_allow_expiry
+                .validate_claims(&outdated_claims)
+                .is_ok()
+        );
 
         // In-future
         let mut future_claims = claims.clone();
@@ -802,15 +826,21 @@ mod test {
         let mut no_nbf_claims = claims.clone();
         let mut no_iat_or_nbf_claims = claims.clone();
         let mut no_iat_nbf_claims_validation = claims_validation.clone();
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_iat_claims)
-            .is_ok());
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_nbf_claims)
-            .is_ok());
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_iat_or_nbf_claims)
-            .is_ok());
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_claims)
+                .is_ok()
+        );
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_nbf_claims)
+                .is_ok()
+        );
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_or_nbf_claims)
+                .is_ok()
+        );
 
         no_iat_claims.list_of.remove("iat").unwrap();
         no_nbf_claims.list_of.remove("nbf").unwrap();
@@ -841,15 +871,21 @@ mod test {
 
         // Disable iat+nbf validation passes
         no_iat_nbf_claims_validation.disable_valid_at();
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_iat_claims)
-            .is_ok());
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_nbf_claims)
-            .is_ok());
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_iat_or_nbf_claims)
-            .is_ok());
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_claims)
+                .is_ok()
+        );
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_nbf_claims)
+                .is_ok()
+        );
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_or_nbf_claims)
+                .is_ok()
+        );
 
         // Check that expiry still is validated.
         no_iat_claims
@@ -888,15 +924,21 @@ mod test {
         no_nbf_claims.non_expiring();
         no_iat_or_nbf_claims.non_expiring();
         no_iat_nbf_claims_validation.allow_non_expiring();
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_iat_claims)
-            .is_ok());
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_nbf_claims)
-            .is_ok());
-        assert!(no_iat_nbf_claims_validation
-            .validate_claims(&no_iat_or_nbf_claims)
-            .is_ok());
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_claims)
+                .is_ok()
+        );
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_nbf_claims)
+                .is_ok()
+        );
+        assert!(
+            no_iat_nbf_claims_validation
+                .validate_claims(&no_iat_or_nbf_claims)
+                .is_ok()
+        );
     }
 
     #[test]

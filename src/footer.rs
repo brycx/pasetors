@@ -209,9 +209,11 @@ mod tests {
 
         let mut footer_parse = Footer::default();
         footer_parse.max_keys(10);
-        assert!(footer_parse
-            .parse_bytes(footer.to_string().unwrap().as_bytes())
-            .is_err());
+        assert!(
+            footer_parse
+                .parse_bytes(footer.to_string().unwrap().as_bytes())
+                .is_err()
+        );
     }
 
     #[test]

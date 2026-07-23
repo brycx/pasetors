@@ -9,6 +9,7 @@
 //! the compressed form.
 //! - PASETO recommends use of deterministic nonces ([RFC 6979]) which this library also uses.
 //! - Hedged signatures, according to the PASETO spec, are not used.
+//! - This library normalizes signature `S` on signing, but does NOT require it on verification. The spec has no mention hereof, and is therefor still compliant.
 //!
 //! [AsymmetricPublicKey<V3>]: crate::keys::AsymmetricPublicKey
 //! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
@@ -25,12 +26,11 @@ use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
-use p384::ecdsa::{
-    signature::DigestSigner, signature::DigestVerifier, Signature, SigningKey, VerifyingKey,
-};
-use p384::elliptic_curve::sec1::ToEncodedPoint;
 use p384::PublicKey;
-use rand_core::OsRng;
+use p384::ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
+use p384::ecdsa::{Signature, SigningKey, VerifyingKey};
+use p384::elliptic_curve::Generate as p384Generate;
+use p384::elliptic_curve::sec1::ToSec1Point;
 use sha2::Digest;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -77,18 +77,17 @@ impl TryFrom<&AsymmetricSecretKey<V3>> for AsymmetricPublicKey<V3> {
     type Error = Error;
 
     fn try_from(value: &AsymmetricSecretKey<V3>) -> Result<Self, Self::Error> {
-        let sk = SigningKey::from_bytes(value.as_bytes().into()).map_err(|_| Error::Key)?;
-        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_encoded_point(true).as_bytes())
+        let sk = SigningKey::try_from(value.as_bytes()).map_err(|_| Error::Key)?;
+        AsymmetricPublicKey::<V3>::from(sk.verifying_key().to_sec1_point(true).as_bytes())
     }
 }
 
 impl Generate<AsymmetricKeyPair<V3>, V3> for AsymmetricKeyPair<V3> {
     fn generate() -> Result<AsymmetricKeyPair<V3>, Error> {
-        let key = SigningKey::random(&mut OsRng);
+        let key = SigningKey::try_generate().map_err(|_| Error::Csprng)?;
 
-        let public = AsymmetricPublicKey::<V3>::from(
-            VerifyingKey::from(&key).to_encoded_point(true).as_ref(),
-        )?;
+        let public =
+            AsymmetricPublicKey::<V3>::from(VerifyingKey::from(&key).to_sec1_point(true).as_ref())?;
         let secret = AsymmetricSecretKey::<V3>::from(key.to_bytes().as_slice())?;
 
         Ok(Self { public, secret })
@@ -141,7 +140,7 @@ impl TryFrom<&UncompressedPublicKey> for AsymmetricPublicKey<V3> {
 
     fn try_from(value: &UncompressedPublicKey) -> Result<Self, Self::Error> {
         Ok(Self {
-            bytes: value.0.to_encoded_point(true).as_ref().to_vec(),
+            bytes: value.0.to_sec1_point(true).as_ref().to_vec(),
             phantom: PhantomData,
         })
     }
@@ -167,24 +166,21 @@ impl PublicToken {
             return Err(Error::EmptyPayload);
         }
 
-        let signing_key =
-            SigningKey::from_bytes(secret_key.as_bytes().into()).map_err(|_| Error::Key)?;
-        let public_key = VerifyingKey::from(&signing_key).to_encoded_point(true);
+        let signing_key = SigningKey::try_from(secret_key.as_bytes()).map_err(|_| Error::Key)?;
+        let public_key = VerifyingKey::from(&signing_key).to_sec1_point(true);
 
         let f = footer.unwrap_or(&[]);
         let i = implicit_assert.unwrap_or(&[]);
         let m2 = pae::pae(&[public_key.as_ref(), Self::HEADER.as_bytes(), message, f, i])?;
 
-        let mut msg_digest = sha2::Sha384::new();
-        msg_digest.update(m2);
-
+        let msg_digest = sha2::Sha384::digest(&m2);
         let sig: Signature = signing_key
-            .try_sign_digest(msg_digest)
+            .sign_prehash(&msg_digest)
             .map_err(|_| Error::Signing)?;
         debug_assert_eq!(sig.to_bytes().len(), V3::PUBLIC_SIG);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
-        m_sig.extend_from_slice(&sig.to_bytes());
+        m_sig.extend_from_slice(&sig.normalize_s().to_bytes());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
 
@@ -221,10 +217,9 @@ impl PublicToken {
         let verifying_key =
             VerifyingKey::from_sec1_bytes(public_key.as_bytes()).map_err(|_| Error::Key)?;
 
-        let mut msg_digest = sha2::Sha384::new();
-        msg_digest.update(m2);
+        let msg_digest = sha2::Sha384::digest(m2);
         verifying_key
-            .verify_digest(msg_digest, &s)
+            .verify_prehash(&msg_digest, &s)
             .map_err(|_| Error::TokenValidation)?;
 
         TrustedToken::_new(Self::HEADER, m, f, i)
@@ -236,7 +231,7 @@ mod test_regression {
     use super::*;
     use crate::keys::AsymmetricPublicKey;
     use core::convert::TryFrom;
-    use p384::elliptic_curve::sec1::ToEncodedPoint;
+    use p384::elliptic_curve::sec1::ToSec1Point;
 
     #[test]
     fn fuzzer_regression_1() {
@@ -250,13 +245,13 @@ mod test_regression {
         ];
 
         let uc_pk = UncompressedPublicKey::try_from(pk_bytes.as_ref()).unwrap();
-        assert_eq!(&pk_bytes, &uc_pk.0.to_encoded_point(false).as_ref());
+        assert_eq!(&pk_bytes, &uc_pk.0.to_sec1_point(false).as_ref());
         let c_pk = AsymmetricPublicKey::<V3>::try_from(&uc_pk).unwrap();
         assert_eq!(&c_pk.as_bytes()[1..], &pk_bytes[1..49]);
 
         let round = UncompressedPublicKey::try_from(&c_pk).unwrap();
 
-        assert_eq!(round.0.to_encoded_point(false).as_ref(), pk_bytes);
+        assert_eq!(round.0.to_sec1_point(false).as_ref(), pk_bytes);
     }
 
     #[test]
@@ -295,6 +290,32 @@ mod test_regression {
                     compressed_pk.as_bytes()
                 );
             }
+        }
+    }
+
+    // 3-S-2 values
+    const TEST_SK_BYTES: [u8; 48] = [
+        32, 52, 118, 9, 96, 116, 119, 172, 168, 251, 251, 197, 230, 33, 132, 85, 243, 25, 150, 105,
+        121, 46, 248, 180, 102, 250, 168, 123, 220, 103, 121, 129, 68, 200, 72, 221, 3, 102, 30,
+        237, 90, 198, 36, 97, 52, 12, 234, 150,
+    ];
+
+    #[test]
+    fn sign_emits_normalized_s() {
+        let sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
+        for i in 0..64 {
+            let message = format!("{}{}", "normalize s on sign", i);
+            let token = PublicToken::sign(&sk, message.as_bytes(), None, None).unwrap();
+            let ut = UntrustedToken::<Public, V3>::try_from(&token).unwrap();
+            let sm = ut.untrusted_message();
+            let m = ut.untrusted_payload();
+            let sig = Signature::try_from(sm[m.len()..m.len() + V3::PUBLIC_SIG].as_ref()).unwrap();
+
+            assert_eq!(
+                sig,
+                sig.normalize_s(),
+                "v3.public signature not normalized low-S"
+            );
         }
     }
 }
@@ -411,7 +432,7 @@ mod test_wycheproof_point_compression {
     use crate::keys::AsymmetricPublicKey;
     use alloc::string::String;
     use alloc::vec::Vec;
-    use p384::elliptic_curve::sec1::ToEncodedPoint;
+    use p384::elliptic_curve::sec1::ToSec1Point;
     use serde_derive::{Deserialize, Serialize};
     use std::convert::TryFrom;
     use std::fs::File;
@@ -485,7 +506,7 @@ mod test_wycheproof_point_compression {
                     UncompressedPublicKey::try_from(&pk)
                         .unwrap()
                         .0
-                        .to_encoded_point(false)
+                        .to_sec1_point(false)
                         .as_ref()
                 ),
                 test_group.key.uncompressed,
@@ -551,13 +572,15 @@ mod test_tokens {
         .unwrap();
 
         let untrusted_token = UntrustedToken::<Public, V3>::try_from(token.as_str()).unwrap();
-        assert!(PublicToken::verify(
-            &kp.public,
-            &untrusted_token,
-            Some(untrusted_token.untrusted_footer()),
-            None
-        )
-        .is_ok());
+        assert!(
+            PublicToken::verify(
+                &kp.public,
+                &untrusted_token,
+                Some(untrusted_token.untrusted_footer()),
+                None
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -653,13 +676,15 @@ mod test_tokens {
     #[test]
     fn err_on_wrong_implicit_assert() {
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
-        assert!(PublicToken::verify(
-            &test_pk,
-            &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
-            Some(FOOTER.as_bytes()),
-            None
-        )
-        .is_ok());
+        assert!(
+            PublicToken::verify(
+                &test_pk,
+                &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .is_ok()
+        );
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
