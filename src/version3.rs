@@ -179,7 +179,7 @@ impl PublicToken {
         debug_assert_eq!(sig.to_bytes().len(), V3::PUBLIC_SIG);
 
         let mut m_sig: Vec<u8> = Vec::from(message);
-        m_sig.extend_from_slice(&sig.to_bytes());
+        m_sig.extend_from_slice(&sig.normalize_s().to_bytes());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(m_sig)?);
 
