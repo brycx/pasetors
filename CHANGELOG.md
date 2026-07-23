@@ -2,13 +2,14 @@
 
 __Date:__ TBD.
 
+- (BREAKING) Remove `rand_core` from dependencies.
+- (BREAKING) Rust Edition 2024 (previously 2018).
 - Bump `ed25519-compact` from `2.0.2` to `2.3.1`.
 - Bump `zeroize` from `1.4.1` to `1.9`.
 - Bump `subtle` from `2.4.1` to `2.6.1`.
 - Bump `p384` from `0.13.0` to `0.14.0`.
 - Bump `sha2` from `0.10.2` to `0.11.0`.
-- Remove `rand_core` from dependencies.
-- Rust Edition 2024 (previously 2018).
+- Normalize signature `S` on signing operation in V3. This achieves higher compatability with reference PHP implementation, but does not change spec-adherence.
 
 
 ### 0.7.8

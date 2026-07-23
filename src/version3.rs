@@ -9,6 +9,7 @@
 //! the compressed form.
 //! - PASETO recommends use of deterministic nonces ([RFC 6979]) which this library also uses.
 //! - Hedged signatures, according to the PASETO spec, are not used.
+//! - This library normalizes signature `S` on signing, but does NOT require it on verification. The spec has no mention hereof, and is therefor still compliant.
 //!
 //! [AsymmetricPublicKey<V3>]: crate::keys::AsymmetricPublicKey
 //! [UncompressedPublicKey]: crate::version3::UncompressedPublicKey
@@ -289,6 +290,32 @@ mod test_regression {
                     compressed_pk.as_bytes()
                 );
             }
+        }
+    }
+
+    // 3-S-2 values
+    const TEST_SK_BYTES: [u8; 48] = [
+        32, 52, 118, 9, 96, 116, 119, 172, 168, 251, 251, 197, 230, 33, 132, 85, 243, 25, 150, 105,
+        121, 46, 248, 180, 102, 250, 168, 123, 220, 103, 121, 129, 68, 200, 72, 221, 3, 102, 30,
+        237, 90, 198, 36, 97, 52, 12, 234, 150,
+    ];
+
+    #[test]
+    fn sign_emits_normalized_s() {
+        let sk = AsymmetricSecretKey::<V3>::from(&TEST_SK_BYTES).unwrap();
+        for i in 0..64 {
+            let message = format!("{}{}", "normalize s on sign", i);
+            let token = PublicToken::sign(&sk, message.as_bytes(), None, None).unwrap();
+            let ut = UntrustedToken::<Public, V3>::try_from(&token).unwrap();
+            let sm = ut.untrusted_message();
+            let m = ut.untrusted_payload();
+            let sig = Signature::try_from(sm[m.len()..m.len() + V3::PUBLIC_SIG].as_ref()).unwrap();
+
+            assert_eq!(
+                sig,
+                sig.normalize_s(),
+                "v3.public signature not normalized low-S"
+            );
         }
     }
 }
