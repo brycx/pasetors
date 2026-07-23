@@ -1,6 +1,6 @@
 ### 0.8.0
 
-__Date:__ TBD.
+__Date:__ July 23, 2026.
 
 - (BREAKING) Remove `rand_core` from dependencies.
 - (BREAKING) Rust Edition 2024 (previously 2018).
