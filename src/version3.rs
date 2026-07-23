@@ -25,11 +25,11 @@ use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
+use p384::PublicKey;
 use p384::ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
 use p384::ecdsa::{Signature, SigningKey, VerifyingKey};
-use p384::elliptic_curve::sec1::ToSec1Point;
 use p384::elliptic_curve::Generate as p384Generate;
-use p384::PublicKey;
+use p384::elliptic_curve::sec1::ToSec1Point;
 use sha2::Digest;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -545,13 +545,15 @@ mod test_tokens {
         .unwrap();
 
         let untrusted_token = UntrustedToken::<Public, V3>::try_from(token.as_str()).unwrap();
-        assert!(PublicToken::verify(
-            &kp.public,
-            &untrusted_token,
-            Some(untrusted_token.untrusted_footer()),
-            None
-        )
-        .is_ok());
+        assert!(
+            PublicToken::verify(
+                &kp.public,
+                &untrusted_token,
+                Some(untrusted_token.untrusted_footer()),
+                None
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -647,13 +649,15 @@ mod test_tokens {
     #[test]
     fn err_on_wrong_implicit_assert() {
         let test_pk = AsymmetricPublicKey::<V3>::from(&TEST_PK_BYTES).unwrap();
-        assert!(PublicToken::verify(
-            &test_pk,
-            &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
-            Some(FOOTER.as_bytes()),
-            None
-        )
-        .is_ok());
+        assert!(
+            PublicToken::verify(
+                &test_pk,
+                &UntrustedToken::<Public, V3>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .is_ok()
+        );
         assert_eq!(
             PublicToken::verify(
                 &test_pk,

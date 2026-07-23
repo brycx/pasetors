@@ -1,6 +1,6 @@
 use crate::errors::Error;
-use crate::token::private::Purpose;
 use crate::token::UntrustedToken;
+use crate::token::private::Purpose;
 use crate::version::private::Version;
 use alloc::string::String;
 use alloc::vec::Vec;

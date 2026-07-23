@@ -1,8 +1,8 @@
 [package]
 name = "pasetors"
-version = "0.7.8"
+version = "0.8.0"
 authors = ["brycx <brycx@protonmail.com>"]
-edition = "2018"
+edition = "2024"
 description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
 keywords = ["cryptography", "crypto", "token", "paseto", "authentication"]
 categories = ["cryptography", "authentication"]

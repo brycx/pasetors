@@ -1,4 +1,4 @@
-### 0.7.9
+### 0.8.0
 
 __Date:__ TBD.
 
@@ -8,6 +8,7 @@ __Date:__ TBD.
 - Bump `p384` from `0.13.0` to `0.14.0`.
 - Bump `sha2` from `0.10.2` to `0.11.0`.
 - Remove `rand_core` from dependencies.
+- Rust Edition 2024 (previously 2018).
 
 
 ### 0.7.8

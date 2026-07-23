@@ -679,13 +679,15 @@ mod test_tokens {
     fn err_on_wrong_implicit_assert() {
         let test_pk = AsymmetricPublicKey::<V4>::from(&TEST_PK_BYTES).unwrap();
         let test_local_sk = SymmetricKey::<V4>::from(&TEST_LOCAL_SK_BYTES).unwrap();
-        assert!(PublicToken::verify(
-            &test_pk,
-            &UntrustedToken::<Public, V4>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
-            Some(FOOTER.as_bytes()),
-            None
-        )
-        .is_ok());
+        assert!(
+            PublicToken::verify(
+                &test_pk,
+                &UntrustedToken::<Public, V4>::try_from(VALID_PUBLIC_TOKEN).unwrap(),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .is_ok()
+        );
         assert_eq!(
             PublicToken::verify(
                 &test_pk,
@@ -696,13 +698,15 @@ mod test_tokens {
             .unwrap_err(),
             Error::TokenValidation
         );
-        assert!(LocalToken::decrypt(
-            &test_local_sk,
-            &UntrustedToken::<Local, V4>::try_from(VALID_LOCAL_TOKEN).unwrap(),
-            Some(FOOTER.as_bytes()),
-            None
-        )
-        .is_ok());
+        assert!(
+            LocalToken::decrypt(
+                &test_local_sk,
+                &UntrustedToken::<Local, V4>::try_from(VALID_LOCAL_TOKEN).unwrap(),
+                Some(FOOTER.as_bytes()),
+                None
+            )
+            .is_ok()
+        );
         assert_eq!(
             LocalToken::decrypt(
                 &test_local_sk,
