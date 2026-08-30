@@ -1,6 +1,6 @@
 ### 0.8.1
 
-__Date:__ TBD.
+__Date:__ August 30, 2026.
 - Bump `orion` to `0.18.0`
 
 
