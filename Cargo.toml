@@ -1,6 +1,6 @@
 [package]
 name = "pasetors"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["brycx <brycx@protonmail.com>"]
 edition = "2024"
 description = "PASETO: Platform-Agnostic Security Tokens (in Rust)"
@@ -29,7 +29,7 @@ features = ["random"]
 optional = true
 
 [dependencies.orion]
-version = "0.17.0"
+version = "0.18.0"
 default-features = false
 optional = true
 

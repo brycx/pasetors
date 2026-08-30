@@ -184,21 +184,21 @@ impl LocalToken {
         debug_assert!(nonce_key_bytes.len() == XCHACHA_NONCESIZE);
 
         // Safe unwrap()s due to lengths.
-        let nonce_key = blake2b::SecretKey::from_slice(nonce_key_bytes).unwrap();
+        let nonce_key = blake2b::SecretKey::try_from(nonce_key_bytes).unwrap();
         let mut blake2b = blake2b::Blake2b::new(&nonce_key, XCHACHA_NONCESIZE).unwrap();
         blake2b.update(message.as_ref()).unwrap();
-        let nonce = Nonce::from_slice(blake2b.finalize().unwrap().unprotected_as_bytes()).unwrap();
+        let nonce = Nonce::try_from(blake2b.finalize().unwrap().unprotected_as_ref()).unwrap();
 
         let f = footer.unwrap_or(&[]);
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce.as_ref(), f])?;
         let mut out = vec![0u8; message.len() + POLY1305_OUTSIZE + nonce.len()];
-        let sk = match SecretKey::from_slice(secret_key.as_bytes()) {
+        let sk = match SecretKey::try_from(secret_key.as_bytes()) {
             Ok(val) => val,
             Err(orion::errors::UnknownCryptoError) => return Err(Error::Key),
         };
 
-        match seal(
+        match XChaCha20Poly1305::seal(
             &sk,
             &nonce,
             message,
@@ -254,14 +254,14 @@ impl LocalToken {
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n, f])?;
         let mut out = vec![0u8; c.len() - POLY1305_OUTSIZE];
 
-        let sk = match SecretKey::from_slice(secret_key.as_bytes()) {
+        let sk = match SecretKey::try_from(secret_key.as_bytes()) {
             Ok(val) => val,
             Err(orion::errors::UnknownCryptoError) => return Err(Error::Key),
         };
 
-        match open(
+        match XChaCha20Poly1305::open(
             &sk,
-            &Nonce::from_slice(n).unwrap(),
+            &Nonce::try_from(n).unwrap(),
             c,
             Some(pre_auth.as_ref()),
             &mut out,

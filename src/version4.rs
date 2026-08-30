@@ -203,17 +203,16 @@ impl LocalToken {
         m2[..24].copy_from_slice(Self::DOMAIN_SEPARATOR_AUTH.as_bytes());
         m2[24..].copy_from_slice(n);
 
-        let sk = blake2b::SecretKey::from_slice(sk).unwrap();
+        let sk = blake2b::SecretKey::try_from(sk).unwrap();
         let mut b2_ctx = Blake2b::new(&sk, 56).unwrap();
         b2_ctx.update(&m1).unwrap();
         let tmp = b2_ctx.finalize().unwrap();
-        let enc_key = EncKey::from_slice(&tmp.unprotected_as_bytes()[..32]).unwrap();
-        let n2 = EncNonce::from_slice(&tmp.unprotected_as_bytes()[32..]).unwrap();
+        let enc_key = EncKey::try_from(&tmp.unprotected_as_ref()[..32]).unwrap();
+        let n2 = EncNonce::try_from(&tmp.unprotected_as_ref()[32..]).unwrap();
 
         b2_ctx = Blake2b::new(&sk, V4::LOCAL_TAG).unwrap();
         b2_ctx.update(&m2).unwrap();
-        let auth_key =
-            AuthKey::from_slice(b2_ctx.finalize().unwrap().unprotected_as_bytes()).unwrap();
+        let auth_key = AuthKey::try_from(b2_ctx.finalize().unwrap().unprotected_as_ref()).unwrap();
 
         Ok((enc_key, n2, auth_key))
     }
@@ -232,8 +231,9 @@ impl LocalToken {
 
         let (enc_key, n2, auth_key) = Self::key_split(secret_key.as_bytes(), nonce)?;
 
-        let mut ciphertext = vec![0u8; message.len()];
-        xchacha20::encrypt(&enc_key, &n2, 0, message, &mut ciphertext)
+        let mut ciphertext = message.to_vec();
+        let mut ctx = xchacha20::XChaCha20::new(&enc_key, &n2);
+        ctx.xor_keystream_into(&mut ciphertext)
             .map_err(|_| Error::Encryption)?;
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), nonce, ciphertext.as_slice(), f, i])?;
 
@@ -251,7 +251,7 @@ impl LocalToken {
         let mut concat = vec![0u8; concat_len];
         concat[..32].copy_from_slice(nonce);
         concat[32..32 + ciphertext.len()].copy_from_slice(ciphertext.as_slice());
-        concat[concat_len - V4::LOCAL_TAG..].copy_from_slice(tag.unprotected_as_bytes());
+        concat[concat_len - V4::LOCAL_TAG..].copy_from_slice(tag.unprotected_as_ref());
 
         let token_no_footer = format!("{}{}", Self::HEADER, encode_b64(concat)?);
 
@@ -304,12 +304,14 @@ impl LocalToken {
         let (enc_key, n2, auth_key) = Self::key_split(secret_key.as_bytes(), &n)?;
 
         let pre_auth = pae::pae(&[Self::HEADER.as_bytes(), n.as_ref(), c, f, i])?;
-        let expected_tag = blake2b::Tag::from_slice(t).map_err(|_| Error::TokenValidation)?;
+        let expected_tag = blake2b::Tag::try_from(t).map_err(|_| Error::TokenValidation)?;
         Blake2b::verify(&expected_tag, &auth_key, 32, pre_auth.as_slice())
             .map_err(|_| Error::TokenValidation)?;
 
-        let mut out = vec![0u8; c.len()];
-        xchacha20::decrypt(&enc_key, &n2, 0, c, &mut out).map_err(|_| Error::TokenValidation)?;
+        let mut out = c.to_vec();
+        let mut ctx = xchacha20::XChaCha20::new(&enc_key, &n2);
+        ctx.xor_keystream_into(&mut out)
+            .map_err(|_| Error::TokenValidation)?;
 
         TrustedToken::_new(Self::HEADER, &out, f, i)
     }
